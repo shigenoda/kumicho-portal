@@ -1,750 +1,178 @@
-import mysql from 'mysql2/promise';
-import dotenv from 'dotenv';
+import mysql from "mysql2/promise";
+import dotenv from "dotenv";
 
 dotenv.config();
 
-const connection = await mysql.createConnection(process.env.DATABASE_URL);
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+});
 
 async function seed() {
-  console.log('🌱 Seeding database...');
+  const connection = await pool.getConnection();
 
   try {
-    // Create all tables first
-    console.log('Creating tables...');
-    
+    console.log("🌱 Seeding database...");
+
+    // 1. Households（住戸）
+    console.log("📍 Seeding households...");
     await connection.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        openId VARCHAR(64) NOT NULL UNIQUE,
-        name TEXT,
-        email VARCHAR(320),
-        loginMethod VARCHAR(64),
-        role ENUM('public', 'member', 'editor', 'admin') DEFAULT 'member' NOT NULL,
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        lastSignedIn TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
+      INSERT IGNORE INTO households (householdId, moveInDate) VALUES
+      ('101', '2015-01-15'),
+      ('102', '2016-03-20'),
+      ('103', '2014-06-10'),
+      ('104', '2017-11-05'),
+      ('105', '2013-02-28'),
+      ('106', '2018-09-12'),
+      ('107', '2019-04-01'),
+      ('108', '2020-07-22'),
+      ('109', '2021-05-18'),
+      ('110', '2022-08-30')
     `);
 
+    // 2. Leader Schedule（先9年ローテ）
+    console.log("📅 Seeding leader schedule...");
     await connection.query(`
-      CREATE TABLE IF NOT EXISTS posts (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        title VARCHAR(255) NOT NULL,
-        body TEXT NOT NULL,
-        tags JSON,
-        year INT NOT NULL,
-        category ENUM('inquiry', 'answer', 'decision', 'pending', 'trouble', 'improvement') NOT NULL,
-        status ENUM('draft', 'pending', 'published') DEFAULT 'draft' NOT NULL,
-        authorId INT NOT NULL,
-        authorRole ENUM('editor', 'admin') NOT NULL,
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        publishedAt TIMESTAMP NULL,
-        relatedLinks JSON
-      )
+      INSERT IGNORE INTO leader_schedule (year, primaryHouseholdId, backupHouseholdId, status, reason) VALUES
+      (2025, '101', '102', 'confirmed', '前回担当からの経過年数で選定'),
+      (2026, '103', '104', 'conditional', '在籍確認待ち'),
+      (2027, '105', '106', 'draft', '自動計算待ち'),
+      (2028, '107', '108', 'draft', '自動計算待ち'),
+      (2029, '109', '110', 'draft', '自動計算待ち'),
+      (2030, '101', '103', 'draft', '自動計算待ち'),
+      (2031, '102', '104', 'draft', '自動計算待ち'),
+      (2032, '105', '106', 'draft', '自動計算待ち'),
+      (2033, '107', '108', 'draft', '自動計算待ち')
     `);
 
+    // 3. Leader Rotation Logic（ローテロジック）
+    console.log("🔄 Seeding leader rotation logic...");
     await connection.query(`
-      CREATE TABLE IF NOT EXISTS events (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        title VARCHAR(255) NOT NULL,
-        date TIMESTAMP NOT NULL,
-        category VARCHAR(100) NOT NULL,
-        checklist JSON,
-        notes TEXT,
-        attachments JSON,
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      )
+      INSERT IGNORE INTO leader_rotation_logic (version, logic, reason) VALUES
+      (1, '{"priority": ["yearsSinceLast", "moveInDate", "householdId"], "excludeConditions": ["exemptionApproved"]}', 'デフォルトロジック')
     `);
 
+    // 4. Events（イベント）
+    console.log("📌 Seeding events...");
     await connection.query(`
-      CREATE TABLE IF NOT EXISTS river_cleaning_runs (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        date TIMESTAMP NOT NULL,
-        participantsCount INT,
-        issues TEXT,
-        whatWorked TEXT,
-        whatToImprove TEXT,
-        attachments JSON,
-        linkedInventoryIds JSON,
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      )
+      INSERT IGNORE INTO events (title, date, description, category) VALUES
+      ('河川清掃', '2025-04-20', '春の河川清掃。朝7時集合', 'maintenance'),
+      ('定期総会', '2025-05-15', '年度初めの定期総会', 'meeting'),
+      ('夏祭り', '2025-07-26', '集合住宅の夏祭り', 'event'),
+      ('河川清掃', '2025-10-19', '秋の河川清掃。朝7時集合', 'maintenance'),
+      ('年末総会', '2025-12-10', '年度末の総会', 'meeting')
     `);
 
+    // 5. Inventory（備品）
+    console.log("📦 Seeding inventory...");
     await connection.query(`
-      CREATE TABLE IF NOT EXISTS inventory (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        photo VARCHAR(500),
-        qty INT DEFAULT 0 NOT NULL,
-        location VARCHAR(255) NOT NULL,
-        condition VARCHAR(100),
-        lastCheckedAt TIMESTAMP NULL,
-        notes TEXT,
-        tags JSON,
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      )
+      INSERT IGNORE INTO inventory (name, quantity, location, category, lastAuditDate, notes) VALUES
+      ('軍手（白）', 50, '倉庫A-1', 'supplies', '2025-01-15', '河川清掃用'),
+      ('ゴミ袋（大）', 100, '倉庫A-2', 'supplies', '2025-01-15', '45L対応'),
+      ('熊手', 10, '倉庫B-1', 'tools', '2025-01-15', '竹製'),
+      ('スコップ', 8, '倉庫B-1', 'tools', '2025-01-15', 'アルミ製'),
+      ('三角コーン', 20, '倉庫C-1', 'safety', '2025-01-15', '赤色'),
+      ('懐中電灯', 15, '倉庫C-2', 'safety', '2025-01-15', 'LED式'),
+      ('ロープ（50m）', 3, '倉庫D-1', 'tools', '2025-01-15', 'ナイロン製'),
+      ('脚立（2m）', 5, '倉庫D-2', 'tools', '2025-01-15', 'アルミ製'),
+      ('清掃用ほうき', 12, '倉庫A-3', 'supplies', '2025-01-15', 'プラスチック製'),
+      ('消火器', 4, '倉庫E-1', 'safety', '2025-01-15', '10型')
     `);
 
+    // 6. Templates（テンプレ）
+    console.log("📄 Seeding templates...");
     await connection.query(`
-      CREATE TABLE IF NOT EXISTS templates (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        title VARCHAR(255) NOT NULL,
-        body TEXT NOT NULL,
-        category VARCHAR(100) NOT NULL,
-        tags JSON,
-        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      )
+      INSERT IGNORE INTO templates (title, body, category, createdBy) VALUES
+      ('河川清掃実施のお知らせ', '焼津市 集合住宅「グリーンピア」の皆様へ\\n\\n河川清掃を下記の日程で実施いたします。\\n\\n【日時】2025年4月20日（日）午前7時集合\\n【場所】〇〇川 〇〇地点\\n【持ち物】軍手、タオル、飲み物\\n\\nご参加ください。', 'notice', 'admin'),
+      ('会費徴収のお願い', '焼津市 集合住宅「グリーンピア」の皆様へ\\n\\n本年度の会費徴収を開始いたします。\\n\\n【金額】月額 5,000円\\n【納期】毎月末日\\n【納入先】組長まで\\n\\nよろしくお願いいたします。', 'notice', 'admin'),
+      ('定期総会の開催通知', '焼津市 集合住宅「グリーンピア」の皆様へ\\n\\n定期総会を下記の日程で開催いたします。\\n\\n【日時】2025年5月15日（木）19時00分\\n【場所】集会室\\n【議題】予算承認、役員選出\\n\\nご参加ください。', 'notice', 'admin'),
+      ('問い合わせ回答テンプレ', '〇〇様へ\\n\\nいつもお世話になっております。\\n\\nご質問ありがとうございます。\\n\\n【ご質問】\\n〇〇について\\n\\n【回答】\\n〇〇です。\\n\\nご不明な点がございましたら、お気軽にお問い合わせください。', 'response', 'admin')
     `);
 
+    // 7. Rules（ルール）
+    console.log("📋 Seeding rules...");
     await connection.query(`
-      CREATE TABLE IF NOT EXISTS rules (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        title VARCHAR(255) NOT NULL,
-        status ENUM('decided', 'pending') DEFAULT 'decided' NOT NULL,
-        summary TEXT NOT NULL,
-        details TEXT NOT NULL,
-        evidenceLinks JSON,
-        tags JSON,
-        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      )
+      INSERT IGNORE INTO rules (title, details, status, category, version) VALUES
+      ('会費徴収ルール', '月額5,000円を毎月末日までに組長に納入する。\\n\\n【納入方法】\\n- 現金：組長に直接\\n- 銀行振込：指定口座へ\\n\\n【免除条件】\\n- 生活保護受給者\\n- 失業中で収入がない者\\n- 医療費が月額50,000円以上の者', 'decided', 'finance', 1),
+      ('ローテーション制度', '組長は毎年交代する。\\n\\n【選定方法】\\n1. 前回担当からの経過年数\\n2. 入居開始が古い\\n3. 住戸ID昇順\\n\\n【条件付き確定】\\n- 在籍していれば確定', 'pending', 'management', 1),
+      ('出不足金の扱い', '河川清掃などの行事に不参加の場合、出不足金を徴収する。\\n\\n【金額】\\n- 河川清掃：1,000円/回\\n- 定期総会：500円/回\\n\\n【免除条件】\\n- 病気・怪我\\n- 仕事の都合\\n- 介護・育児', 'pending', 'finance', 1)
     `);
 
+    // 8. FAQ（よくある質問）
+    console.log("❓ Seeding FAQ...");
     await connection.query(`
-      CREATE TABLE IF NOT EXISTS faq (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        question VARCHAR(500) NOT NULL,
-        answer TEXT NOT NULL,
-        relatedRuleIds JSON,
-        relatedPostIds JSON,
-        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      )
+      INSERT IGNORE INTO faq (question, answer, category, relatedLinks) VALUES
+      ('会費の納入方法は？', '月額5,000円を毎月末日までに組長に納入してください。現金または銀行振込で対応しています。', 'finance', '["会費徴収ルール"]'),
+      ('河川清掃に参加できない場合は？', '事前に組長にご連絡ください。やむを得ない理由がある場合は出不足金の免除対象になる可能性があります。', 'event', '["出不足金の扱い"]'),
+      ('ローテーション制度について教えてください', '組長は毎年交代します。選定方法は前回担当からの経過年数、入居開始日、住戸ID昇順で決定されます。', 'management', '["ローテーション制度"]'),
+      ('会費の免除申請はどうするのか？', '組長に申請書を提出してください。生活保護受給者、失業中、医療費が月額50,000円以上の方が対象です。', 'finance', '["会費徴収ルール"]'),
+      ('倉庫の鍵はどこにあるのか？', '倉庫の鍵は組長が管理しています。使用する際は組長にご連絡ください。', 'facility', '[]')
     `);
 
+    // 9. Posts（年度ログ）
+    console.log("📝 Seeding posts...");
     await connection.query(`
-      CREATE TABLE IF NOT EXISTS changelog (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        summary VARCHAR(255) NOT NULL,
-        date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        authorId INT NOT NULL,
-        authorRole ENUM('member', 'editor', 'admin') NOT NULL,
-        relatedEntityType VARCHAR(100) NOT NULL,
-        relatedEntityId INT
-      )
+      INSERT IGNORE INTO posts (title, body, category, status, year, authorId, authorRole, tags, isHypothesis, publishedAt) VALUES
+      ('河川清掃SOP v2 公開', '河川清掃の標準手順書を更新しました。準備→当日→片付けの流れを詳細に記載しています。', 'decision', 'published', 2025, 1, 'admin', '["河川清掃", "SOP"]', 0, NOW()),
+      ('会費ルール更新', '会費徴収ルールを改定しました。免除条件を明確化し、申請手続きを簡素化しています。', 'decision', 'published', 2025, 1, 'admin', '["会費", "ルール"]', 0, NOW()),
+      ('先9年ローテを確定', '2025年から2033年までの組長ローテーションを確定しました。', 'decision', 'published', 2025, 1, 'admin', '["ローテーション"]', 0, NOW()),
+      ('免除条件の条文化について（仮説）', '免除申請の条件をより明確にする必要があります。生活保護、失業、医療費の基準を検討中です。', 'pending', 'published', 2025, 1, 'admin', '["免除", "ルール"]', 1, NOW()),
+      ('過去担当履歴の穴（仮説）', '2010年～2015年の組長記録が不完全です。確認が必要です。', 'trouble', 'published', 2025, 1, 'admin', '["ローテーション", "記録"]', 1, NOW())
     `);
 
+    // 10. Changelog（変更履歴）
+    console.log("🔄 Seeding changelog...");
     await connection.query(`
-      CREATE TABLE IF NOT EXISTS secret_notes (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        title VARCHAR(255) NOT NULL,
-        body TEXT NOT NULL,
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      )
+      INSERT IGNORE INTO changelog (summary, authorRole, relatedEntityType, relatedEntityId) VALUES
+      ('先9年ローテを確定', 'admin', 'leader_schedule', 1),
+      ('会費ルール更新', 'admin', 'rule', 1),
+      ('河川清掃SOP v2 公開', 'admin', 'post', 1),
+      ('免除条件の条文化について（仮説）', 'admin', 'post', 4),
+      ('過去担当履歴の穴（仮説）', 'admin', 'post', 5)
     `);
 
-    console.log('✓ Tables created');
-
-    // Clear existing data
-    await connection.query('DELETE FROM secret_notes');
-    await connection.query('DELETE FROM changelog');
-    await connection.query('DELETE FROM faq');
-    await connection.query('DELETE FROM rules');
-    await connection.query('DELETE FROM templates');
-    await connection.query('DELETE FROM inventory');
-    await connection.query('DELETE FROM river_cleaning_runs');
-    await connection.query('DELETE FROM events');
-    await connection.query('DELETE FROM posts');
-    console.log('✓ Cleared existing data');
-
-    // 1. Events (年間カレンダー)
-    const events = [
-      {
-        title: '4月 組長会議',
-        date: new Date('2025-04-05'),
-        category: '会議',
-        notes: '新年度の組長会議。役割分担と年間スケジュール確認',
-        checklist: JSON.stringify([
-          { id: '1', text: '議事録作成', completed: false },
-          { id: '2', text: '年間スケジュール配布', completed: false },
-          { id: '3', text: '役割分担表作成', completed: false },
-        ]),
-      },
-      {
-        title: '5月 河川清掃',
-        date: new Date('2025-05-10'),
-        category: '河川清掃',
-        notes: '第1回河川清掃。天気予報確認、道具準備',
-        checklist: JSON.stringify([
-          { id: '1', text: '天気予報確認', completed: false },
-          { id: '2', text: '道具点検・洗浄', completed: false },
-          { id: '3', text: '参加者確認', completed: false },
-          { id: '4', text: '飲み物手配', completed: false },
-        ]),
-      },
-      {
-        title: '6月 会費徴収締切',
-        date: new Date('2025-06-30'),
-        category: '締切',
-        notes: '上半期会費徴収締切',
-      },
-      {
-        title: '9月 河川清掃',
-        date: new Date('2025-09-13'),
-        category: '河川清掃',
-        notes: '第2回河川清掃',
-      },
-      {
-        title: '12月 組長会議',
-        date: new Date('2025-12-06'),
-        category: '会議',
-        notes: '年度末組長会議。来年度の引き継ぎ準備',
-      },
-    ];
-
-    for (const event of events) {
-      await connection.query(
-        'INSERT INTO events (title, date, category, notes, checklist, attachments) VALUES (?, ?, ?, ?, ?, ?)',
-        [event.title, event.date, event.category, event.notes, event.checklist, JSON.stringify([])]
-      );
-    }
-    console.log('✓ Seeded events');
-
-    // 2. Inventory (備品台帳)
-    const inventory = [
-      {
-        name: 'トング（大）',
-        qty: 5,
-        location: '倉庫 棚1段目',
-        condition: '良好',
-        tags: JSON.stringify(['河川清掃', '道具']),
-        notes: '先端が少し曲がっているものあり',
-      },
-      {
-        name: 'トング（小）',
-        qty: 8,
-        location: '倉庫 棚1段目',
-        condition: '良好',
-        tags: JSON.stringify(['河川清掃', '道具']),
-      },
-      {
-        name: 'ゴミ袋（大・可燃）',
-        qty: 100,
-        location: '倉庫 棚2段目',
-        condition: '良好',
-        tags: JSON.stringify(['河川清掃', '消耗品']),
-        notes: '次回購入予定：2025年8月',
-      },
-      {
-        name: 'ゴミ袋（大・不燃）',
-        qty: 50,
-        location: '倉庫 棚2段目',
-        condition: '良好',
-        tags: JSON.stringify(['河川清掃', '消耗品']),
-      },
-      {
-        name: '熊手',
-        qty: 3,
-        location: '倉庫 棚3段目',
-        condition: '良好',
-        tags: JSON.stringify(['河川清掃', '道具']),
-      },
-      {
-        name: '防水手袋',
-        qty: 30,
-        location: '倉庫 棚2段目',
-        condition: '良好',
-        tags: JSON.stringify(['河川清掃', '消耗品']),
-      },
-      {
-        name: 'テント（2x2m）',
-        qty: 2,
-        location: '倉庫 奥 床置き',
-        condition: '良好',
-        tags: JSON.stringify(['河川清掃', '設営']),
-        notes: 'フレーム確認済み。ロープ付き',
-      },
-      {
-        name: '長靴（各サイズ）',
-        qty: 15,
-        location: '倉庫 棚4段目',
-        condition: 'やや劣化',
-        tags: JSON.stringify(['河川清掃', '個人用']),
-        notes: 'サイズ別に分類。破損品は交換予定',
-      },
-      {
-        name: 'クーラーボックス',
-        qty: 2,
-        location: '倉庫 棚3段目',
-        condition: '良好',
-        tags: JSON.stringify(['河川清掃', '設営']),
-      },
-      {
-        name: '懐中電灯',
-        qty: 5,
-        location: '倉庫 棚1段目',
-        condition: '要確認',
-        tags: JSON.stringify(['防災', '道具']),
-        notes: '電池交換予定',
-      },
-    ];
-
-    for (const item of inventory) {
-      await connection.query(
-        'INSERT INTO inventory (name, qty, location, condition, tags, notes) VALUES (?, ?, ?, ?, ?, ?)',
-        [item.name, item.qty, item.location, item.condition, item.tags, item.notes]
-      );
-    }
-    console.log('✓ Seeded inventory');
-
-    // 3. Templates (テンプレ置き場)
-    const templates = [
-      {
-        title: '河川清掃 参加依頼文',
-        category: '依頼文',
-        body: `【河川清掃 参加のお願い】
-
-日時：${new Date('2025-05-10').toLocaleDateString('ja-JP')} 午前8:00集合
-場所：グリーンピア 玄関前
-
-今年度も河川清掃を実施いたします。
-つきましては、以下の通りご協力をお願いいたします。
-
-【持ち物】
-- 長靴
-- 防水手袋
-- 帽子・タオル
-- 飲み物（各自）
-
-【注意事項】
-- 小学生以下のお子さんは保護者同伴でお願いします
-- 妊娠中の方、体調不良の方は無理なさらないでください
-
-ご不明な点は、組長までお問い合わせください。`,
-      },
-      {
-        title: '会費徴収 確認文',
-        category: '確認文',
-        body: `【会費徴収のご確認】
-
-いつもお世話になっております。
-
-本年度の会費徴収につきまして、以下の通りご案内いたします。
-
-【徴収内容】
-- 町内会費：月額 ¥1,000
-- 管理費：月額 ¥2,500
-※管理会社より直接請求いたします
-
-【お支払い方法】
-- 銀行振込（指定口座）
-- または管理会社窓口にてお支払いください
-
-【注意事項】
-- 二重徴収のないよう、ご注意ください
-- 徴収に関するご質問は、管理会社までお問い合わせください`,
-      },
-      {
-        title: '住民向け案内文',
-        category: '案内文',
-        body: `【グリーンピア 組長引き継ぎポータルについて】
-
-この度、組長業務の引き継ぎを効率化するため、
-「組長引き継ぎポータル」を開設いたしました。
-
-【利用方法】
-- ログインして、以下の情報をご確認ください：
-  ✓ 年間カレンダー
-  ✓ 河川清掃ガイド
-  ✓ 備品台帳
-  ✓ ルール・決定事項
-  ✓ よくある質問
-
-【個人情報について】
-- 氏名・部屋番号などの個人情報は保存されません
-- 安心してご利用ください`,
-      },
-      {
-        title: '未返信リマインド',
-        category: 'リマインド',
-        body: `【リマインド】お返事をお待ちしています
-
-いつもお世話になっております。
-
-先日お送りした以下の件につきまして、
-まだお返事をいただいていないようです。
-
-【確認事項】
-- [内容を記入]
-
-お手数ですが、下記までご連絡ください。
-- 組長 [名前]
-- メール：[メールアドレス]
-- 電話：[電話番号]
-
-よろしくお願いいたします。`,
-      },
-    ];
-
-    for (const template of templates) {
-      await connection.query(
-        'INSERT INTO templates (title, category, body, tags) VALUES (?, ?, ?, ?)',
-        [template.title, template.category, template.body, JSON.stringify([])]
-      );
-    }
-    console.log('✓ Seeded templates');
-
-    // 4. Rules (ルール・決定事項)
-    const rules = [
-      {
-        title: '会費徴収ルール',
-        summary: '会費は管理会社が直接徴収。二重徴収を防止',
-        status: 'decided',
-        details: `【会費徴収について】
-
-町内会費と管理費は、管理会社が直接住民から徴収します。
-組長が別途徴収することはありません。
-
-【金額】
-- 町内会費：月額 ¥1,000
-- 管理費：月額 ¥2,500
-
-【重要】
-- 住民から「会費を払った」という確認を受けた場合は、
-  管理会社に照会してください
-- 二重徴収のトラブルを防ぐため、必ず確認してください`,
-        evidenceLinks: JSON.stringify(['https://example.com/rule1']),
-        tags: JSON.stringify(['会費', '重要']),
-      },
-      {
-        title: '組長ローテーション',
-        summary: '世帯順でローテーション。免除は事前申告',
-        status: 'decided',
-        details: `【組長ローテーション】
-
-組長は、世帯順でローテーションします。
-
-【免除対象】
-- 高齢者（65歳以上）
-- 妊娠中・育児中の方
-- 健康上の理由がある方
-- その他特別な事情がある方
-
-【申告方法】
-- 前年度の組長会議で申告してください
-- 事後申告は認めません`,
-        tags: JSON.stringify(['ローテーション', '免除']),
-      },
-      {
-        title: '出不足金ルール',
-        summary: '河川清掃の欠席時は出不足金。金額は要検討',
-        status: 'pending',
-        details: `【出不足金について】
-
-河川清掃に欠席した場合、出不足金をお支払いいただきます。
-
-【現行ルール】
-- 欠席時：¥2,000
-- 代理出席：¥1,000
-
-【検討中】
-- 金額の妥当性
-- 代理出席の条件
-- 免除対象者の扱い
-
-※このルールは（仮説）です。次年度の組長会議で決定予定`,
-        tags: JSON.stringify(['出不足金', '仮説', '要検討']),
-      },
-    ];
-
-    for (const rule of rules) {
-      await connection.query(
-        'INSERT INTO rules (title, summary, status, details, evidenceLinks, tags) VALUES (?, ?, ?, ?, ?, ?)',
-        [rule.title, rule.summary, rule.status, rule.details, rule.evidenceLinks, rule.tags]
-      );
-    }
-    console.log('✓ Seeded rules');
-
-    // 5. FAQ (よくある質問)
-    const faq = [
-      {
-        question: '会費はいくらですか？',
-        answer: `町内会費は月額 ¥1,000、管理費は月額 ¥2,500 です。
-管理会社が直接徴収するため、組長を通じての支払いはありません。
-ご質問があれば、管理会社までお問い合わせください。`,
-        relatedRuleIds: JSON.stringify([1]),
-      },
-      {
-        question: '河川清掃に欠席した場合はどうなりますか？',
-        answer: `欠席の場合、出不足金（現行 ¥2,000）をお支払いいただきます。
-代理出席の場合は ¥1,000 です。
-詳細は「ルール・決定事項」をご確認ください。`,
-        relatedRuleIds: JSON.stringify([3]),
-      },
-      {
-        question: '備品はどこにありますか？',
-        answer: `備品は倉庫に保管されています。
-詳細な場所・数量は「倉庫・備品台帳」をご確認ください。
-不明な点があれば、前年度の組長にお問い合わせください。`,
-        relatedRuleIds: JSON.stringify([]),
-      },
-      {
-        question: '組長を免除してもらえますか？',
-        answer: `高齢者（65歳以上）、妊娠中・育児中の方、健康上の理由がある方は、
-前年度の組長会議で事前申告することで免除できます。
-事後申告は認めていません。`,
-        relatedRuleIds: JSON.stringify([2]),
-      },
-      {
-        question: '個人情報は保存されますか？',
-        answer: `このサイトでは、氏名・部屋番号・電話・メールなどの個人情報は
-原則保存・表示されません。
-必要な場合は、Admin限定の秘匿メモに隔離されます。`,
-        relatedRuleIds: JSON.stringify([]),
-      },
-    ];
-
-    for (const item of faq) {
-      await connection.query(
-        'INSERT INTO faq (question, answer, relatedRuleIds, relatedPostIds) VALUES (?, ?, ?, ?)',
-        [item.question, item.answer, item.relatedRuleIds, JSON.stringify([])]
-      );
-    }
-    console.log('✓ Seeded FAQ');
-
-    // 6. Posts (年度ログ)
-    const posts = [
-      {
-        title: '河川清掃の実施日時が決定しました',
-        body: `第1回河川清掃の実施日時が決定いたしました。
-
-【日時】
-2025年5月10日（土）午前8:00集合
-
-【場所】
-グリーンピア 玄関前
-
-【準備】
-- 道具の点検・洗浄
-- 飲み物の手配
-- 参加者の確認
-
-詳細は「河川清掃ガイド」をご確認ください。`,
-        category: 'decision',
-        status: 'published',
-        year: 2025,
-        authorId: 1,
-        authorRole: 'admin',
-        tags: JSON.stringify(['河川清掃', '日時決定']),
-        publishedAt: new Date('2025-04-01'),
-      },
-      {
-        title: '会費徴収について（重要）',
-        body: `会費徴収ルールについて、ご質問をいただきました。
-
-【質問】
-「会費は組長が徴収するのか？」
-
-【回答】
-いいえ。会費は管理会社が直接住民から徴収します。
-組長が別途徴収することはありません。
-
-【理由】
-- 二重徴収を防止
-- 住民の混乱を回避
-- 管理会社の統一管理
-
-詳細は「ルール・決定事項」をご確認ください。`,
-        category: 'answer',
-        status: 'published',
-        year: 2025,
-        authorId: 1,
-        authorRole: 'admin',
-        tags: JSON.stringify(['会費', 'Q&A']),
-        publishedAt: new Date('2025-04-05'),
-      },
-      {
-        title: '出不足金ルールについて（仮説）',
-        body: `出不足金ルールについて、改善提案をいただきました。
-
-【現行ルール】
-- 欠席時：¥2,000
-- 代理出席：¥1,000
-
-【改善提案】
-- 金額が高すぎないか？
-- 代理出席の条件をもっと明確にすべき
-- 免除対象者の扱いを統一すべき
-
-【対応】
-次年度の組長会議で検討予定です。
-ご意見・ご提案があれば、コメント欄にお願いします。`,
-        category: 'pending',
-        status: 'published',
-        year: 2025,
-        authorId: 1,
-        authorRole: 'admin',
-        tags: JSON.stringify(['出不足金', '仮説', '改善提案']),
-        publishedAt: new Date('2025-04-10'),
-      },
-      {
-        title: '倉庫の鍵について',
-        body: `倉庫の鍵の管理方法について、質問をいただきました。
-
-【質問】
-「倉庫の鍵はどこにありますか？」
-
-【回答】
-倉庫の鍵は、前年度の組長が保管しています。
-引き継ぎ時に受け取ってください。
-
-【注意】
-- 鍵を紛失した場合は、すぐに管理会社に報告してください
-- 鍵のコピーは禁止です`,
-        category: 'trouble',
-        status: 'published',
-        year: 2025,
-        authorId: 1,
-        authorRole: 'admin',
-        tags: JSON.stringify(['倉庫', '鍵', 'トラブル']),
-        publishedAt: new Date('2025-04-12'),
-      },
-      {
-        title: '河川清掃のチェックリストを更新しました',
-        body: `河川清掃のチェックリストを、より詳細に更新しました。
-
-【更新内容】
-- 準備段階：道具点検、飲み物手配、参加者確認
-- 当日：集合確認、役割分担、安全確認
-- 片付け：道具洗浄、保管、報告書作成
-- 次年度申し送り：改善点、工夫、トラブル記録
-
-詳細は「河川清掃ガイド」をご確認ください。`,
-        category: 'improvement',
-        status: 'published',
-        year: 2025,
-        authorId: 1,
-        authorRole: 'admin',
-        tags: JSON.stringify(['河川清掃', 'チェックリスト', '改善']),
-        publishedAt: new Date('2025-04-15'),
-      },
-    ];
-
-    for (const post of posts) {
-      await connection.query(
-        'INSERT INTO posts (title, body, category, status, year, authorId, authorRole, tags, publishedAt, relatedLinks) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [post.title, post.body, post.category, post.status, post.year, post.authorId, post.authorRole, post.tags, post.publishedAt, JSON.stringify([])]
-      );
-    }
-    console.log('✓ Seeded posts');
-
-    // 7. Changelog (変更履歴)
-    const changelog = [
-      {
-        summary: 'ポータル開設',
-        date: new Date('2025-04-01'),
-        authorId: 1,
-        authorRole: 'admin',
-        relatedEntityType: 'system',
-      },
-      {
-        summary: '河川清掃ガイド公開',
-        date: new Date('2025-04-02'),
-        authorId: 1,
-        authorRole: 'admin',
-        relatedEntityType: 'post',
-      },
-      {
-        summary: '備品台帳初期化（10件）',
-        date: new Date('2025-04-03'),
-        authorId: 1,
-        authorRole: 'admin',
-        relatedEntityType: 'inventory',
-      },
-      {
-        summary: 'ルール・決定事項公開（3ページ）',
-        date: new Date('2025-04-04'),
-        authorId: 1,
-        authorRole: 'admin',
-        relatedEntityType: 'rule',
-      },
-      {
-        summary: 'FAQ公開（5件）',
-        date: new Date('2025-04-05'),
-        authorId: 1,
-        authorRole: 'admin',
-        relatedEntityType: 'faq',
-      },
-    ];
-
-    for (const item of changelog) {
-      await connection.query(
-        'INSERT INTO changelog (summary, date, authorId, authorRole, relatedEntityType, relatedEntityId) VALUES (?, ?, ?, ?, ?, ?)',
-        [item.summary, item.date, item.authorId, item.authorRole, item.relatedEntityType, item.relatedEntityId || null]
-      );
-    }
-    console.log('✓ Seeded changelog');
-
-    // 8. Secret Notes (秘匿メモ - Admin限定)
-    const secretNotes = [
-      {
-        title: '組長連絡先（秘密）',
-        body: `【現組長】
-- 名前：田中太郎
-- 部屋：101号室
-- 電話：090-XXXX-XXXX
-- メール：tanaka@example.com
-
-【前年度組長】
-- 名前：佐藤花子
-- 部屋：202号室
-- 電話：090-YYYY-YYYY
-- メール：sato@example.com`,
-      },
-      {
-        title: '管理会社連絡先',
-        body: `【管理会社】
-グリーンピア管理センター
-- 電話：054-XXX-XXXX
-- メール：manager@greenpia.jp
-- 営業時間：平日 9:00-17:00
-
-【担当者】
-- 山田太郎（施設管理）
-- 鈴木花子（会費管理）`,
-      },
-      {
-        title: '出不足金の記録（2024年度）',
-        body: `【欠席者】
-- 101号室 田中太郎：¥2,000（2024年5月）
-- 305号室 鈴木花子：¥1,000（代理出席 2024年9月）
-
-【合計】
-¥3,000
-
-【保管】
-組長が保管。次年度に引き継ぎ予定`,
-      },
-    ];
-
-    for (const note of secretNotes) {
-      await connection.query(
-        'INSERT INTO secret_notes (title, body) VALUES (?, ?)',
-        [note.title, note.body]
-      );
-    }
-    console.log('✓ Seeded secret notes');
-
-    console.log('✅ Seeding completed successfully!');
+    // 11. Pending Queue（返信待ちキュー）
+    console.log("⏳ Seeding pending queue...");
+    await connection.query(`
+      INSERT IGNORE INTO pending_queue (title, toWhom, status, priority, createdAt) VALUES
+      ('河川清掃の実施日程確認', '管理会社', 'pending', 1, NOW()),
+      ('会費納入口座の確認', '町内会', 'pending', 2, NOW()),
+      ('倉庫の鍵交換について', '管理会社', 'pending', 3, NOW())
+    `);
+
+    // 12. Handover Bag Items（引き継ぎ袋チェックリスト）
+    console.log("🎒 Seeding handover bag items...");
+    await connection.query(`
+      INSERT IGNORE INTO handover_bag_items (name, description, location, isChecked) VALUES
+      ('組長引き継ぎ手帳', '過去の記録と決定事項をまとめたもの', '倉庫E-1', 1),
+      ('倉庫の鍵', '倉庫A、B、C、Dの鍵', '倉庫E-1', 1),
+      ('会費徴収記録', '過去3年分の会費徴収記録', '倉庫E-1', 1),
+      ('ローテーション表', '過去10年と今後9年のローテーション表', '倉庫E-1', 1),
+      ('ルール・決定事項ファイル', 'A4ファイルに綴じたもの', '倉庫E-1', 1)
+    `);
+
+    // 13. Secret Notes（秘匿メモ）
+    console.log("🔐 Seeding secret notes...");
+    await connection.query(`
+      INSERT IGNORE INTO secret_notes (title, body) VALUES
+      ('103番の事情', '103番は医療費が高いため、会費免除対象。毎年確認が必要。'),
+      ('105番の連絡先', '105番は高齢のため、連絡は午前中が良い。'),
+      ('過去の問題記録', '2020年に会費未納があった住戸：106番、108番。現在は解決済み。')
+    `);
+
+    console.log("✅ Seeding completed successfully!");
   } catch (error) {
-    console.error('❌ Seeding failed:', error);
-    process.exit(1);
+    console.error("❌ Seeding failed:", error);
+    throw error;
   } finally {
-    await connection.end();
+    await connection.release();
+    await pool.end();
   }
 }
 
-seed();
+seed().catch(console.error);

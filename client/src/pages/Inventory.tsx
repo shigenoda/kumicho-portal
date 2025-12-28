@@ -8,7 +8,7 @@ import { trpc } from "@/lib/trpc";
 export default function Inventory() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
-  const { data: inventory = [] } = trpc.inventory.list.useQuery();
+  const { data: inventory = [] } = trpc.data.getInventory.useQuery();
 
   if (!isAuthenticated) {
     return <div className="page-container flex items-center justify-center min-h-screen">ログインが必要です</div>;

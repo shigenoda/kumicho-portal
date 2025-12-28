@@ -5,9 +5,9 @@ import { trpc } from "@/lib/trpc";
 
 export default function CalendarPage() {
   const [, setLocation] = useLocation();
-  const { data: events = [] } = trpc.events.list.useQuery();
+  const { data: events = [] } = trpc.data.getEvents.useQuery();
 
-  const groupedByMonth = events.reduce((acc: Record<string, typeof events>, event) => {
+  const groupedByMonth = events.reduce((acc: Record<string, any[]>, event: any) => {
     const month = new Date(event.date).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long' });
     if (!acc[month]) acc[month] = [];
     acc[month].push(event);

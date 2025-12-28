@@ -8,14 +8,14 @@ import { trpc } from "@/lib/trpc";
 export default function Rules() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
-  const { data: rules = [] } = trpc.rules.list.useQuery();
+  const { data: rules = [] } = trpc.data.getRules.useQuery();
 
   if (!isAuthenticated) {
     return <div className="page-container flex items-center justify-center min-h-screen">ログインが必要です</div>;
   }
 
-  const decidedRules = rules.filter((r: any) => r.status === "decided");
-  const pendingRules = rules.filter((r: any) => r.status === "pending");
+  const decidedRules = rules.filter((r) => r.status === "decided");
+  const pendingRules = rules.filter((r) => r.status === "pending");
 
   return (
     <div className="page-container">

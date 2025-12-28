@@ -9,7 +9,7 @@ import { useState } from "react";
 export default function Templates() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
-  const { data: templates = [] } = trpc.templates.list.useQuery();
+  const { data: templates = [] } = trpc.data.getTemplates.useQuery();
   const [copiedId, setCopiedId] = useState<number | null>(null);
 
   if (!isAuthenticated) {
@@ -47,13 +47,13 @@ export default function Templates() {
       <main className="container py-8">
         {categories.length > 0 ? (
           <div className="space-y-8">
-            {categories.map((category: string) => {
-              const categoryTemplates = templates.filter((t: any) => t.category === category);
+            {categories.map((category) => {
+              const categoryTemplates = templates.filter((t) => t.category === category);
               return (
                 <section key={category}>
                   <h2 className="text-xl font-semibold mb-4 capitalize">{category}</h2>
                   <div className="space-y-3">
-                    {categoryTemplates.map((template: any) => (
+                    {categoryTemplates.map((template) => (
                       <Card key={template.id} className="p-4 sm:p-6">
                         <h3 className="font-semibold mb-2">{template.title}</h3>
                         <div className="bg-muted p-4 rounded text-sm text-muted-foreground whitespace-pre-wrap max-h-48 overflow-y-auto mb-3">
