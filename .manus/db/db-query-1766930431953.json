@@ -1,0 +1,9 @@
+{
+  "query": "DROP TABLE IF EXISTS `secret_notes`, `changelog`, `faq`, `rules`, `templates`, `inventory`, `river_cleaning_runs`, `events`, `posts`;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 39TMQUucwvHYUB3.root --database jV6HNkMLpAcwSmXrphs6n2 --execute DROP TABLE IF EXISTS `secret_notes`, `changelog`, `faq`, `rules`, `templates`, `inventory`, `river_cleaning_runs`, `events`, `posts`;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1908
+}

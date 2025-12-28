@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, posts, events, inventory, templates, rules, faq, changelog, secretNotes, riverCleaningRuns } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,4 +89,101 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+export async function getUserById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getAllUsers() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(users);
+}
+
+export async function updateUserRole(userId: number, role: string) {
+  const db = await getDb();
+  if (!db) return false;
+  try {
+    await db.update(users).set({ role: role as any }).where(eq(users.id, userId));
+    return true;
+  } catch (error) {
+    console.error("[Database] Failed to update user role:", error);
+    return false;
+  }
+}
+
+// Posts queries
+export async function getPublishedPosts(year?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  let query: any = db.select().from(posts).where(eq(posts.status, "published"));
+  if (year) {
+    query = query.where(eq(posts.year, year));
+  }
+  return await query.orderBy(desc(posts.publishedAt));
+}
+
+export async function getPostById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(posts).where(eq(posts.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+// Events queries
+export async function getEventsByYear(year: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(events).orderBy(desc(events.date));
+}
+
+// Inventory queries
+export async function getAllInventory() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(inventory);
+}
+
+export async function getInventoryById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(inventory).where(eq(inventory.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+// Templates queries
+export async function getTemplatesByCategory(category: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(templates).where(eq(templates.category, category));
+}
+
+// Rules queries
+export async function getDecidedRules() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(rules).where(eq(rules.status, "decided"));
+}
+
+// FAQ queries
+export async function getAllFAQ() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(faq);
+}
+
+// Changelog queries
+export async function getRecentChangelog(limit: number = 10) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(changelog).orderBy(desc(changelog.date)).limit(limit);
+}
+
+// Secret notes queries (Admin only)
+export async function getSecretNotes() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(secretNotes);
+}

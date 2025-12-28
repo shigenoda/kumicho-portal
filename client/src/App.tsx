@@ -5,12 +5,32 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import PublicHome from "./pages/PublicHome";
+import MemberHome from "./pages/MemberHome";
+import Calendar from "./pages/Calendar";
+import RiverCleaning from "./pages/RiverCleaning";
+import Inventory from "./pages/Inventory";
+import Templates from "./pages/Templates";
+import Rules from "./pages/Rules";
+import YearLog from "./pages/YearLog";
+import FAQ from "./pages/FAQ";
+import AdminDashboard from "./pages/AdminDashboard";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 function Router() {
-  // make sure to consider if you need authentication for certain routes
+  const { isAuthenticated, user } = useAuth();
+
   return (
     <Switch>
-      <Route path={"/"} component={Home} />
+      <Route path={"/"} component={isAuthenticated ? MemberHome : PublicHome} />
+      <Route path={"/calendar"} component={Calendar} />
+      <Route path={"/river-cleaning"} component={RiverCleaning} />
+      <Route path={"/inventory"} component={Inventory} />
+      <Route path={"/templates"} component={Templates} />
+      <Route path={"/rules"} component={Rules} />
+      <Route path={"/year-log"} component={YearLog} />
+      <Route path={"/faq"} component={FAQ} />
+      <Route path={"/admin"} component={user?.role === "admin" ? AdminDashboard : NotFound} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
@@ -18,18 +38,10 @@ function Router() {
   );
 }
 
-// NOTE: About Theme
-// - First choose a default theme according to your design style (dark or light bg), than change color palette in index.css
-//   to keep consistent foreground/background color across components
-// - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
-
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="light"
-        // switchable
-      >
+      <ThemeProvider defaultTheme="light">
         <TooltipProvider>
           <Toaster />
           <Router />
