@@ -9,7 +9,7 @@ import { useState } from "react";
 export default function FAQ() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
-  const { data: faqData = [] } = trpc.faq.getAll.useQuery();
+  const { data: faqData = [] } = trpc.faq.list.useQuery();
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   if (!isAuthenticated) {

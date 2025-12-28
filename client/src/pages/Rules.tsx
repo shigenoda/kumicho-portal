@@ -8,14 +8,14 @@ import { trpc } from "@/lib/trpc";
 export default function Rules() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
-  const { data: rules = [] } = trpc.rules.getAll.useQuery();
+  const { data: rules = [] } = trpc.rules.list.useQuery();
 
   if (!isAuthenticated) {
     return <div className="page-container flex items-center justify-center min-h-screen">ログインが必要です</div>;
   }
 
-  const decidedRules = rules.filter((r) => r.status === "decided");
-  const pendingRules = rules.filter((r) => r.status === "pending");
+  const decidedRules = rules.filter((r: any) => r.status === "decided");
+  const pendingRules = rules.filter((r: any) => r.status === "pending");
 
   return (
     <div className="page-container">
@@ -47,7 +47,7 @@ export default function Rules() {
           <section className="mb-8">
             <h2 className="text-xl font-semibold mb-4">✓ 決定事項</h2>
             <div className="space-y-4">
-              {decidedRules.map((rule) => (
+              {decidedRules.map((rule: any) => (
                 <Card key={rule.id} className="p-4 sm:p-6 border-l-4 border-l-green-600">
                   <h3 className="font-semibold mb-2">{rule.title}</h3>
                   <p className="text-muted-foreground mb-3">{rule.summary}</p>
@@ -58,7 +58,7 @@ export default function Rules() {
                     <div className="mt-3 pt-3 border-t border-border">
                       <p className="text-xs font-medium text-muted-foreground mb-2">根拠:</p>
                       <ul className="space-y-1">
-                        {rule.evidenceLinks.map((link, idx) => (
+                        {rule.evidenceLinks.map((link: string, idx: number) => (
                           <li key={idx}>
                             <a href={link} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
                               {link}
@@ -79,7 +79,7 @@ export default function Rules() {
           <section>
             <h2 className="text-xl font-semibold mb-4">⏳ 検討中</h2>
             <div className="space-y-4">
-              {pendingRules.map((rule) => (
+              {pendingRules.map((rule: any) => (
                 <Card key={rule.id} className="p-4 sm:p-6 border-l-4 border-l-yellow-600 bg-yellow-50 dark:bg-yellow-900/10">
                   <div className="flex items-start gap-2 mb-2">
                     <span className="badge-hypothesis">検討中</span>

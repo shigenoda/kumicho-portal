@@ -1,40 +1,44 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, FileText } from "lucide-react";
+import { ArrowLeft, Copy, Download } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { useState } from "react";
 
 export default function Templates() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
-  const { data: templates = [] } = trpc.templates.getAll.useQuery();
+  const { data: templates = [] } = trpc.templates.list.useQuery();
+  const [copiedId, setCopiedId] = useState<number | null>(null);
 
   if (!isAuthenticated) {
     return <div className="page-container flex items-center justify-center min-h-screen">ログインが必要です</div>;
   }
 
-  const categories = Array.from(new Set(templates.map((t) => t.category)));
+  const categories = Array.from(new Set(templates.map((t: any) => t.category)));
+
+  const handleCopy = (text: string, id: number) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   return (
     <div className="page-container">
       {/* Header */}
-      <header className="bg-gradient-to-r from-orange-600 to-orange-700 text-white py-6">
-        <div className="container flex items-center gap-4">
+      <header className="bg-background border-b border-border sticky top-0 z-50">
+        <div className="container py-4 flex items-center gap-4">
           <Button
             variant="ghost"
-            size="icon"
-            className="text-white hover:bg-white/10"
+            size="sm"
             onClick={() => setLocation("/")}
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <FileText className="w-6 h-6" />
-              テンプレ置き場
-            </h1>
-            <p className="text-orange-100">文書テンプレ・通知文</p>
+            <h1 className="text-xl sm:text-2xl font-semibold text-foreground">テンプレ置き場</h1>
+            <p className="text-sm text-muted-foreground">文書テンプレ・通知文</p>
           </div>
         </div>
       </header>
@@ -43,13 +47,13 @@ export default function Templates() {
       <main className="container py-8">
         {categories.length > 0 ? (
           <div className="space-y-8">
-            {categories.map((category) => {
-              const categoryTemplates = templates.filter((t) => t.category === category);
+            {categories.map((category: string) => {
+              const categoryTemplates = templates.filter((t: any) => t.category === category);
               return (
                 <section key={category}>
                   <h2 className="text-xl font-semibold mb-4 capitalize">{category}</h2>
                   <div className="space-y-3">
-                    {categoryTemplates.map((template) => (
+                    {categoryTemplates.map((template: any) => (
                       <Card key={template.id} className="p-4 sm:p-6">
                         <h3 className="font-semibold mb-2">{template.title}</h3>
                         <div className="bg-muted p-4 rounded text-sm text-muted-foreground whitespace-pre-wrap max-h-48 overflow-y-auto mb-3">
@@ -59,26 +63,16 @@ export default function Templates() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => {
-                              navigator.clipboard.writeText(template.body);
-                              alert("コピーしました");
-                            }}
+                            onClick={() => handleCopy(template.body, template.id)}
                           >
-                            コピー
+                            <Copy className="w-4 h-4 mr-1" />
+                            {copiedId === template.id ? "コピーしました" : "コピー"}
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => {
-                              const element = document.createElement("a");
-                              element.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(template.body));
-                              element.setAttribute("download", `${template.title}.txt`);
-                              element.style.display = "none";
-                              document.body.appendChild(element);
-                              element.click();
-                              document.body.removeChild(element);
-                            }}
                           >
+                            <Download className="w-4 h-4 mr-1" />
                             ダウンロード
                           </Button>
                         </div>

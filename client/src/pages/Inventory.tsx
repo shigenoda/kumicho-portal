@@ -8,7 +8,7 @@ import { trpc } from "@/lib/trpc";
 export default function Inventory() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
-  const { data: inventory = [] } = trpc.inventory.getAll.useQuery();
+  const { data: inventory = [] } = trpc.inventory.list.useQuery();
 
   if (!isAuthenticated) {
     return <div className="page-container flex items-center justify-center min-h-screen">ログインが必要です</div>;
@@ -41,7 +41,7 @@ export default function Inventory() {
       <main className="container py-8">
         {inventory.length > 0 ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {inventory.map((item) => (
+            {inventory.map((item: any) => (
               <Card key={item.id} className="p-4">
                 {item.photo && (
                   <img
@@ -61,7 +61,7 @@ export default function Inventory() {
                 </div>
                 {item.tags && item.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-3">
-                    {item.tags.map((tag) => (
+                    {item.tags.map((tag: string) => (
                       <span key={tag} className="inline-block px-2 py-1 bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100 text-xs rounded">
                         {tag}
                       </span>

@@ -8,7 +8,7 @@ import { trpc } from "@/lib/trpc";
 export default function YearLog() {
   const { isAuthenticated, user } = useAuth();
   const [, setLocation] = useLocation();
-  const { data: posts = [] } = trpc.posts.getPublished.useQuery({ year: new Date().getFullYear() });
+  const { data: posts = [] } = trpc.posts.list.useQuery();
 
   if (!isAuthenticated) {
     return <div className="page-container flex items-center justify-center min-h-screen">ログインが必要です</div>;
