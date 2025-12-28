@@ -1,241 +1,321 @@
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { AlertCircle, Calendar, Package, FileText, BookOpen, HelpCircle, LogOut, Settings, Search, ChevronRight } from "lucide-react";
-import { useLocation } from "wouter";
-import { trpc } from "@/lib/trpc";
-import { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Search, Settings, LogOut } from "lucide-react";
+import { getLoginUrl } from "@/const";
+import { useState } from "react";
+import { useLocation } from "wouter";
 
+/**
+ * Member トップページ - Minato Editorial Luxury デザイン
+ * 「雑誌の目次」型レイアウト：左上ラベル、中央H1、下Index List、右下更新ログ
+ */
 export default function MemberHome() {
-  const { user, logout } = useAuth();
-  const [, setLocation] = useLocation();
+  const { user, isAuthenticated, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
-  const { data: changelog = [] } = trpc.data.getChangelog.useQuery({ limit: 5 });
-  const { data: leaderSchedule = [] } = trpc.memberTop.getLeaderSchedule.useQuery({});
-  const { data: pendingQueue = [] } = trpc.memberTop.getPendingQueue.useQuery();
+  const [, setLocation] = useLocation();
 
   const handleLogout = async () => {
     await logout();
     setLocation("/");
   };
 
-  const quickLinks = [
-    { icon: Calendar, label: "年間カレンダー", path: "/calendar", description: "行事・締切・チェックリスト" },
-    { icon: FileText, label: "河川清掃ガイド", path: "/river-cleaning", description: "準備・役割・安全" },
-    { icon: Package, label: "備品台帳", path: "/inventory", description: "写真・数量・保管場所" },
-    { icon: BookOpen, label: "テンプレ置き場", path: "/templates", description: "文書テンプレ" },
-    { icon: AlertCircle, label: "ルール・決定事項", path: "/rules", description: "会費・ローテーション" },
-    { icon: HelpCircle, label: "FAQ", path: "/faq", description: "よくある質問" },
-  ];
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center px-4">
+        <div className="max-w-md text-center">
+          <h1 className="text-4xl font-light mb-4 text-gray-900">グリーンピア</h1>
+          <p className="text-gray-600 mb-8 leading-relaxed">
+            焼津市 集合住宅の組長業務引き継ぎポータル
+          </p>
+          <Button
+            onClick={() => (window.location.href = getLoginUrl())}
+            className="w-full bg-blue-900 hover:bg-blue-800 text-white"
+          >
+            ログイン
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-white border-b border-[#e5e5e5]">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-light text-[#1a1a1a]">焼津市 集合住宅「グリーンピア」</h1>
-              <p className="text-sm text-[#666666] mt-1">組長引き継ぎ（年度：2025）</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setLocation("/admin")}
-                className="text-[#666666] hover:text-[#1a1a1a]"
-              >
-                <Settings className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLogout}
-                className="text-[#666666] hover:text-[#1a1a1a]"
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
+      {/* ヘッダー */}
+      <header className="fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-50">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="検索（河川、備品、会費など）"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full max-w-md bg-gray-50 border-gray-200 pl-10"
+              />
             </div>
           </div>
-
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#999999]" />
-            <input
-              type="text"
-              placeholder="検索（河川、備品、会費など）"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-[#e5e5e5] rounded text-sm text-[#1a1a1a] placeholder-[#999999] focus:outline-none focus:border-[#4a7c7e]"
-            />
+          <div className="flex items-center gap-4 ml-6">
+            <button className="p-2 hover:bg-gray-100 rounded transition-colors">
+              <Settings className="w-5 h-5 text-gray-600" />
+            </button>
+            <button
+              onClick={handleLogout}
+              className="p-2 hover:bg-gray-100 rounded transition-colors"
+            >
+              <LogOut className="w-5 h-5 text-gray-600" />
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-12">
-        {/* Info Card */}
-        <div className="mb-12 p-4 border border-[#e5e5e5] rounded bg-[#f9f9f9]">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-[#4a7c7e] flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-[#666666]">
-              <p className="font-medium text-[#1a1a1a] mb-1">対象範囲</p>
-              <p>焼津市 集合住宅「グリーンピア」| 年度：2025 | ロール：{user?.role || "member"}</p>
+      {/* メインコンテンツ */}
+      <main className="pt-24 pb-16">
+        {/* ヒーロー背景 */}
+        <div
+          className="relative h-96 bg-gradient-to-br from-gray-50 via-gray-100 to-gray-50 overflow-hidden"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.05) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(79, 172, 254, 0.05) 0%, transparent 50%)",
+          }}
+        >
+          {/* ノイズテクスチャ */}
+          <div
+            className="absolute inset-0 opacity-[0.02]"
+            style={{
+              backgroundImage:
+                "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><filter id=%22noise%22><feTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%224%22 result=%22noise%22/></filter><rect width=%22100%22 height=%22100%22 fill=%22%23000%22 filter=%22url(%23noise)%22/></svg>')",
+            }}
+          />
+
+          {/* コンテンツ */}
+          <div className="relative h-full flex flex-col justify-between p-8 max-w-7xl mx-auto w-full">
+            {/* 左上：ラベル */}
+            <div className="flex items-start justify-between">
+              <div className="text-sm text-gray-500 font-light tracking-wider">
+                <div>焼津市 集合住宅「グリーンピア」</div>
+                <div className="mt-1">年度：2025</div>
+              </div>
+            </div>
+
+            {/* 中央：H1 */}
+            <div className="text-center">
+              <h1 className="text-5xl md:text-6xl font-light text-gray-900 mb-2 tracking-tight">
+                組長引き継ぎ
+              </h1>
+              <p className="text-sm text-gray-500">
+                ロール：{user?.role || "member"}
+              </p>
+            </div>
+
+            {/* 右下：Last updated */}
+            <div className="flex justify-end">
+              <div className="text-xs text-gray-400 font-light">
+                <div>Last updated</div>
+                <div className="mt-1 text-gray-500">2025年1月1日</div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* 4 Cards Section */}
-        <section className="mb-16">
-          <h2 className="text-xl font-light text-[#1a1a1a] mb-8">今週の状況</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Card 1: This Week Tasks */}
-            <Card className="p-6 border-[#e5e5e5] bg-white hover:shadow-sm transition-shadow">
-              <h3 className="text-lg font-medium text-[#1a1a1a] mb-4">今週やること</h3>
-              <div className="space-y-3">
-                {[
-                  "河川清掃準備（装備確認）",
-                  "会費徴収リマインド",
-                  "ローテ確定通知",
-                ].map((task, idx) => (
-                  <div key={idx} className="flex items-start gap-3 text-sm text-[#666666]">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#4a7c7e] mt-2 flex-shrink-0" />
-                    <span>{task}</span>
-                  </div>
-                ))}
+        {/* Index List（導線 01..06） */}
+        <div className="max-w-7xl mx-auto px-6 py-24">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+            {/* 01: 年間カレンダー */}
+            <button
+              onClick={() => setLocation("/calendar")}
+              className="group cursor-pointer transition-all duration-300 text-left"
+            >
+              <div className="mb-4">
+                <span className="text-xs text-gray-400 font-light tracking-widest">
+                  01
+                </span>
               </div>
-            </Card>
+              <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
+                年間カレンダー
+              </h3>
+              <p className="text-sm text-gray-600 leading-relaxed font-light">
+                行事・締切・準備チェックリストを一元管理
+              </p>
+              <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
+            </button>
 
-            {/* Card 2: Top Priorities */}
-            <Card className="p-6 border-[#e5e5e5] bg-white hover:shadow-sm transition-shadow">
-              <h3 className="text-lg font-medium text-[#1a1a1a] mb-4">最優先3課題</h3>
-              <div className="space-y-3">
-                {[
-                  "先9年ローテを確定",
-                  "会費徴収ルール更新",
-                  "誤徴収防止マニュアル",
-                ].map((priority, idx) => (
-                  <div key={idx} className="flex items-start gap-3 text-sm text-[#666666]">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#8a7a5a] mt-2 flex-shrink-0" />
-                    <span>{priority}</span>
-                  </div>
-                ))}
+            {/* 02: 河川清掃 */}
+            <button
+              onClick={() => setLocation("/river-cleaning")}
+              className="group cursor-pointer transition-all duration-300 text-left"
+            >
+              <div className="mb-4">
+                <span className="text-xs text-gray-400 font-light tracking-widest">
+                  02
+                </span>
               </div>
-            </Card>
+              <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
+                河川清掃
+              </h3>
+              <p className="text-sm text-gray-600 leading-relaxed font-light">
+                SOP・実施ログ・安全ガイド
+              </p>
+              <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
+            </button>
 
-            {/* Card 3: Unresolved Issues */}
-            <Card className="p-6 border-[#e5e5e5] bg-white hover:shadow-sm transition-shadow">
-              <h3 className="text-lg font-medium text-[#1a1a1a] mb-4">未解決（仮説）</h3>
-              <div className="space-y-3">
-                {[
-                  "免除条件の条文化",
-                  "過去担当履歴の穴",
-                  "出不足金の計算方法",
-                ].map((issue, idx) => (
-                  <div key={idx} className="flex items-start gap-3 text-sm text-[#666666]">
-                    <div className="px-2 py-0.5 bg-[#f5f1e8] text-[#8a7a5a] rounded text-xs font-medium">仮説</div>
-                    <span className="mt-0.5">{issue}</span>
-                  </div>
-                ))}
+            {/* 03: 倉庫・備品 */}
+            <button
+              onClick={() => setLocation("/inventory")}
+              className="group cursor-pointer transition-all duration-300 text-left"
+            >
+              <div className="mb-4">
+                <span className="text-xs text-gray-400 font-light tracking-widest">
+                  03
+                </span>
               </div>
-            </Card>
+              <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
+                倉庫・備品台帳
+              </h3>
+              <p className="text-sm text-gray-600 leading-relaxed font-light">
+                写真・数量・保管場所・棚卸し手順
+              </p>
+              <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
+            </button>
 
-            {/* Card 4: Pending Replies */}
-            <Card className="p-6 border-[#e5e5e5] bg-white hover:shadow-sm transition-shadow">
-              <h3 className="text-lg font-medium text-[#1a1a1a] mb-4">返信待ち</h3>
-              <div className="space-y-3">
-                {pendingQueue.slice(0, 3).map((item) => (
-                  <div key={item.id} className="flex items-start gap-3 text-sm text-[#666666]">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#8a7a5a] mt-2 flex-shrink-0" />
-                    <div>
-                      <p>{item.title}</p>
-                      <p className="text-xs text-[#999999] mt-1">→ {item.toWhom}</p>
-                    </div>
-                  </div>
-                ))}
-                {pendingQueue.length === 0 && (
-                  <p className="text-sm text-[#999999]">返信待ちなし</p>
-                )}
+            {/* 04: テンプレ置き場 */}
+            <button
+              onClick={() => setLocation("/templates")}
+              className="group cursor-pointer transition-all duration-300 text-left"
+            >
+              <div className="mb-4">
+                <span className="text-xs text-gray-400 font-light tracking-widest">
+                  04
+                </span>
               </div>
-            </Card>
+              <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
+                テンプレ置き場
+              </h3>
+              <p className="text-sm text-gray-600 leading-relaxed font-light">
+                管理会社向け・町内会向け・住民向けテンプレ
+              </p>
+              <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
+            </button>
+
+            {/* 05: ルール・決定事項 */}
+            <button
+              onClick={() => setLocation("/rules")}
+              className="group cursor-pointer transition-all duration-300 text-left"
+            >
+              <div className="mb-4">
+                <span className="text-xs text-gray-400 font-light tracking-widest">
+                  05
+                </span>
+              </div>
+              <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
+                ルール・決定事項
+              </h3>
+              <p className="text-sm text-gray-600 leading-relaxed font-light">
+                会費・免除・ローテ・出不足金
+              </p>
+              <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
+            </button>
+
+            {/* 06: 年度ログ */}
+            <button
+              onClick={() => setLocation("/year-log")}
+              className="group cursor-pointer transition-all duration-300 text-left"
+            >
+              <div className="mb-4">
+                <span className="text-xs text-gray-400 font-light tracking-widest">
+                  06
+                </span>
+              </div>
+              <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
+                年度ログ
+              </h3>
+              <p className="text-sm text-gray-600 leading-relaxed font-light">
+                証跡タイムライン・決定・質問・改善提案
+              </p>
+              <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
+            </button>
           </div>
-        </section>
+        </div>
 
-        {/* 9-Year Rotation Schedule */}
-        <section className="mb-16">
-          <h2 className="text-xl font-light text-[#1a1a1a] mb-8">先9年 ローテーション</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[#e5e5e5]">
-                  <th className="text-left py-3 px-4 font-medium text-[#1a1a1a]">年度</th>
-                  <th className="text-left py-3 px-4 font-medium text-[#1a1a1a]">Primary</th>
-                  <th className="text-left py-3 px-4 font-medium text-[#1a1a1a]">Backup</th>
-                  <th className="text-left py-3 px-4 font-medium text-[#1a1a1a]">ステータス</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leaderSchedule.map((schedule) => (
-                  <tr key={schedule.id} className="border-b border-[#e5e5e5] hover:bg-[#f9f9f9]">
-                    <td className="py-3 px-4 text-[#1a1a1a]">{schedule.year}</td>
-                    <td className="py-3 px-4 text-[#666666]">{schedule.primaryHouseholdId}</td>
-                    <td className="py-3 px-4 text-[#666666]">{schedule.backupHouseholdId}</td>
-                    <td className="py-3 px-4">
-                      <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                        schedule.status === "confirmed" ? "bg-[#e8f5e9] text-[#2e7d32]" :
-                        schedule.status === "conditional" ? "bg-[#fff3e0] text-[#e65100]" :
-                        "bg-[#f5f5f5] text-[#666666]"
-                      }`}>
-                        {schedule.status === "confirmed" ? "確定" :
-                         schedule.status === "conditional" ? "条件付き" :
-                         "ドラフト"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+        {/* 追加セクション：Pending / FAQ / Vault（Admin限定） */}
+        <div className="bg-gray-50 border-t border-gray-200 py-24">
+          <div className="max-w-7xl mx-auto px-6">
+            <h2 className="text-2xl font-light text-gray-900 mb-12">
+              その他のセクション
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+              {/* 返信待ちキュー */}
+              <button
+                onClick={() => setLocation("/pending-queue")}
+                className="group cursor-pointer text-left"
+              >
+                <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
+                  返信待ちキュー
+                </h3>
+                <p className="text-sm text-gray-600 leading-relaxed font-light">
+                  未返信の問い合わせを追跡
+                </p>
+              </button>
 
-        {/* Quick Links */}
-        <section className="mb-16">
-          <h2 className="text-xl font-light text-[#1a1a1a] mb-8">困ったらここ</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {quickLinks.map((link) => {
-              const Icon = link.icon;
-              return (
+              {/* 引き継ぎ袋 */}
+              <button
+                onClick={() => setLocation("/handover-bag")}
+                className="group cursor-pointer text-left"
+              >
+                <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
+                  引き継ぎ袋
+                </h3>
+                <p className="text-sm text-gray-600 leading-relaxed font-light">
+                  物理の中身チェックリスト
+                </p>
+              </button>
+
+              {/* FAQ */}
+              <button
+                onClick={() => setLocation("/faq")}
+                className="group cursor-pointer text-left"
+              >
+                <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
+                  FAQ
+                </h3>
+                <p className="text-sm text-gray-600 leading-relaxed font-light">
+                  よくある質問と回答
+                </p>
+              </button>
+
+              {/* Admin: Vault */}
+              {user?.role === "admin" && (
                 <button
-                  key={link.path}
-                  onClick={() => setLocation(link.path)}
-                  className="p-6 border border-[#e5e5e5] rounded hover:border-[#4a7c7e] hover:bg-[#f9f9f9] transition-all text-left group"
+                  onClick={() => setLocation("/vault")}
+                  className="group cursor-pointer text-left"
                 >
-                  <Icon className="w-6 h-6 text-[#4a7c7e] mb-3 group-hover:text-[#2d5a5c]" />
-                  <h3 className="font-medium text-[#1a1a1a] mb-1">{link.label}</h3>
-                  <p className="text-sm text-[#999999]">{link.description}</p>
-                  <ChevronRight className="w-4 h-4 text-[#999999] mt-3 group-hover:text-[#4a7c7e] group-hover:translate-x-1 transition-all" />
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Latest Updates */}
-        <section>
-          <h2 className="text-xl font-light text-[#1a1a1a] mb-8">最新更新</h2>
-          <div className="space-y-4">
-            {changelog.map((item) => (
-              <div key={item.id} className="flex items-start gap-4 p-4 border-l-2 border-[#4a7c7e] bg-[#f9f9f9]">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-[#1a1a1a]">{item.summary}</p>
-                  <p className="text-xs text-[#999999] mt-1">
-                    {new Date(item.date).toLocaleDateString('ja-JP')} • {item.authorRole}
+                  <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
+                    Private Vault
+                  </h3>
+                  <p className="text-sm text-gray-600 leading-relaxed font-light">
+                    秘匿情報（Admin限定）
                   </p>
-                </div>
-              </div>
-            ))}
+                </button>
+              )}
+
+              {/* Admin: 監査ログ */}
+              {user?.role === "admin" && (
+                <button
+                  onClick={() => setLocation("/audit-logs")}
+                  className="group cursor-pointer text-left"
+                >
+                  <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
+                    監査ログ
+                  </h3>
+                  <p className="text-sm text-gray-600 leading-relaxed font-light">
+                    Vault アクセス履歴（Admin限定）
+                  </p>
+                </button>
+              )}
+            </div>
           </div>
-        </section>
+        </div>
       </main>
     </div>
   );

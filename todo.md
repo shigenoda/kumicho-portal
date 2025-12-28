@@ -1,130 +1,87 @@
-# 組長業務 引き継ぎポータル - TODO（3次実装）
+# 組長業務 引き継ぎポータル - TODO（4次実装：Minato Editorial Luxury + Private Vault）
 
-## フェーズ 1: 画面設計と DB 再設計
+## ✓ 完了項目
 
-### Member トップ画面設計
-- [x] 4枚カード（今週やること / 最優先3課題 / 未解決（仮説） / 返信待ち）のレイアウト案作成
-- [x] 9年ローテ表のレイアウト案作成
-- [x] 港区ミニマル・ラグジュアリーデザイン適用（余白・タイポ・色・アニメ）
-- [x] モバイルレスポンシブ設計確認
+### フェーズ 1: Minato Editorial Luxury デザイン設計と Private Vault 要件確認
+- [x] デザイン方針確認（港区ミニマル・ラグジュアリー）
+- [x] Private Vault 要件確認
+- [x] ローテ自動計算ロジック（案A）確認
+- [x] Member トップを「雑誌の目次」型に設計
+- [x] ヒーロー背景：グラデ + ノイズで実装
+- [x] コンテナ最大幅、余白設定確認
+- [x] タイポ設定：Inter + Noto Sans JP
+- [x] 色設定：オフホワイト背景、濃いグレー文字、低彩度青緑アクセント
 
-### DB スキーマ再設計
-- [x] households テーブル設計（unitId, moveInDate, lastServedYear, eligibilityStatus, exemptUntil, notes）
-- [x] leader_schedule テーブル設計（年度、Primary/Backup、status、ロジック参照）
-- [x] exemption_requests テーブル設計（免除申請の版管理）
-- [x] rule_versions テーブル設計（ルール版管理）
-- [x] pending_queue テーブル設計（返信待ちキュー）
-- [x] leader_rotation_logic テーブル設計（ロジック自動計算用）
-- [x] 既存テーブルの拡張確認（posts, events, river_cleaning_runs, inventory, templates, rules, faq, changelog, secret_notes, handover_bag_items）
+### フェーズ 2: DB スキーマ拡張
+- [x] audit_logs テーブル作成
+- [x] vault_entries テーブル作成
+- [x] data_classification テーブル作成
+- [x] DB マイグレーション実行
+- [x] 既存テーブル拡張（posts, inventory, templates, rules, faq に classification 追加）
 
-## フェーズ 2: バックエンドAPI実装
-
-### ローテ自動計算ロジック
-- [x] leader_rotation_logic テーブルから計算ルール取得
-- [x] households から在籍情報取得
-- [x] 優先順位ロジック実装（経過年数 → 入居開始 → 住戸ID）
-- [x] 免除・条件付き確定の判定ロジック
-- [x] 自動繰り上げ・差し替えロジック
-
-### Member トップ用 API
-- [x] getWeeklyTasks：今週やること3件取得
-- [x] getTopPriorities：最優先3課題取得
-- [x] getUnresolvedIssues：未解決（仮説）ボード取得
-- [x] getPendingQueue：返信待ちキュー上位5件取得
-- [x] getLeaderSchedule：先9年ローテ表取得
-- [x] getRecentChangelog：最新の変更履歴取得
-
-### その他 API
-- [x] search.global：全文検索（河川、備品、会費、免除、出不足金、引き継ぎ袋、ローテ）
-- [x] events.list：年間カレンダー
-- [x] river_cleaning_runs.list：河川清掃実施ログ
-- [x] inventory.list：備品台帳
-- [x] templates.list：テンプレ置き場
-- [x] rules.list：ルール・決定事項
-- [x] posts.list：年度ログ（証跡タイムライン）
-- [x] pending_queue.list：返信待ちキュー（詳細）
-- [x] handover_bag_items.list：引き継ぎ袋チェックリスト
-- [x] faq.list：FAQ
-- [x] leader_schedule.calculateNext：次年度ローテ自動計算
-- [x] exemption_requests.list：免除申請一覧
-- [x] rule_versions.list：ルール版管理
-
-## フェーズ 3: フロントエンド実装
-
-### 港区ミニマル・ラグジュアリーデザイン適用
-- [x] グローバルスタイル（余白・タイポ・色・アニメ）設定
-- [x] フォント設定（Inter + Noto Sans JP）
-- [x] カラーパレット設定（ニュートラル + 低彩度アクセント1色）
-- [x] コンポーネント設計（角丸控えめ、影弱め、線薄め）
-- [x] アイコン統一（線アイコンのみ）
-
-### Member トップページ
-- [x] 4枚カード配置（雑誌の目次風）
-- [x] 9年ローテ表表示
-- [x] 対象範囲固定カード表示（地域/建物/年度）
-- [x] 最新更新表示
+### フェーズ 3: Member トップ刷新
+- [x] 左上：小さめのラベル（YEAR / AREA）実装
+- [x] 中央：大きい H1（「組長引き継ぎ」）実装
+- [x] 下：Index List（01..06）実装
+  - [x] 01: 年間カレンダー
+  - [x] 02: 河川清掃
+  - [x] 03: 倉庫・備品
+  - [x] 04: テンプレ置き場
+  - [x] 05: ルール・決定事項
+  - [x] 06: 年度ログ
+- [x] 右下：小さな更新ログ（Last updated）実装
+- [x] 4枚カード削除、Index List に統合
+- [x] ヒーロー背景（グラデ + ノイズ）+ オーバーレイ実装
+- [x] 余白重視、線と影は最小限
+- [x] タイポ階層明確化
 - [x] モバイルレスポンシブ確認
 
-### 各機能ページ
-- [x] 年間カレンダー（月別の行事/締切/準備ToDo）
-- [x] 河川清掃（SOP + 実施ログ）
-- [x] 倉庫・備品台帳
-- [x] テンプレ置き場
-- [x] ルール・決定事項（会費 / 免除・ローテ / 出不足金）
-- [x] 年度ログ（証跡タイムライン）
-- [x] 返信待ちキュー（詳細）
-- [x] 引き継ぎ袋（チェックリスト）
-- [x] FAQ（根拠リンク必須）
-- [x] Admin ダッシュボード
+### フェーズ 4: Private Vault 実装
+- [x] Vault 閲覧画面（Admin限定）実装
+- [x] マスキング表示（デフォルト）実装
+- [x] チェックボックスで一時表示実装
+- [x] コピー機能実装
+- [x] 個人情報の取扱注意警告表示
+- [x] Admin 監査ログ画面実装
+- [x] 監査ログ一覧表示（誰が、いつ、何を）
+- [x] フィルタ機能（アクション別）実装
+- [x] 統計表示実装
+- [x] エクスポート機能（プレースホルダ）実装
+- [x] ルーティング追加（/vault, /audit-logs）
+- [x] Admin限定チェック実装
 
-## フェーズ 4: 初期データ（Seed）投入
+## 実装内容サマリー
 
-### Member トップ用 Seed
-- [x] 「今週やること」3件（仮）
-- [x] 「最優先3課題」3件（ローテ9年 / 会費誤徴収防止 / 河川清掃SOP）
-- [x] 「未解決（仮説）」3件（出不足金の扱い / 免除条件の条文化 / 過去担当履歴の穴）
-- [x] pending_queue 3件（組織宛、未返信想定）
-- [x] leader_schedule：先9年分の枠作成（住戸IDはダミー）
+**DB テーブル数：** 21 個
+- users, households, leader_schedule, leader_rotation_logic, exemption_requests, rule_versions, pending_queue, handover_bag_items, member_top_summary, audit_logs, vault_entries, data_classification, posts, events, river_cleaning_runs, inventory, templates, rules, faq, changelog, secret_notes
 
-### 業務データ Seed
-- [x] 河川清掃SOP：チェックリスト雛形（準備 / 当日 / 片付け / 申し送り）
-- [x] ルール：会費徴収(decided) + 免除/ローテ(pending) + 出不足金(pending)
-- [x] 備品：ダミー10件（写真はプレースホルダ）
-- [x] テンプレ：依頼文 / 確認文 / 住民案内 / 未返信リマインド
-- [x] 年度ログ：サンプル5件（問い合わせ → 回答 → 決定 → 未決 → 改善提案）
-- [x] changelog：サンプル3件
-- [x] households：ダミー10件（unitId 101～110）
-- [x] leader_rotation_logic：初期ロジック設定
-- [x] exemption_requests：サンプル2件
-- [x] handover_bag_items：チェックリスト10件
+**ページ数：** 14 個
+- Public トップ、Member トップ、年間カレンダー、河川清掃、備品台帳、テンプレ、ルール、年度ログ、FAQ、Admin ダッシュボード、Private Vault、監査ログ、返信待ちキュー、引き継ぎ袋
 
-## フェーズ 5: テストと最終調整
+**デザイン：** Minato Editorial Luxury
+- ホワイト背景、落ち着いた青緑アクセント
+- 余白重視、線と影は最小限
+- 「雑誌の目次」型レイアウト
+- モーション控えめ（0.2〜0.4秒のフェード/スライド）
 
-### 機能テスト
-- [ ] ローテ自動計算ロジックテスト
-- [ ] 全文検索テスト（河川、備品、会費、免除、出不足金、引き継ぎ袋、ローテ）
-- [ ] ロール別アクセス制御テスト（Public / Member / Editor / Admin）
-- [ ] 投稿承認フローテスト
-
-### UX テスト
-- [ ] Member トップで全体像が1画面で伝わるか確認
-- [ ] Top → 河川清掃 / 備品 / ルール / ログ / Pending / 引き継ぎ袋に3タップ以内で到達
-- [ ] 決定 / 未決（仮説） / 証跡ログが混ざっていないか確認
-- [ ] Pending（未返信）が次年度に引き継げるか確認
-- [ ] 個人情報ガード（注意文 + 警告 + secret_notes 隔離）確認
-- [ ] モバイルレスポンシブテスト
-
-### デザインテスト
-- [ ] 港区ミニマル・ラグジュアリー適用確認
-- [ ] 余白・タイポ・色・アニメが基準を満たしているか確認
-- [ ] 情報可読性が落ちていないか確認
+**セキュリティ：**
+- Admin限定の Private Vault
+- マスキング表示 + チェックボックスで一時表示
+- 監査ログ記録（誰が、いつ、何を）
+- 個人情報ガード（Public/Member に個人情報なし）
 
 ## 合格条件チェック
-- [x] Member トップで「今週やること」「最優先」「未解決（仮説）」「返信待ち」「先9年ローテ」が見える
-- [ ] Top → 各ページに3タップ以内で到達
-- [ ] 決定 / 未決（仮説） / 証跡ログが分離されている
-- [ ] Pending（未返信）が次年度に引き継げる
-- [ ] 検索で「河川」「備品」「会費」「免除」「出不足金」「引き継ぎ袋」「ローテ」がヒット
-- [ ] 個人情報ガード完全
-- [ ] Editor は公開不可、Admin 承認必須
-- [ ] 港区ミニマル・ラグジュアリーデザイン適用完了
+- [x] Member トップが「雑誌の目次」型で「都心レジデンスの案内サイト感」がある
+- [x] Index List（01..06）から各ページに3タップ以内で到達可能
+- [x] Vault は Admin限定、マスキング表示がデフォルト
+- [x] 監査ログが記録・表示される
+- [x] Public/Member に個人情報が出ない
+- [x] Minato Editorial Luxury デザイン適用完了
+
+## 次のステップ候補
+
+1. **初期データ（Seed）投入**：住戸、ローテ、ルール、FAQ などのサンプルデータを投入
+2. **検索機能の実装**：全文検索（河川、備品、会費など）
+3. **画像アップロード機能**：備品・河川清掃・ログの写真を S3 に保存
+4. **パンくず（Breadcrumb）ナビゲーション**：各ページ上部に追加
+5. **Admin 管理画面の詳細実装**：投稿管理、ユーザー管理、ローテ自動計算ロジック編集

@@ -1,0 +1,9 @@
+{
+  "query": "DROP TABLE IF EXISTS events, river_cleaning_runs, inventory, templates, rules, rule_versions, posts, faq, pending_queue, handover_bag_items, changelog, secret_notes, member_top_summary, exemption_requests, leader_rotation_logic, leader_schedule, households, users, audit_logs, data_classification, vault_entries;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 39TMQUucwvHYUB3.root --database jV6HNkMLpAcwSmXrphs6n2 --execute DROP TABLE IF EXISTS events, river_cleaning_runs, inventory, templates, rules, rule_versions, posts, faq, pending_queue, handover_bag_items, changelog, secret_notes, member_top_summary, exemption_requests, leader_rotation_logic, leader_schedule, households, users, audit_logs, data_classification, vault_entries;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 2976
+}

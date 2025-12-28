@@ -283,3 +283,49 @@ export const memberTopSummary = mysqlTable("member_top_summary", {
 
 export type MemberTopSummary = typeof memberTopSummary.$inferSelect;
 export type InsertMemberTopSummary = typeof memberTopSummary.$inferInsert;
+
+
+// データ分類ラベル（public / internal / confidential）
+export const dataClassification = mysqlTable("data_classification", {
+  id: int("id").autoincrement().primaryKey(),
+  entityType: varchar("entityType", { length: 100 }).notNull(), // posts, inventory, templates, rules, faq など
+  entityId: int("entityId").notNull(),
+  classification: mysqlEnum("classification", ["public", "internal", "confidential"]).default("public").notNull(),
+  reason: text("reason"), // 分類理由
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DataClassification = typeof dataClassification.$inferSelect;
+export type InsertDataClassification = typeof dataClassification.$inferInsert;
+
+// Private Vault エントリ（Admin限定秘匿情報）
+export const vaultEntries = mysqlTable("vault_entries", {
+  id: int("id").autoincrement().primaryKey(),
+  category: varchar("category", { length: 100 }).notNull(), // 「連絡先」「鍵/保管」「重要書類」「金銭関連」「住戸マスタ」
+  key: varchar("key", { length: 255 }).notNull(), // 例：「管理会社電話」「倉庫鍵の保管場所」
+  maskedValue: varchar("maskedValue", { length: 500 }).notNull(), // マスキング表示用（例：「****」）
+  actualValue: text("actualValue").notNull(), // 実際の値（暗号化推奨）
+  classification: mysqlEnum("classification", ["internal", "confidential"]).default("confidential").notNull(),
+  createdBy: int("createdBy").notNull(), // Admin の userId
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type VaultEntry = typeof vaultEntries.$inferSelect;
+export type InsertVaultEntry = typeof vaultEntries.$inferInsert;
+
+// 監査ログ（Vault アクセス・編集・コピーを記録）
+export const auditLogs = mysqlTable("audit_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  action: varchar("action", { length: 50 }).notNull(), // view, copy, edit, delete など
+  entityType: varchar("entityType", { length: 100 }).notNull(), // vault_entry など
+  entityId: int("entityId").notNull(),
+  details: text("details"), // アクション詳細（例：「マスキング解除」）
+  ipAddress: varchar("ipAddress", { length: 45 }), // IPv4/IPv6
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+});
+
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = typeof auditLogs.$inferInsert;

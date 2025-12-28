@@ -15,6 +15,8 @@ import Rules from "./pages/Rules";
 import YearLog from "./pages/YearLog";
 import FAQ from "./pages/FAQ";
 import AdminDashboard from "./pages/AdminDashboard";
+import Vault from "./pages/Vault";
+import AuditLogs from "./pages/AuditLogs";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 function Router() {
@@ -31,6 +33,8 @@ function Router() {
       <Route path={"/year-log"} component={YearLog} />
       <Route path={"/faq"} component={FAQ} />
       <Route path={"/admin"} component={user?.role === "admin" ? AdminDashboard : NotFound} />
+      <Route path={"/vault"} component={user?.role === "admin" ? Vault : NotFound} />
+      <Route path={"/audit-logs"} component={user?.role === "admin" ? AuditLogs : NotFound} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
