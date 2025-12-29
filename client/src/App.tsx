@@ -20,6 +20,8 @@ import AuditLogs from "./pages/AuditLogs";
 import Forms from "./pages/Forms";
 import FormResponse from "./pages/FormResponse";
 import FormBuilder from "./pages/FormBuilder";
+import PendingQueue from "./pages/PendingQueue";
+import HandoverBag from "./pages/HandoverBag";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 function Router() {
@@ -41,6 +43,8 @@ function Router() {
       <Route path={"/forms"} component={user?.role === "admin" ? Forms : NotFound} />
       <Route path={"/form-builder"} component={user?.role === "admin" ? FormBuilder : NotFound} />
       <Route path={"/form-response/:formId"} component={isAuthenticated ? FormResponse : NotFound} />
+      <Route path={"/pending-queue"} component={isAuthenticated ? PendingQueue : NotFound} />
+      <Route path={"/handover-bag"} component={isAuthenticated ? HandoverBag : NotFound} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

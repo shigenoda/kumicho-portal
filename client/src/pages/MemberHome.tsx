@@ -40,10 +40,22 @@ export default function MemberHome() {
     setLocation("/");
   };
 
+  const deleteFormMutation = trpc.data.deleteForm.useMutation();
+
   const handleDeleteUnansweredForm = (formId: string) => {
     if (confirm("このフォームを削除しますか？")) {
-      // TODO: フォーム削除 API を呼び出す
-      console.log("Delete form:", formId);
+      deleteFormMutation.mutate(
+        { formId: parseInt(formId) },
+        {
+          onSuccess: () => {
+            // フォーム一覧を再取得
+            window.location.reload();
+          },
+          onError: (error) => {
+            alert("削除に失敗しました: " + error.message);
+          },
+        }
+      );
     }
   };
 

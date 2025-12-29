@@ -1,12 +1,14 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Droplets } from "lucide-react";
+import { ArrowLeft, Droplets, Pencil } from "lucide-react";
 import { useLocation } from "wouter";
+import { useState } from "react";
 
 export default function RiverCleaning() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   if (!isAuthenticated) {
     return <div className="page-container flex items-center justify-center min-h-screen">ログインが必要です</div>;
@@ -40,7 +42,14 @@ export default function RiverCleaning() {
       <main className="container py-8">
         <div className="space-y-6">
           {/* Overview */}
-          <Card className="p-6">
+          <Card className="p-6 relative">
+            <button
+              onClick={() => setEditingId(editingId === 'overview' ? null : 'overview')}
+              className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded transition-colors text-blue-600"
+              title="編集"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
             <h2 className="text-xl font-semibold mb-4">目的</h2>
             <p className="text-muted-foreground">
               河川清掃は、地域の環境保全と住民の絆を深める重要な行事です。

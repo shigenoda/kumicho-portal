@@ -1,10 +1,12 @@
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Calendar } from "lucide-react";
+import { ChevronLeft, Calendar, Pencil } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { useState } from "react";
 
 export default function CalendarPage() {
   const [, setLocation] = useLocation();
+  const [editingId, setEditingId] = useState<number | null>(null);
   const { data: events = [] } = trpc.data.getEvents.useQuery();
 
   const groupedByMonth = events.reduce((acc: Record<string, any[]>, event: any) => {
@@ -74,7 +76,16 @@ export default function CalendarPage() {
                           </div>
                         )}
                       </div>
-                      <span className="tag-pill text-xs">{event.category}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="tag-pill text-xs">{event.category}</span>
+                        <button
+                          onClick={() => setEditingId(editingId === event.id ? null : event.id)}
+                          className="p-2 hover:bg-gray-100 rounded transition-colors text-blue-600"
+                          title="編集"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
