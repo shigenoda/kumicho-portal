@@ -123,6 +123,7 @@
 - [x] MemberHome.tsx の Settings ボタンをクリックで Settings パネルを開く
 - [x] Settings パネルに「住戸管理」セクションを追加
 - [x] 9部屋分の住戸情報を表示・編集可能にする
+- [x] エラー修正：data.getHouseholds API の登録確認・サーバー再起動
 
 ### 住戸管理UI の実装
 - [x] 各住戸の入居年月を編集できるフォーム
