@@ -1,10 +1,11 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Settings, LogOut } from "lucide-react";
+import { Search, Settings, LogOut, X } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { trpc } from "@/lib/trpc";
 
 /**
  * Member トップページ - Minato Editorial Luxury デザイン
@@ -14,6 +15,8 @@ export default function MemberHome() {
   const { user, isAuthenticated, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [, setLocation] = useLocation();
+  const [showSettings, setShowSettings] = useState(false);
+  const { data: households = [] } = trpc.data.getHouseholds.useQuery();
 
   const handleLogout = async () => {
     await logout();
@@ -58,7 +61,10 @@ export default function MemberHome() {
             </div>
           </div>
           <div className="flex items-center gap-4 ml-6">
-            <button className="p-2 hover:bg-white/10 rounded transition-colors">
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className="p-2 hover:bg-white/10 rounded transition-colors"
+            >
               <Settings className="w-5 h-5 text-white" />
             </button>
             <button
@@ -188,7 +194,7 @@ export default function MemberHome() {
                 テンプレ置き場
               </h3>
               <p className="text-sm text-gray-600 leading-relaxed font-light">
-                管理会社向け・町内会向け・住民向けテンプレ
+                文書テンプレ・通知文・メール文例
               </p>
               <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
             </button>
@@ -312,6 +318,94 @@ export default function MemberHome() {
           </div>
         </div>
       </main>
+
+      {/* Settings パネル */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/50 z-40 flex items-end">
+          <div className="w-full max-w-2xl bg-white rounded-t-lg shadow-lg max-h-[80vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
+              <h2 className="text-2xl font-light text-gray-900">設定</h2>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="p-2 hover:bg-gray-100 rounded transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-8">
+              {/* 住戸管理セクション */}
+              <section>
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">住戸管理</h3>
+                <div className="space-y-6">
+                  {households.map((household: any) => (
+                    <div key={household.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            住戸ID
+                          </label>
+                          <input
+                            type="text"
+                            value={household.householdId}
+                            disabled
+                            className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-50 text-gray-600"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            入居年月
+                          </label>
+                          <input
+                            type="date"
+                            defaultValue={household.moveInDate ? new Date(household.moveInDate).toISOString().split('T')[0] : ''}
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-900"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            過去の組長経歴（回数）
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            defaultValue={household.leaderHistoryCount || 0}
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-900"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            免除状態
+                          </label>
+                          <div className="px-3 py-2 border border-gray-300 rounded bg-gray-50 text-gray-600 text-sm">
+                            {household.exemptionType || "なし"}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* 保存ボタン */}
+              <div className="flex gap-3 pt-4 border-t border-gray-200">
+                <Button
+                  onClick={() => setShowSettings(false)}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  キャンセル
+                </Button>
+                <Button
+                  className="flex-1 bg-blue-900 hover:bg-blue-800 text-white"
+                >
+                  保存
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

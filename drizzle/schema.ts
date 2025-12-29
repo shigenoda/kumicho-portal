@@ -25,6 +25,7 @@ export const households = mysqlTable("households", {
   id: int("id").autoincrement().primaryKey(),
   householdId: varchar("householdId", { length: 50 }).notNull().unique(), // 例：101, 102, 201 など
   moveInDate: timestamp("moveInDate"),
+  leaderHistoryCount: int("leaderHistoryCount").default(0).notNull(), // 過去の組長経歴回数
   notes: text("notes"), // 個人情報なし。例：「角部屋」「エレベーター近い」など
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

@@ -382,6 +382,119 @@ export const appRouter = router({
       if (!db) return [];
       return await db.select().from(handoverBagItems).orderBy(asc(handoverBagItems.name));
     }),
+
+    getHouseholds: protectedProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      return await db.select().from(households).orderBy(asc(households.householdId));
+    }),
+    updateHousehold: adminProcedure
+      .input(
+        z.object({
+          householdId: z.string(),
+          moveInDate: z.date().optional(),
+          leaderHistoryCount: z.number().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        await db
+          .update(households)
+          .set({
+            moveInDate: input.moveInDate,
+            leaderHistoryCount: input.leaderHistoryCount,
+          })
+          .where(eq(households.householdId, input.householdId));
+
+        return { success: true };
+      }),
+
+    recalculateSchedules: adminProcedure
+      .input(z.object({ year: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const allHouseholds = await db.select().from(households);
+        const prevYear = input.year - 1;
+        const prevScheduleArray = await db
+          .select()
+          .from(leaderSchedule)
+          .where(eq(leaderSchedule.year, prevYear))
+          .limit(1);
+        const prevSchedule = prevScheduleArray[0];
+
+        const exemptions = await db
+          .select()
+          .from(exemptionRequests)
+          .where(
+            and(
+              eq(exemptionRequests.year, input.year),
+              eq(exemptionRequests.status, "approved")
+            )
+          );
+
+        const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
+        const now = new Date();
+        const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, now.getDate());
+        const lessThanYearHouseholds = new Set(
+          allHouseholds
+            .filter((h) => h.moveInDate && h.moveInDate > twelveMonthsAgo)
+            .map((h) => h.householdId)
+        );
+
+        const recentLeaderHouseholds = new Set(
+          allHouseholds
+            .filter((h) => (h.leaderHistoryCount || 0) > 0)
+            .map((h) => h.householdId)
+        );
+
+        const candidates = allHouseholds
+          .filter((h) => {
+            return !exemptedHouseholds.has(h.householdId) &&
+                   !lessThanYearHouseholds.has(h.householdId) &&
+                   !recentLeaderHouseholds.has(h.householdId);
+          })
+          .sort((a, b) => {
+            const aYearsSinceLast = prevSchedule
+              ? prevSchedule.primaryHouseholdId === a.householdId ? 1 : 999
+              : 999;
+            const bYearsSinceLast = prevSchedule
+              ? prevSchedule.primaryHouseholdId === b.householdId ? 1 : 999
+              : 999;
+
+            if (aYearsSinceLast !== bYearsSinceLast) {
+              return bYearsSinceLast - aYearsSinceLast;
+            }
+
+            if (a.moveInDate && b.moveInDate) {
+              return a.moveInDate.getTime() - b.moveInDate.getTime();
+            }
+
+            return a.householdId.localeCompare(b.householdId);
+          });
+
+        await db
+          .delete(leaderSchedule)
+          .where(eq(leaderSchedule.year, input.year));
+
+        if (candidates.length >= 2) {
+          const primary = candidates[0];
+          const backup = candidates[1];
+
+          await db.insert(leaderSchedule).values({
+            year: input.year,
+            primaryHouseholdId: primary.householdId,
+            backupHouseholdId: backup.householdId,
+            status: "draft",
+            reason: "自動再計算",
+          });
+        }
+
+        return { success: true, candidateCount: candidates.length };
+      }),
   }),
 
   // 投稿管理 API

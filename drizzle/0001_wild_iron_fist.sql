@@ -1,0 +1,1 @@
+ALTER TABLE `households` ADD `leaderHistoryCount` int DEFAULT 0 NOT NULL;
