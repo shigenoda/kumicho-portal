@@ -452,3 +452,33 @@ export const editHistory = mysqlTable("edit_history", {
 
 export type EditHistoryRecord = typeof editHistory.$inferSelect;
 export type InsertEditHistoryRecord = typeof editHistory.$inferInsert;
+
+
+// 問い合わせ（返信待ちキュー用）
+export const inquiries = mysqlTable("inquiries", {
+  id: int("id").autoincrement().primaryKey(),
+  householdId: varchar("householdId", { length: 50 }).notNull(), // 問い合わせ元の住戸
+  year: int("year").notNull(), // 問い合わせ対象年度（その年の組長に通知）
+  title: varchar("title", { length: 255 }).notNull(),
+  content: text("content").notNull(),
+  category: mysqlEnum("category", ["participation", "opinion", "repair", "other"]).default("other").notNull(), // 参加確認、意見募集、修繕依頼、その他
+  status: mysqlEnum("status", ["pending", "replied", "closed"]).default("pending").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Inquiry = typeof inquiries.$inferSelect;
+export type InsertInquiry = typeof inquiries.$inferInsert;
+
+// 問い合わせ返信
+export const inquiryReplies = mysqlTable("inquiry_replies", {
+  id: int("id").autoincrement().primaryKey(),
+  inquiryId: int("inquiryId").notNull().references(() => inquiries.id, { onDelete: "cascade" }),
+  repliedByHouseholdId: varchar("repliedByHouseholdId", { length: 50 }).notNull(), // 返信者の住戸（通常は組長）
+  replyContent: text("replyContent").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type InquiryReply = typeof inquiryReplies.$inferSelect;
+export type InsertInquiryReply = typeof inquiryReplies.$inferInsert;

@@ -33,9 +33,12 @@ import {
   reminderLogs,
   editHistory,
   users,
+  inquiries,
+  inquiryReplies,
 } from "../drizzle/schema";
 import { notifyOwner } from "./_core/notification";
 import { handoverRouter } from "./handover-router";
+import { inquiryRouter } from "./inquiry-router";
 
 export const appRouter = router({
   system: systemRouter,
@@ -923,6 +926,12 @@ export const appRouter = router({
 
       return await db.select().from(householdEmails);
     }),
+    // メールアドレス一覧（全員が見れる、伏せ字表示用）
+    getAll: publicProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      return await db.select().from(householdEmails);
+    }),
   }),
 
   // 編集機能 API（誰でも編集可能）
@@ -1731,6 +1740,7 @@ export const appRouter = router({
   }),
 
   handover: handoverRouter,
+  inquiry: inquiryRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -328,6 +328,19 @@ export default function MemberHome() {
                 </p>
               </button>
 
+              {/* 問い合わせ */}
+              <button
+                onClick={() => setLocation("/inquiry")}
+                className="group cursor-pointer text-left"
+              >
+                <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
+                  問い合わせ
+                </h3>
+                <p className="text-sm text-gray-600 leading-relaxed font-light">
+                  組長に問い合わせを送信
+                </p>
+              </button>
+
               {/* FAQ */}
               <button
                 onClick={() => setLocation("/faq")}
@@ -367,6 +380,21 @@ export default function MemberHome() {
                   </h3>
                   <p className="text-sm text-gray-600 leading-relaxed font-light">
                     申請の承認・却下（Admin限定）
+                  </p>
+                </button>
+              )}
+
+              {/* Admin: 返信待ちキュー */}
+              {user?.role === "admin" && (
+                <button
+                  onClick={() => setLocation("/inquiry-queue")}
+                  className="group cursor-pointer text-left"
+                >
+                  <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
+                    返信待ちキュー
+                  </h3>
+                  <p className="text-sm text-gray-600 leading-relaxed font-light">
+                    未返信の問い合わせを管理（Admin限定）
                   </p>
                 </button>
               )}
