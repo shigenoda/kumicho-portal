@@ -15,8 +15,9 @@ export default function AdminDashboard() {
   return (
     <div className="page-container">
       {/* Header */}
-      <header className="bg-gradient-to-r from-slate-600 to-slate-700 text-white py-6">
-        <div className="container flex items-center gap-4">
+      <header className="bg-cover bg-center text-white py-6" style={{ backgroundImage: "url('/greenpia-yaizu.jpg')" }}>
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/50" />
+        <div className="container flex items-center gap-4 relative">
           <Button
             variant="ghost"
             size="icon"
@@ -30,7 +31,7 @@ export default function AdminDashboard() {
               <Settings className="w-6 h-6" />
               管理画面
             </h1>
-            <p className="text-slate-100">投稿管理・ユーザー管理・設定</p>
+            <p className="text-white/70">投稿管理・ユーザー管理・設定</p>
           </div>
         </div>
       </header>

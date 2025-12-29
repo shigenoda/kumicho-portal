@@ -116,13 +116,14 @@ export default function AuditLogs() {
   return (
     <div className="min-h-screen bg-white">
       {/* ヘッダー */}
-      <header className="fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-light text-gray-900">監査ログ</h1>
+      <header className="fixed top-0 left-0 right-0 bg-cover bg-center border-b border-gray-200 z-50" style={{ backgroundImage: "url('/greenpia-yaizu.jpg')" }}>
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/50" />
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between relative">
+          <h1 className="text-xl font-light text-white">監査ログ</h1>
           <Button
             onClick={() => setLocation("/")}
             variant="ghost"
-            className="text-gray-600 hover:text-gray-900"
+            className="text-white hover:text-white/70"
           >
             ← トップに戻る
           </Button>

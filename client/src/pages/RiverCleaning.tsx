@@ -15,8 +15,9 @@ export default function RiverCleaning() {
   return (
     <div className="page-container">
       {/* Header */}
-      <header className="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-6">
-        <div className="container flex items-center gap-4">
+      <header className="bg-cover bg-center text-white py-6" style={{ backgroundImage: "url('/greenpia-yaizu.jpg')" }}>
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/50" />
+        <div className="container flex items-center gap-4 relative">
           <Button
             variant="ghost"
             size="icon"
@@ -30,7 +31,7 @@ export default function RiverCleaning() {
               <Droplets className="w-6 h-6" />
               河川清掃ガイド
             </h1>
-            <p className="text-blue-100">準備・役割・安全・片付け</p>
+            <p className="text-white/70">準備・役割・安全・片付け</p>
           </div>
         </div>
       </header>

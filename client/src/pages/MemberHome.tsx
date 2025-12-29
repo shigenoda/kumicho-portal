@@ -42,29 +42,30 @@ export default function MemberHome() {
   return (
     <div className="min-h-screen bg-white">
       {/* ヘッダー */}
-      <header className="fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <header className="fixed top-0 left-0 right-0 bg-cover bg-center border-b border-gray-200 z-50" style={{ backgroundImage: "url('/greenpia-yaizu.jpg')" }}>
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/50" />
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between relative">
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white" />
               <Input
                 type="text"
                 placeholder="検索（河川、備品、会費など）"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full max-w-md bg-gray-50 border-gray-200 pl-10"
+                className="w-full max-w-md bg-white/20 border-white/30 text-white placeholder:text-white/50 pl-10"
               />
             </div>
           </div>
           <div className="flex items-center gap-4 ml-6">
-            <button className="p-2 hover:bg-gray-100 rounded transition-colors">
-              <Settings className="w-5 h-5 text-gray-600" />
+            <button className="p-2 hover:bg-white/10 rounded transition-colors">
+              <Settings className="w-5 h-5 text-white" />
             </button>
             <button
               onClick={handleLogout}
-              className="p-2 hover:bg-gray-100 rounded transition-colors"
+              className="p-2 hover:bg-white/10 rounded transition-colors"
             >
-              <LogOut className="w-5 h-5 text-gray-600" />
+              <LogOut className="w-5 h-5 text-white" />
             </button>
           </div>
         </div>
@@ -74,26 +75,20 @@ export default function MemberHome() {
       <main className="pt-24 pb-16">
         {/* ヒーロー背景 */}
         <div
-          className="relative h-96 bg-gradient-to-br from-gray-50 via-gray-100 to-gray-50 overflow-hidden"
+          className="relative h-96 bg-cover bg-center overflow-hidden"
           style={{
-            backgroundImage:
-              "radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.05) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(79, 172, 254, 0.05) 0%, transparent 50%)",
+            backgroundImage: "url('/greenpia-yaizu.jpg')",
+            backgroundAttachment: "fixed",
           }}
         >
-          {/* ノイズテクスチャ */}
-          <div
-            className="absolute inset-0 opacity-[0.02]"
-            style={{
-              backgroundImage:
-                "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><filter id=%22noise%22><feTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%224%22 result=%22noise%22/></filter><rect width=%22100%22 height=%22100%22 fill=%22%23000%22 filter=%22url(%23noise)%22/></svg>')",
-            }}
-          />
+          {/* オーバーレイ */}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent" />
 
           {/* コンテンツ */}
           <div className="relative h-full flex flex-col justify-between p-8 max-w-7xl mx-auto w-full">
             {/* 左上：ラベル */}
             <div className="flex items-start justify-between">
-              <div className="text-sm text-gray-500 font-light tracking-wider">
+              <div className="text-sm text-white/80 font-light tracking-wider">
                 <div>焼津市 集合住宅「グリーンピア」</div>
                 <div className="mt-1">年度：2025</div>
               </div>
@@ -101,19 +96,19 @@ export default function MemberHome() {
 
             {/* 中央：H1 */}
             <div className="text-center">
-              <h1 className="text-5xl md:text-6xl font-light text-gray-900 mb-2 tracking-tight">
+              <h1 className="text-5xl md:text-6xl font-light text-white mb-2 tracking-tight">
                 組長引き継ぎ
               </h1>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-white/70">
                 ロール：{user?.role || "member"}
               </p>
             </div>
 
             {/* 右下：Last updated */}
             <div className="flex justify-end">
-              <div className="text-xs text-gray-400 font-light">
+              <div className="text-xs text-white/60 font-light">
                 <div>Last updated</div>
-                <div className="mt-1 text-gray-500">2025年1月1日</div>
+                <div className="mt-1 text-white/70">2025年1月1日</div>
               </div>
             </div>
           </div>
@@ -198,9 +193,9 @@ export default function MemberHome() {
               <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
             </button>
 
-            {/* 05: ローテーション */}
+            {/* 05: ルール・決定事項 */}
             <button
-              onClick={() => setLocation("/rotation")}
+              onClick={() => setLocation("/rules")}
               className="group cursor-pointer transition-all duration-300 text-left"
             >
               <div className="mb-4">
@@ -209,79 +204,22 @@ export default function MemberHome() {
                 </span>
               </div>
               <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
-                組長ローテーション
-              </h3>
-              <p className="text-sm text-gray-600 leading-relaxed font-light">
-                先9年予定・免除ルール・住戸一覧
-              </p>
-              <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
-            </button>
-
-            {/* 06: ルール・決定事項 */}
-            <button
-              onClick={() => setLocation("/rules")}
-              className="group cursor-pointer transition-all duration-300 text-left"
-            >
-              <div className="mb-4">
-                <span className="text-xs text-gray-400 font-light tracking-widest">
-                  06
-                </span>
-              </div>
-              <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
                 ルール・決定事項
               </h3>
               <p className="text-sm text-gray-600 leading-relaxed font-light">
-                会費・免除・出不足金
+                会費・免除・ローテ・出不足金
               </p>
               <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
             </button>
 
-            {/* 07: 出欠表 */}
-            <button
-              onClick={() => setLocation("/attendance")}
-              className="group cursor-pointer transition-all duration-300 text-left"
-            >
-              <div className="mb-4">
-                <span className="text-xs text-gray-400 font-light tracking-widest">
-                  07
-                </span>
-              </div>
-              <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
-                河川清掃 出欠表
-              </h3>
-              <p className="text-sm text-gray-600 leading-relaxed font-light">
-                出欠入力・回答状況・リマインダー
-              </p>
-              <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
-            </button>
-
-            {/* 08: 免除申請 */}
-            <button
-              onClick={() => setLocation("/exemption")}
-              className="group cursor-pointer transition-all duration-300 text-left"
-            >
-              <div className="mb-4">
-                <span className="text-xs text-gray-400 font-light tracking-widest">
-                  08
-                </span>
-              </div>
-              <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
-                免除申請
-              </h3>
-              <p className="text-sm text-gray-600 leading-relaxed font-light">
-                組長就任の免除を申請
-              </p>
-              <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
-            </button>
-
-            {/* 09: 年度ログ */}
+            {/* 06: 年度ログ */}
             <button
               onClick={() => setLocation("/year-log")}
               className="group cursor-pointer transition-all duration-300 text-left"
             >
               <div className="mb-4">
                 <span className="text-xs text-gray-400 font-light tracking-widest">
-                  09
+                  06
                 </span>
               </div>
               <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
@@ -324,20 +262,7 @@ export default function MemberHome() {
                   引き継ぎ袋
                 </h3>
                 <p className="text-sm text-gray-600 leading-relaxed font-light">
-                  鍵・印鑑・帳簺のチェックリスト
-                </p>
-              </button>
-
-              {/* 問い合わせ */}
-              <button
-                onClick={() => setLocation("/inquiry")}
-                className="group cursor-pointer text-left"
-              >
-                <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
-                  問い合わせ
-                </h3>
-                <p className="text-sm text-gray-600 leading-relaxed font-light">
-                  組長に問い合わせを送信
+                  物理の中身チェックリスト
                 </p>
               </button>
 
@@ -365,36 +290,6 @@ export default function MemberHome() {
                   </h3>
                   <p className="text-sm text-gray-600 leading-relaxed font-light">
                     秘匿情報（Admin限定）
-                  </p>
-                </button>
-              )}
-
-              {/* Admin: 免除申請管理 */}
-              {user?.role === "admin" && (
-                <button
-                  onClick={() => setLocation("/exemption/admin")}
-                  className="group cursor-pointer text-left"
-                >
-                  <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
-                    免除申請管理
-                  </h3>
-                  <p className="text-sm text-gray-600 leading-relaxed font-light">
-                    申請の承認・却下（Admin限定）
-                  </p>
-                </button>
-              )}
-
-              {/* Admin: 返信待ちキュー */}
-              {user?.role === "admin" && (
-                <button
-                  onClick={() => setLocation("/inquiry-queue")}
-                  className="group cursor-pointer text-left"
-                >
-                  <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
-                    返信待ちキュー
-                  </h3>
-                  <p className="text-sm text-gray-600 leading-relaxed font-light">
-                    未返信の問い合わせを管理（Admin限定）
                   </p>
                 </button>
               )}
