@@ -220,3 +220,34 @@
 ### テスト・チェックポイント
 - [x] 動作確認
 - [x] チェックポイント作成
+
+
+## 11次実装：免除申請システム（完了）
+
+### DBスキーマ
+- [x] 免除申請テーブル（exemption_requests）を使用
+- [x] 申請ステータス（pending/approved/rejected）
+
+### 免除申請 API
+- [x] 申請作成 API（createApplication）
+- [x] 申請一覧取得 API（getApplications）
+- [x] 承認 API（approveApplication）
+- [x] 却下 API（rejectApplication）
+- [x] 通知機能（申請時・承認/却下時）
+
+### 住民用免除申請フォーム
+- [x] 申請フォームページ（ExemptionApplication.tsx）
+- [x] 住戸選択
+- [x] 申請理由入力
+- [x] 申請履歴表示
+
+### 管理者用承認・却下画面
+- [x] 申請一覧ページ（ExemptionAdmin.tsx）
+- [x] 承認ボタン
+- [x] 却下ボタン（却下理由入力）
+- [x] 申請詳細表示
+
+### テスト・チェックポイント
+- [x] 動作確認
+- [x] テスト作成（exemption.test.ts）
+- [x] 全59テスト合格

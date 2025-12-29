@@ -1548,6 +1548,186 @@ export const appRouter = router({
         return { success: true };
       }),
   }),
+
+  // 免除申請システム
+  exemption: router({
+    // 申請一覧取得（全員が自分の申請を見れる、Adminは全件見れる）
+    getApplications: publicProcedure
+      .input(z.object({
+        householdId: z.string().optional(),
+        status: z.enum(["pending", "approved", "rejected"]).optional(),
+        year: z.number().optional(),
+      }))
+      .query(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) return [];
+
+        const conditions = [];
+        if (input.householdId) {
+          conditions.push(eq(exemptionRequests.householdId, input.householdId));
+        }
+        if (input.status) {
+          conditions.push(eq(exemptionRequests.status, input.status));
+        }
+        if (input.year) {
+          conditions.push(eq(exemptionRequests.year, input.year));
+        }
+
+        const query = conditions.length > 0
+          ? db.select().from(exemptionRequests).where(and(...conditions)).orderBy(desc(exemptionRequests.createdAt))
+          : db.select().from(exemptionRequests).orderBy(desc(exemptionRequests.createdAt));
+
+        return await query;
+      }),
+
+    // 申請作成
+    createApplication: publicProcedure
+      .input(z.object({
+        householdId: z.string(),
+        year: z.number(),
+        reason: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        // 同じ年度の申請がないか確認
+        const existing = await db.select().from(exemptionRequests)
+          .where(and(
+            eq(exemptionRequests.householdId, input.householdId),
+            eq(exemptionRequests.year, input.year),
+            eq(exemptionRequests.status, "pending")
+          ))
+          .limit(1);
+
+        if (existing.length > 0) {
+          throw new Error("同じ年度の申請が既に存在します");
+        }
+
+        // バージョン番号を取得
+        const previousVersions = await db.select().from(exemptionRequests)
+          .where(and(
+            eq(exemptionRequests.householdId, input.householdId),
+            eq(exemptionRequests.year, input.year)
+          ))
+          .orderBy(desc(exemptionRequests.version))
+          .limit(1);
+
+        const version = previousVersions.length > 0 ? previousVersions[0].version + 1 : 1;
+
+        const result = await db.insert(exemptionRequests).values({
+          householdId: input.householdId,
+          year: input.year,
+          version,
+          reason: input.reason,
+          status: "pending",
+        });
+
+        // 管理者に通知
+        await notifyOwner({
+          title: `免除申請: ${input.householdId}号室（${input.year}年度）`,
+          content: `${input.householdId}号室から${input.year}年度の組長就任免除申請がありました。\n\n理由: ${input.reason}\n\n管理画面で承認・却下を行ってください。`,
+        });
+
+        return { success: true, id: result[0].insertId };
+      }),
+
+    // 申請承認（Admin専用）
+    approveApplication: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const application = await db.select().from(exemptionRequests)
+          .where(eq(exemptionRequests.id, input.id))
+          .limit(1);
+
+        if (!application[0]) throw new Error("Application not found");
+        if (application[0].status !== "pending") throw new Error("Application is not pending");
+
+        await db.update(exemptionRequests).set({
+          status: "approved",
+          approvedBy: ctx.user.id,
+          approvedAt: new Date(),
+        }).where(eq(exemptionRequests.id, input.id));
+
+        // 免除ステータスを作成
+        const startDate = new Date(`${application[0].year}-04-01`);
+        const endDate = new Date(`${application[0].year + 1}-03-31`);
+
+        await db.insert(exemptionStatus).values({
+          householdId: application[0].householdId,
+          exemptionTypeCode: "C",
+          startDate,
+          endDate,
+          reviewDate: endDate,
+          status: "active",
+          notes: input.notes || application[0].reason,
+        });
+
+        // 監査ログ
+        await db.insert(auditLogs).values({
+          action: "approve_exemption",
+          entityType: "exemption_request",
+          entityId: input.id,
+          userId: ctx.user.id,
+          details: JSON.stringify({ householdId: application[0].householdId, year: application[0].year }),
+        });
+
+        return { success: true };
+      }),
+
+    // 申請却下（Admin専用）
+    rejectApplication: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        rejectReason: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const application = await db.select().from(exemptionRequests)
+          .where(eq(exemptionRequests.id, input.id))
+          .limit(1);
+
+        if (!application[0]) throw new Error("Application not found");
+        if (application[0].status !== "pending") throw new Error("Application is not pending");
+
+        await db.update(exemptionRequests).set({
+          status: "rejected",
+          approvedBy: ctx.user.id,
+          approvedAt: new Date(),
+        }).where(eq(exemptionRequests.id, input.id));
+
+        // 監査ログ
+        await db.insert(auditLogs).values({
+          action: "reject_exemption",
+          entityType: "exemption_request",
+          entityId: input.id,
+          userId: ctx.user.id,
+          details: JSON.stringify({ householdId: application[0].householdId, year: application[0].year, rejectReason: input.rejectReason }),
+        });
+
+        return { success: true };
+      }),
+
+    // 保留中の申請数を取得（Admin用バッジ表示）
+    getPendingCount: publicProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return 0;
+
+      const result = await db.select({ count: sql<number>`count(*)` })
+        .from(exemptionRequests)
+        .where(eq(exemptionRequests.status, "pending"));
+
+      return result[0]?.count || 0;
+    }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

@@ -22,6 +22,8 @@ import Attendance from "./pages/Attendance";
 import AttendanceForm from "./pages/AttendanceForm";
 import AttendanceAdmin from "./pages/AttendanceAdmin";
 import EmailSettings from "./pages/EmailSettings";
+import ExemptionApplication from "./pages/ExemptionApplication";
+import ExemptionAdmin from "./pages/ExemptionAdmin";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 function Router() {
@@ -45,6 +47,8 @@ function Router() {
       <Route path={"/attendance/:id"} component={AttendanceForm} />
       <Route path={"/attendance/:id/admin"} component={user?.role === "admin" ? AttendanceAdmin : NotFound} />
       <Route path={"/email-settings"} component={EmailSettings} />
+      <Route path={"/exemption"} component={ExemptionApplication} />
+      <Route path={"/exemption/admin"} component={user?.role === "admin" ? ExemptionAdmin : NotFound} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

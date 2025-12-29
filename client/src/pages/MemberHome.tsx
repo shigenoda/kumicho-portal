@@ -255,14 +255,33 @@ export default function MemberHome() {
               <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
             </button>
 
-            {/* 08: 年度ログ */}
+            {/* 08: 免除申請 */}
+            <button
+              onClick={() => setLocation("/exemption")}
+              className="group cursor-pointer transition-all duration-300 text-left"
+            >
+              <div className="mb-4">
+                <span className="text-xs text-gray-400 font-light tracking-widest">
+                  08
+                </span>
+              </div>
+              <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
+                免除申請
+              </h3>
+              <p className="text-sm text-gray-600 leading-relaxed font-light">
+                組長就任の免除を申請
+              </p>
+              <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
+            </button>
+
+            {/* 09: 年度ログ */}
             <button
               onClick={() => setLocation("/year-log")}
               className="group cursor-pointer transition-all duration-300 text-left"
             >
               <div className="mb-4">
                 <span className="text-xs text-gray-400 font-light tracking-widest">
-                  08
+                  09
                 </span>
               </div>
               <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
@@ -333,6 +352,21 @@ export default function MemberHome() {
                   </h3>
                   <p className="text-sm text-gray-600 leading-relaxed font-light">
                     秘匿情報（Admin限定）
+                  </p>
+                </button>
+              )}
+
+              {/* Admin: 免除申請管理 */}
+              {user?.role === "admin" && (
+                <button
+                  onClick={() => setLocation("/exemption/admin")}
+                  className="group cursor-pointer text-left"
+                >
+                  <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
+                    免除申請管理
+                  </h3>
+                  <p className="text-sm text-gray-600 leading-relaxed font-light">
+                    申請の承認・却下（Admin限定）
                   </p>
                 </button>
               )}
