@@ -1021,6 +1021,54 @@ export const appRouter = router({
         return { success: true };
       }),
   }),
+
+  // リマインダーメール送信
+  reminder: router({
+    sendFormReminderEmails: adminProcedure.mutation(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      // 回答期限が 24 時間以内のアクティブなフォームを取得
+      const now = new Date();
+      const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+      const upcomingForms = await db
+        .select()
+        .from(forms)
+        .where(
+          and(
+            eq(forms.status, "active"),
+            gte(forms.dueDate, now),
+            lte(forms.dueDate, in24Hours)
+          )
+        );
+
+      for (const form of upcomingForms) {
+        // 未回答者を取得
+        const unansweredHouseholds = await db
+          .select({ householdId: households.householdId })
+          .from(households)
+          .leftJoin(
+            formResponses,
+            and(
+              eq(formResponses.householdId, households.householdId),
+              eq(formResponses.formId, form.id)
+            )
+          )
+          .where(eq(formResponses.id, null as any));
+
+        // メール送信
+        for (const household of unansweredHouseholds) {
+          await notifyOwner({
+            title: `フォーム回答リマインダー: ${form.title}`,
+            content: `住戸 ${household.householdId} へ\n\n下記のフォームの回答期限が近づいています。\n\nフォーム: ${form.title}\n期限: ${form.dueDate?.toLocaleString("ja-JP")}\n\nお早めに回答いただけるようお願いします。`,
+          });
+        }
+      }
+
+      return { success: true, formsProcessed: upcomingForms.length };
+    }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

@@ -138,7 +138,8 @@ async function seed() {
     await connection.query(`
       INSERT IGNORE INTO templates (name, content, category, createdBy) VALUES
       ('会費納入催促メール', 'いつもお世話になっています。会費の納入がまだのようです。お手数ですが、お早めにお願いします。', 'email', 1),
-      ('河川清掃案内', '来月の河川清掃は{{date}}に予定しています。ご参加よろしくお願いします。', 'notice', 1)
+      ('河川清掃案内', '来月の河川清掃は{{date}}に予定しています。ご参加よろしくお願いします。', 'notice', 1),
+      ('フォーム回答リマインダー', '住戸 {{householdId}} 様\n\n下記のフォームの回答期限が近づいています。\n\nフォーム: {{formTitle}}\n期限: {{dueDate}}\n\nお早めに回答いただけるようお願いします。', 'email', 1)
     `);
 
     // 14. Rules（ルール・決定事項）

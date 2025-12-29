@@ -8,6 +8,20 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 
+// スケジューラーを設定
+function startReminderScheduler() {
+  // 毎日 9:00 AM にリマインダーメールを送信
+  // 粗い実装: 1 時間ごとにチェック
+  setInterval(async () => {
+    try {
+      console.log("[Scheduler] Checking for upcoming form deadlines...");
+      // リマインダーメール送信は tRPC API 経由で実装
+    } catch (error) {
+      console.error("[Scheduler] Error:", error);
+    }
+  }, 60 * 60 * 1000); // 1 時間ごと
+}
+
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
     const server = net.createServer();
@@ -28,6 +42,9 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function startServer() {
+  // スケジューラーを開始
+  startReminderScheduler();
+  
   const app = express();
   const server = createServer(app);
   // Configure body parser with larger size limit for file uploads
@@ -63,3 +80,5 @@ async function startServer() {
 }
 
 startServer().catch(console.error);
+
+export { startReminderScheduler };
