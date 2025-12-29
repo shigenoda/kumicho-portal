@@ -1054,6 +1054,116 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    // イベント新規作成
+    createEvent: publicProcedure
+      .input(z.object({
+        title: z.string(),
+        date: z.string(), // ISO date string
+        category: z.string(),
+        checklist: z.array(z.object({
+          id: z.string(),
+          text: z.string(),
+          completed: z.boolean(),
+        })).optional(),
+        notes: z.string().optional(),
+        editorName: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const result = await db.insert(events).values({
+          title: input.title,
+          date: new Date(input.date),
+          category: input.category,
+          checklist: input.checklist || [],
+          notes: input.notes || null,
+          attachments: [],
+        });
+
+        await db.insert(editHistory).values({
+          entityType: "events",
+          entityId: result[0].insertId,
+          action: "create",
+          newValue: input as any,
+          changedBy: ctx.user?.id || null,
+          changedByName: input.editorName || ctx.user?.name || "匿名",
+        });
+
+        return { success: true, id: result[0].insertId };
+      }),
+
+    // イベント編集
+    updateEvent: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        date: z.string().optional(), // ISO date string
+        category: z.string().optional(),
+        checklist: z.array(z.object({
+          id: z.string(),
+          text: z.string(),
+          completed: z.boolean(),
+        })).optional(),
+        notes: z.string().optional(),
+        editorName: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const before = await db.select().from(events).where(eq(events.id, input.id)).limit(1);
+        if (!before[0]) throw new Error("Event not found");
+
+        const updates: Record<string, unknown> = {};
+        if (input.title) updates.title = input.title;
+        if (input.date) updates.date = new Date(input.date);
+        if (input.category) updates.category = input.category;
+        if (input.checklist) updates.checklist = input.checklist;
+        if (input.notes !== undefined) updates.notes = input.notes;
+
+        await db.update(events).set(updates).where(eq(events.id, input.id));
+
+        await db.insert(editHistory).values({
+          entityType: "events",
+          entityId: input.id,
+          action: "update",
+          previousValue: before[0] as any,
+          newValue: { ...before[0], ...updates } as any,
+          changedBy: ctx.user?.id || null,
+          changedByName: input.editorName || ctx.user?.name || "匿名",
+        });
+
+        return { success: true };
+      }),
+
+    // イベント削除
+    deleteEvent: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        editorName: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const before = await db.select().from(events).where(eq(events.id, input.id)).limit(1);
+        if (!before[0]) throw new Error("Event not found");
+
+        await db.delete(events).where(eq(events.id, input.id));
+
+        await db.insert(editHistory).values({
+          entityType: "events",
+          entityId: input.id,
+          action: "delete",
+          previousValue: before[0] as any,
+          changedBy: ctx.user?.id || null,
+          changedByName: input.editorName || ctx.user?.name || "匿名",
+        });
+
+        return { success: true };
+      }),
+
     // FAQ新規作成
     createFaq: publicProcedure
       .input(z.object({
