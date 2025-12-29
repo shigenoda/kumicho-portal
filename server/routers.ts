@@ -541,6 +541,102 @@ export const appRouter = router({
 
       return { actualValue: entry[0].actualValue };
     }),
+
+    // Vault エントリ新規作成
+    create: adminProcedure
+      .input(z.object({
+        category: z.string(),
+        key: z.string(),
+        maskedValue: z.string(),
+        actualValue: z.string(),
+        classification: z.enum(["internal", "confidential"]).default("confidential"),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const result = await db.insert(vaultEntries).values({
+          category: input.category,
+          key: input.key,
+          maskedValue: input.maskedValue,
+          actualValue: input.actualValue,
+          classification: input.classification,
+          createdBy: ctx.user.id,
+        });
+
+        // 監査ログを記録
+        await db.insert(auditLogs).values({
+          userId: ctx.user.id,
+          action: "create",
+          entityType: "vault_entry",
+          entityId: result[0].insertId,
+          details: `作成: ${input.key}`,
+        });
+
+        return { success: true, id: result[0].insertId };
+      }),
+
+    // Vault エントリ更新
+    update: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        category: z.string().optional(),
+        key: z.string().optional(),
+        maskedValue: z.string().optional(),
+        actualValue: z.string().optional(),
+        classification: z.enum(["internal", "confidential"]).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const before = await db.select().from(vaultEntries).where(eq(vaultEntries.id, input.id)).limit(1);
+        if (!before[0]) throw new Error("Vault entry not found");
+
+        const updates: Record<string, unknown> = {};
+        if (input.category) updates.category = input.category;
+        if (input.key) updates.key = input.key;
+        if (input.maskedValue) updates.maskedValue = input.maskedValue;
+        if (input.actualValue) updates.actualValue = input.actualValue;
+        if (input.classification) updates.classification = input.classification;
+
+        await db.update(vaultEntries).set(updates).where(eq(vaultEntries.id, input.id));
+
+        // 監査ログを記録
+        await db.insert(auditLogs).values({
+          userId: ctx.user.id,
+          action: "update",
+          entityType: "vault_entry",
+          entityId: input.id,
+          details: `更新: ${input.key || before[0].key}`,
+        });
+
+        return { success: true };
+      }),
+
+    // Vault エントリ削除
+    delete: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const before = await db.select().from(vaultEntries).where(eq(vaultEntries.id, input.id)).limit(1);
+        if (!before[0]) throw new Error("Vault entry not found");
+
+        await db.delete(vaultEntries).where(eq(vaultEntries.id, input.id));
+
+        // 監査ログを記録
+        await db.insert(auditLogs).values({
+          userId: ctx.user.id,
+          action: "delete",
+          entityType: "vault_entry",
+          entityId: input.id,
+          details: `削除: ${before[0].key}`,
+        });
+
+        return { success: true };
+      }),
   }),
 
   // 監査ログ API（Admin限定）
