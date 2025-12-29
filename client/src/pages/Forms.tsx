@@ -21,6 +21,8 @@ export default function Forms() {
   >([]);
 
   const { data: forms = [] } = trpc.data.getForms.useQuery();
+  const createFormMutation = trpc.data.createForm.useMutation();
+  const utils = trpc.useUtils();
 
   // Admin以外はアクセス不可
   if (user?.role !== "admin") {
@@ -34,18 +36,44 @@ export default function Forms() {
     );
   }
 
-  const handleCreateForm = () => {
+  const handleCreateForm = async () => {
     if (!formTitle.trim()) {
       alert("フォームタイトルを入力してください");
       return;
     }
-    console.log("フォーム作成:", { formTitle, formDescription, dueDate, questions });
-    // API呼び出しはここに追加
-    setShowCreateForm(false);
-    setFormTitle("");
-    setFormDescription("");
-    setDueDate("");
-    setQuestions([]);
+    if (questions.length === 0) {
+      alert("最低1つの質問を追加してください");
+      return;
+    }
+    if (questions.some(q => q.choices.length < 2)) {
+      alert("各質問に最低2つの選択肢を追加してください");
+      return;
+    }
+
+    try {
+      await createFormMutation.mutateAsync({
+        title: formTitle,
+        description: formDescription,
+        dueDate: dueDate || undefined,
+        questions: questions.map(q => ({
+          text: q.text,
+          type: q.type,
+          choices: q.choices.filter(c => c.trim()),
+        })),
+      });
+
+      await utils.data.getForms.invalidate();
+
+      setShowCreateForm(false);
+      setFormTitle("");
+      setFormDescription("");
+      setDueDate("");
+      setQuestions([]);
+      alert("フォームが作成されました");
+    } catch (error) {
+      console.error("Form creation error:", error);
+      alert("フォーム作成に失敗しました");
+    }
   };
 
   const addQuestion = () => {

@@ -600,6 +600,80 @@ export const appRouter = router({
       const allForms = await db.select().from(forms).orderBy(desc(forms.createdAt));
       return allForms;
     }),
+
+    createForm: adminProcedure
+      .input(
+        z.object({
+          title: z.string().min(1),
+          description: z.string().optional(),
+          dueDate: z.string().optional(),
+          questions: z.array(
+            z.object({
+              text: z.string().min(1),
+              type: z.enum(["single_choice", "multiple_choice"]),
+              choices: z.array(z.string().min(1)),
+            })
+          ),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database connection failed");
+
+        try {
+          await db.insert(forms).values({
+            title: input.title,
+            description: input.description || null,
+            dueDate: input.dueDate ? new Date(input.dueDate) : null,
+            createdBy: ctx.user.id,
+            status: "draft",
+          });
+
+          const createdForm = await db.select().from(forms)
+            .where(eq(forms.title, input.title))
+            .orderBy(desc(forms.createdAt))
+            .limit(1);
+
+          if (!createdForm.length) throw new Error("Form creation failed");
+          const formId = createdForm[0].id;
+
+          for (let qIndex = 0; qIndex < input.questions.length; qIndex++) {
+            const question = input.questions[qIndex];
+
+            await db.insert(formQuestions).values({
+              formId,
+              questionText: question.text,
+              questionType: question.type,
+              required: true,
+              orderIndex: qIndex,
+            });
+
+            const createdQuestion = await db.select().from(formQuestions)
+              .where(eq(formQuestions.formId, formId))
+              .orderBy(desc(formQuestions.createdAt))
+              .limit(1);
+
+            if (!createdQuestion.length) throw new Error("Question creation failed");
+            const questionId = createdQuestion[0].id;
+
+            for (let cIndex = 0; cIndex < question.choices.length; cIndex++) {
+              const choice = question.choices[cIndex];
+              if (choice.trim()) {
+                await db.insert(formChoices).values({
+                  questionId,
+                  choiceText: choice,
+                  orderIndex: cIndex,
+                });
+              }
+            }
+          }
+
+          return { success: true, formId };
+        } catch (error) {
+          console.error("Form creation error:", error);
+          throw new Error("Failed to create form");
+        }
+      }),
   }),
 
   // 投稿管理 API
