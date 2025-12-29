@@ -1,4 +1,3 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Settings, LogOut, X } from "lucide-react";
@@ -6,6 +5,7 @@ import { getLoginUrl } from "@/const";
 import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 
 /**
@@ -38,6 +38,13 @@ export default function MemberHome() {
   const handleLogout = async () => {
     await logout();
     setLocation("/");
+  };
+
+  const handleDeleteUnansweredForm = (formId: string) => {
+    if (confirm("このフォームを削除しますか？")) {
+      // TODO: フォーム削除 API を呼び出す
+      console.log("Delete form:", formId);
+    }
   };
 
   if (!isAuthenticated) {
@@ -143,26 +150,40 @@ export default function MemberHome() {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {unansweredForms.map((form: any) => (
-                  <button
+                  <div
                     key={form.id}
-                    onClick={() => setLocation(`/form-response/${form.id}`)}
-                    className="group bg-white border border-blue-200 rounded-lg p-6 text-left hover:shadow-lg transition-all duration-300"
+                    className="group bg-white border border-blue-200 rounded-lg p-6 flex items-start justify-between hover:shadow-lg transition-all duration-300"
                   >
-                    <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
-                      {form.title}
-                    </h3>
-                    {form.description && (
-                      <p className="text-sm text-gray-600 mb-4 font-light">
-                        {form.description}
-                      </p>
-                    )}
-                    {form.dueDate && (
-                      <div className="text-xs text-gray-500">
-                        期限: {new Date(form.dueDate).toLocaleDateString('ja-JP')}
-                      </div>
-                    )}
-                    <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
-                  </button>
+                    <button
+                      onClick={() => setLocation(`/form-response/${form.id}`)}
+                      className="flex-1 text-left"
+                    >
+                      <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
+                        {form.title}
+                      </h3>
+                      {form.description && (
+                        <p className="text-sm text-gray-600 mb-4 font-light">
+                          {form.description}
+                        </p>
+                      )}
+                      {form.dueDate && (
+                        <div className="text-xs text-gray-500">
+                          期限: {new Date(form.dueDate).toLocaleDateString('ja-JP')}
+                        </div>
+                      )}
+                      <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteUnansweredForm(form.id);
+                      }}
+                      className="ml-4 text-red-500 hover:text-red-700 text-sm font-light transition-colors flex-shrink-0"
+                      title="削除"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>

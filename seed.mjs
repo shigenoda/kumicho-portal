@@ -50,113 +50,122 @@ async function seed() {
       (2033, '107', '108', 'draft', '自動計算待ち')
     `);
 
-    // 3. Leader Rotation Logic（ローテロジック）
+    // 3. Leader Rotation Logic（ローテーション計算ロジック）
     console.log("🔄 Seeding leader rotation logic...");
     await connection.query(`
-      INSERT IGNORE INTO leader_rotation_logic (version, logic, reason) VALUES
-      (1, '{"priority": ["yearsSinceLast", "moveInDate", "householdId"], "excludeConditions": ["exemptionApproved"]}', 'デフォルトロジック')
+      INSERT IGNORE INTO leader_rotation_logic (year, logic) VALUES
+      (2025, 'A: 入居12ヶ月未満は候補外。B: 直近2年以内に組長経験は候補外。C: 免除申請承認は候補外。'),
+      (2026, 'A: 入居12ヶ月未満は候補外。B: 直近2年以内に組長経験は候補外。C: 免除申請承認は候補外。')
     `);
 
-    // 4. Events（イベント）
-    console.log("📌 Seeding events...");
+    // 4. Exemption Requests（免除申請）
+    console.log("🚫 Seeding exemption requests...");
     await connection.query(`
-      INSERT IGNORE INTO events (title, date, description, category) VALUES
-      ('河川清掃', '2025-04-20', '春の河川清掃。朝7時集合', 'maintenance'),
-      ('定期総会', '2025-05-15', '年度初めの定期総会', 'meeting'),
-      ('夏祭り', '2025-07-26', '集合住宅の夏祭り', 'event'),
-      ('河川清掃', '2025-10-19', '秋の河川清掃。朝7時集合', 'maintenance'),
-      ('年末総会', '2025-12-10', '年度末の総会', 'meeting')
+      INSERT IGNORE INTO exemption_requests (householdId, year, reason, status, approvedBy, approvedAt) VALUES
+      ('103', 2025, '健康上の理由', 'approved', 1, NOW()),
+      ('105', 2026, '仕事の都合', 'pending', NULL, NULL)
     `);
 
-    // 5. Inventory（備品）
-    console.log("📦 Seeding inventory...");
+    // 5. Rule Versions（ルール版管理）
+    console.log("📜 Seeding rule versions...");
     await connection.query(`
-      INSERT IGNORE INTO inventory (name, quantity, location, category, lastAuditDate, notes) VALUES
-      ('軍手（白）', 50, '倉庫A-1', 'supplies', '2025-01-15', '河川清掃用'),
-      ('ゴミ袋（大）', 100, '倉庫A-2', 'supplies', '2025-01-15', '45L対応'),
-      ('熊手', 10, '倉庫B-1', 'tools', '2025-01-15', '竹製'),
-      ('スコップ', 8, '倉庫B-1', 'tools', '2025-01-15', 'アルミ製'),
-      ('三角コーン', 20, '倉庫C-1', 'safety', '2025-01-15', '赤色'),
-      ('懐中電灯', 15, '倉庫C-2', 'safety', '2025-01-15', 'LED式'),
-      ('ロープ（50m）', 3, '倉庫D-1', 'tools', '2025-01-15', 'ナイロン製'),
-      ('脚立（2m）', 5, '倉庫D-2', 'tools', '2025-01-15', 'アルミ製'),
-      ('清掃用ほうき', 12, '倉庫A-3', 'supplies', '2025-01-15', 'プラスチック製'),
-      ('消火器', 4, '倉庫E-1', 'safety', '2025-01-15', '10型')
+      INSERT IGNORE INTO rule_versions (version, content, createdBy, effectiveDate) VALUES
+      (1, '組長業務基本ルール v1', 1, '2024-01-01'),
+      (2, '組長業務基本ルール v2（会費納入期限延長）', 1, '2024-06-01')
     `);
 
-    // 6. Templates（テンプレ）
-    console.log("📄 Seeding templates...");
-    await connection.query(`
-      INSERT IGNORE INTO templates (title, body, category, createdBy) VALUES
-      ('河川清掃実施のお知らせ', '焼津市 集合住宅「グリーンピア」の皆様へ\\n\\n河川清掃を下記の日程で実施いたします。\\n\\n【日時】2025年4月20日（日）午前7時集合\\n【場所】〇〇川 〇〇地点\\n【持ち物】軍手、タオル、飲み物\\n\\nご参加ください。', 'notice', 'admin'),
-      ('会費徴収のお願い', '焼津市 集合住宅「グリーンピア」の皆様へ\\n\\n本年度の会費徴収を開始いたします。\\n\\n【金額】月額 5,000円\\n【納期】毎月末日\\n【納入先】組長まで\\n\\nよろしくお願いいたします。', 'notice', 'admin'),
-      ('定期総会の開催通知', '焼津市 集合住宅「グリーンピア」の皆様へ\\n\\n定期総会を下記の日程で開催いたします。\\n\\n【日時】2025年5月15日（木）19時00分\\n【場所】集会室\\n【議題】予算承認、役員選出\\n\\nご参加ください。', 'notice', 'admin'),
-      ('問い合わせ回答テンプレ', '〇〇様へ\\n\\nいつもお世話になっております。\\n\\nご質問ありがとうございます。\\n\\n【ご質問】\\n〇〇について\\n\\n【回答】\\n〇〇です。\\n\\nご不明な点がございましたら、お気軽にお問い合わせください。', 'response', 'admin')
-    `);
-
-    // 7. Rules（ルール）
-    console.log("📋 Seeding rules...");
-    await connection.query(`
-      INSERT IGNORE INTO rules (title, details, status, category, version) VALUES
-      ('会費徴収ルール', '月額5,000円を毎月末日までに組長に納入する。\\n\\n【納入方法】\\n- 現金：組長に直接\\n- 銀行振込：指定口座へ\\n\\n【免除条件】\\n- 生活保護受給者\\n- 失業中で収入がない者\\n- 医療費が月額50,000円以上の者', 'decided', 'finance', 1),
-      ('ローテーション制度', '組長は毎年交代する。\\n\\n【選定方法】\\n1. 前回担当からの経過年数\\n2. 入居開始が古い\\n3. 住戸ID昇順\\n\\n【条件付き確定】\\n- 在籍していれば確定', 'pending', 'management', 1),
-      ('出不足金の扱い', '河川清掃などの行事に不参加の場合、出不足金を徴収する。\\n\\n【金額】\\n- 河川清掃：1,000円/回\\n- 定期総会：500円/回\\n\\n【免除条件】\\n- 病気・怪我\\n- 仕事の都合\\n- 介護・育児', 'pending', 'finance', 1)
-    `);
-
-    // 8. FAQ（よくある質問）
-    console.log("❓ Seeding FAQ...");
-    await connection.query(`
-      INSERT IGNORE INTO faq (question, answer, category, relatedLinks) VALUES
-      ('会費の納入方法は？', '月額5,000円を毎月末日までに組長に納入してください。現金または銀行振込で対応しています。', 'finance', '["会費徴収ルール"]'),
-      ('河川清掃に参加できない場合は？', '事前に組長にご連絡ください。やむを得ない理由がある場合は出不足金の免除対象になる可能性があります。', 'event', '["出不足金の扱い"]'),
-      ('ローテーション制度について教えてください', '組長は毎年交代します。選定方法は前回担当からの経過年数、入居開始日、住戸ID昇順で決定されます。', 'management', '["ローテーション制度"]'),
-      ('会費の免除申請はどうするのか？', '組長に申請書を提出してください。生活保護受給者、失業中、医療費が月額50,000円以上の方が対象です。', 'finance', '["会費徴収ルール"]'),
-      ('倉庫の鍵はどこにあるのか？', '倉庫の鍵は組長が管理しています。使用する際は組長にご連絡ください。', 'facility', '[]')
-    `);
-
-    // 9. Posts（年度ログ）
-    console.log("📝 Seeding posts...");
-    await connection.query(`
-      INSERT IGNORE INTO posts (title, body, category, status, year, authorId, authorRole, tags, isHypothesis, publishedAt) VALUES
-      ('河川清掃SOP v2 公開', '河川清掃の標準手順書を更新しました。準備→当日→片付けの流れを詳細に記載しています。', 'decision', 'published', 2025, 1, 'admin', '["河川清掃", "SOP"]', 0, NOW()),
-      ('会費ルール更新', '会費徴収ルールを改定しました。免除条件を明確化し、申請手続きを簡素化しています。', 'decision', 'published', 2025, 1, 'admin', '["会費", "ルール"]', 0, NOW()),
-      ('先9年ローテを確定', '2025年から2033年までの組長ローテーションを確定しました。', 'decision', 'published', 2025, 1, 'admin', '["ローテーション"]', 0, NOW()),
-      ('免除条件の条文化について（仮説）', '免除申請の条件をより明確にする必要があります。生活保護、失業、医療費の基準を検討中です。', 'pending', 'published', 2025, 1, 'admin', '["免除", "ルール"]', 1, NOW()),
-      ('過去担当履歴の穴（仮説）', '2010年～2015年の組長記録が不完全です。確認が必要です。', 'trouble', 'published', 2025, 1, 'admin', '["ローテーション", "記録"]', 1, NOW())
-    `);
-
-    // 10. Changelog（変更履歴）
-    console.log("🔄 Seeding changelog...");
-    await connection.query(`
-      INSERT IGNORE INTO changelog (summary, authorRole, relatedEntityType, relatedEntityId) VALUES
-      ('先9年ローテを確定', 'admin', 'leader_schedule', 1),
-      ('会費ルール更新', 'admin', 'rule', 1),
-      ('河川清掃SOP v2 公開', 'admin', 'post', 1),
-      ('免除条件の条文化について（仮説）', 'admin', 'post', 4),
-      ('過去担当履歴の穴（仮説）', 'admin', 'post', 5)
-    `);
-
-    // 11. Pending Queue（返信待ちキュー）
+    // 6. Pending Queue（返信待ちキュー）
     console.log("⏳ Seeding pending queue...");
     await connection.query(`
-      INSERT IGNORE INTO pending_queue (title, toWhom, status, priority, createdAt) VALUES
-      ('河川清掃の実施日程確認', '管理会社', 'pending', 1, NOW()),
-      ('会費納入口座の確認', '町内会', 'pending', 2, NOW()),
-      ('倉庫の鍵交換について', '管理会社', 'pending', 3, NOW())
+      INSERT IGNORE INTO pending_queue (householdId, taskType, dueDate, status, notes) VALUES
+      ('102', 'form_response', '2025-04-15 23:59:59', 'pending', '河川清掃出欠未回答'),
+      ('104', 'form_response', '2025-04-15 23:59:59', 'pending', '河川清掃出欠未回答')
     `);
 
-    // 12. Handover Bag Items（引き継ぎ袋チェックリスト）
-    console.log("🎒 Seeding handover bag items...");
+    // 7. Handover Bag Items（引き継ぎ袋アイテム）
+    console.log("🎁 Seeding handover bag items...");
     await connection.query(`
-      INSERT IGNORE INTO handover_bag_items (name, description, location, isChecked) VALUES
-      ('組長引き継ぎ手帳', '過去の記録と決定事項をまとめたもの', '倉庫E-1', 1),
-      ('倉庫の鍵', '倉庫A、B、C、Dの鍵', '倉庫E-1', 1),
-      ('会費徴収記録', '過去3年分の会費徴収記録', '倉庫E-1', 1),
-      ('ローテーション表', '過去10年と今後9年のローテーション表', '倉庫E-1', 1),
-      ('ルール・決定事項ファイル', 'A4ファイルに綴じたもの', '倉庫E-1', 1)
+      INSERT IGNORE INTO handover_bag_items (name, description, location, lastUpdated) VALUES
+      ('会費帳', '住戸別の会費納入状況を記録するノート', '組長宅', NOW()),
+      ('ルール冊子', '組長業務の基本ルール', '組長宅', NOW()),
+      ('連絡網', '全住戸の連絡先一覧', '組長宅', NOW())
     `);
 
-    // 13. Secret Notes（秘匿メモ）
+    // 8. Member Top Summary（Member トップ要約）
+    console.log("📊 Seeding member top summary...");
+    await connection.query(`
+      INSERT IGNORE INTO member_top_summary (title, content, displayOrder) VALUES
+      ('年度', '2025年度', 1),
+      ('組長', '101番 田中太郎', 2),
+      ('副組長', '102番 鈴木花子', 3)
+    `);
+
+    // 9. Posts（投稿）
+    console.log("📝 Seeding posts...");
+    await connection.query(`
+      INSERT IGNORE INTO posts (title, content, createdBy, createdAt, classification) VALUES
+      ('2025年度組長決定', '2025年度の組長が決定しました。101番の田中太郎さんです。', 1, NOW(), 'public'),
+      ('河川清掃日程変更', '4月20日の河川清掃は雨天予報のため、4月27日に変更になりました。', 1, NOW(), 'public')
+    `);
+
+    // 10. Events（イベント）
+    console.log("🗓️ Seeding events...");
+    await connection.query(`
+      INSERT IGNORE INTO events (title, startDate, endDate, description, createdBy, classification) VALUES
+      ('河川清掃', '2025-04-20 08:00:00', '2025-04-20 10:00:00', '焼津川河川敷の清掃活動', 1, 'public'),
+      ('定期総会', '2025-05-10 19:00:00', '2025-05-10 21:00:00', '年度の定期総会', 1, 'public')
+    `);
+
+    // 11. River Cleaning Runs（河川清掃実績）
+    console.log("🌊 Seeding river cleaning runs...");
+    await connection.query(`
+      INSERT IGNORE INTO river_cleaning_runs (date, attendanceCount, notes) VALUES
+      ('2024-10-20', 8, '秋の清掃。天候良好。'),
+      ('2024-04-21', 7, '春の清掃。参加者7名。')
+    `);
+
+    // 12. Inventory（備品台帳）
+    console.log("📦 Seeding inventory...");
+    await connection.query(`
+      INSERT IGNORE INTO inventory (name, quantity, location, lastChecked, classification) VALUES
+      ('折りたたみテーブル', 2, '倉庫', NOW(), 'public'),
+      ('椅子', 20, '倉庫', NOW(), 'public'),
+      ('掃除用具セット', 3, '倉庫', NOW(), 'public')
+    `);
+
+    // 13. Templates（テンプレート）
+    console.log("📄 Seeding templates...");
+    await connection.query(`
+      INSERT IGNORE INTO templates (name, content, category, createdBy) VALUES
+      ('会費納入催促メール', 'いつもお世話になっています。会費の納入がまだのようです。お手数ですが、お早めにお願いします。', 'email', 1),
+      ('河川清掃案内', '来月の河川清掃は{{date}}に予定しています。ご参加よろしくお願いします。', 'notice', 1)
+    `);
+
+    // 14. Rules（ルール・決定事項）
+    console.log("⚖️ Seeding rules...");
+    await connection.query(`
+      INSERT IGNORE INTO rules (title, content, effectiveDate, createdBy, classification) VALUES
+      ('会費納入期限', '毎月末日までに会費を納入してください。', '2024-01-01', 1, 'public'),
+      ('河川清掃参加', '年2回の河川清掃への参加は義務です。', '2024-01-01', 1, 'public')
+    `);
+
+    // 15. FAQ（よくある質問）
+    console.log("❓ Seeding FAQ...");
+    await connection.query(`
+      INSERT IGNORE INTO faq (question, answer, category, displayOrder) VALUES
+      ('会費はいくらですか？', '月額5,000円です。', 'finance', 1),
+      ('河川清掃は必須ですか？', 'はい、年2回の参加が義務です。', 'event', 2)
+    `);
+
+    // 16. Changelog（年度ログ）
+    console.log("📋 Seeding changelog...");
+    await connection.query(`
+      INSERT IGNORE INTO changelog (title, content, createdAt) VALUES
+      ('2024年度組長業務完了', '田中太郎さんの2024年度組長業務が完了しました。', NOW()),
+      ('2025年度開始', '2025年度が開始しました。新組長は101番です。', NOW())
+    `);
+
+    // 17. Secret Notes（個人情報メモ）
     console.log("🔐 Seeding secret notes...");
     await connection.query(`
       INSERT IGNORE INTO secret_notes (title, body) VALUES
@@ -165,13 +174,34 @@ async function seed() {
       ('過去の問題記録', '2020年に会費未納があった住戸：106番、108番。現在は解決済み。')
     `);
 
-    // 14. Forms（フォーム）
+    // 18. Forms（フォーム）
     console.log("📋 Seeding forms...");
     const formId = 'river-cleaning-attendance-2025';
     await connection.query(`
       INSERT IGNORE INTO forms (id, title, description, dueDate, createdBy, status) VALUES
       (?, '河川清掃出欠', '2025年4月20日（日）の河川清掃への出欠をお知らせください。', '2025-04-15 23:59:59', 1, 'active')
     `, [formId]);
+
+    // 19. Form Questions（質問）
+    console.log("❓ Seeding form questions...");
+    const questionId = 'river-attendance-q1';
+    await connection.query(`
+      INSERT IGNORE INTO form_questions (id, formId, questionText, questionType, required, displayOrder) VALUES
+      (?, ?, '出席を選択してください', 'radio', true, 1)
+    `, [questionId, formId]);
+
+    // 20. Form Choices（選択肢）
+    console.log("✓ Seeding form choices...");
+    await connection.query(`
+      INSERT IGNORE INTO form_choices (id, questionId, choiceText, displayOrder) VALUES
+      (?, ?, '出席', 1),
+      (?, ?, '欠席', 2),
+      (?, ?, '未定', 3)
+    `, [
+      'choice-attend', questionId,
+      'choice-absent', questionId,
+      'choice-undecided', questionId
+    ]);
 
     console.log("✅ Seeding completed successfully!");
   } catch (error) {
