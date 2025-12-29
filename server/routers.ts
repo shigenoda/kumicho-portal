@@ -2,6 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure, adminProcedure } from "./_core/trpc";
+import { notifyOwner } from "./_core/notification";
 import { z } from "zod";
 import { getDb } from "./db";
 import { eq, like, or, and, desc, asc, lte, gte } from "drizzle-orm";
@@ -704,6 +705,19 @@ export const appRouter = router({
             });
           }
 
+          // Admin に通知を送信
+          const formData = await db.select().from(forms).where(eq(forms.id, input.formId)).limit(1);
+          if (formData.length > 0) {
+            try {
+              await notifyOwner({
+                title: `フォーム回答: ${formData[0].title}`,
+                content: `住戸 ${ctx.user.householdId} から「${formData[0].title}」への回答がありました。`,
+              });
+            } catch (notifyError) {
+              console.warn("Failed to send notification:", notifyError);
+            }
+          }
+
           return { success: true, responseId };
         } catch (error) {
           console.error("Form submission error:", error);
@@ -880,6 +894,79 @@ export const appRouter = router({
         } catch (error) {
           console.error("Form stats error:", error);
           throw new Error("Failed to get form stats");
+        }
+      }),
+
+    updateForm: adminProcedure
+      .input(
+        z.object({
+          formId: z.number(),
+          title: z.string().min(1).optional(),
+          description: z.string().optional(),
+          dueDate: z.string().optional(),
+          status: z.enum(["draft", "active", "closed"]).optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database connection failed");
+
+        try {
+          const updateData: any = {};
+          if (input.title) updateData.title = input.title;
+          if (input.description !== undefined) updateData.description = input.description || null;
+          if (input.dueDate !== undefined) updateData.dueDate = input.dueDate ? new Date(input.dueDate) : null;
+          if (input.status) updateData.status = input.status;
+
+          await db.update(forms).set(updateData).where(eq(forms.id, input.formId));
+
+          return { success: true };
+        } catch (error) {
+          console.error("Form update error:", error);
+          throw new Error("Failed to update form");
+        }
+      }),
+
+    deleteForm: adminProcedure
+      .input(z.object({ formId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database connection failed");
+
+        try {
+          // 回答を削除
+          const responses = await db
+            .select()
+            .from(formResponses)
+            .where(eq(formResponses.formId, input.formId));
+
+          for (const response of responses) {
+            await db
+              .delete(formResponseItems)
+              .where(eq(formResponseItems.responseId, response.id));
+          }
+
+          await db.delete(formResponses).where(eq(formResponses.formId, input.formId));
+
+          // 質問を削除
+          const questions = await db
+            .select()
+            .from(formQuestions)
+            .where(eq(formQuestions.formId, input.formId));
+
+          for (const question of questions) {
+            await db.delete(formChoices).where(eq(formChoices.questionId, question.id));
+          }
+
+          await db.delete(formQuestions).where(eq(formQuestions.formId, input.formId));
+
+          // フォームを削除
+          await db.delete(forms).where(eq(forms.id, input.formId));
+
+          return { success: true };
+        } catch (error) {
+          console.error("Form deletion error:", error);
+          throw new Error("Failed to delete form");
         }
       }),
   }),

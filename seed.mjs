@@ -165,6 +165,14 @@ async function seed() {
       ('過去の問題記録', '2020年に会費未納があった住戸：106番、108番。現在は解決済み。')
     `);
 
+    // 14. Forms（フォーム）
+    console.log("📋 Seeding forms...");
+    const formId = 'river-cleaning-attendance-2025';
+    await connection.query(`
+      INSERT IGNORE INTO forms (id, title, description, dueDate, createdBy, status) VALUES
+      (?, '河川清掃出欠', '2025年4月20日（日）の河川清掃への出欠をお知らせください。', '2025-04-15 23:59:59', 1, 'active')
+    `, [formId]);
+
     console.log("✅ Seeding completed successfully!");
   } catch (error) {
     console.error("❌ Seeding failed:", error);

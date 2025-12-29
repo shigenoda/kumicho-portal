@@ -1,11 +1,11 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Edit2, Trash2, Eye, Download, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { FormStatsModal } from "./FormStats";
-import { useLocation } from "wouter";
 
 /**
  * フォーム管理画面 - Admin限定
@@ -13,6 +13,7 @@ import { useLocation } from "wouter";
  */
 export default function Forms() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingFormId, setEditingFormId] = useState<number | null>(null);
   const [selectedFormId, setSelectedFormId] = useState<number | null>(null);
@@ -26,7 +27,20 @@ export default function Forms() {
 
   const { data: forms = [] } = trpc.data.getForms.useQuery();
   const createFormMutation = trpc.data.createForm.useMutation();
+  const deleteFormMutation = trpc.data.deleteForm.useMutation();
   const utils = trpc.useUtils();
+
+  const handleDeleteForm = async (formId: number) => {
+    if (!confirm("このフォームを削除してもよろしいですか？")) return;
+    try {
+      await deleteFormMutation.mutateAsync({ formId });
+      await utils.data.getForms.invalidate();
+      alert("フォームが削除されました");
+    } catch (error) {
+      console.error("Form deletion error:", error);
+      alert("フォーム削除に失敗しました");
+    }
+  };
 
   // Admin以外はアクセス不可
   if (user?.role !== "admin") {
@@ -181,6 +195,7 @@ export default function Forms() {
                         variant="outline"
                         size="sm"
                         className="flex items-center gap-1"
+                        onClick={() => setLocation(`/form-builder?id=${form.id}`)}
                       >
                         <Edit2 className="w-4 h-4" />
                         編集
@@ -197,6 +212,7 @@ export default function Forms() {
                         variant="outline"
                         size="sm"
                         className="flex items-center gap-1 text-red-600 hover:text-red-700"
+                        onClick={() => handleDeleteForm(form.id)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>

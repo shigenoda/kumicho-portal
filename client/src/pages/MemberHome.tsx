@@ -285,6 +285,27 @@ export default function MemberHome() {
               </p>
               <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
             </button>
+
+            {/* 07: フォーム作成 */}
+            {user?.role === "admin" && (
+              <button
+                onClick={() => setLocation("/form-builder")}
+                className="group cursor-pointer transition-all duration-300 text-left"
+              >
+                <div className="mb-4">
+                  <span className="text-xs text-gray-400 font-light tracking-widest">
+                    07
+                  </span>
+                </div>
+                <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
+                  フォーム作成
+                </h3>
+                <p className="text-sm text-gray-600 leading-relaxed font-light">
+                  アンケート・統計・回答管理
+                </p>
+                <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
+              </button>
+            )}
           </div>
         </div>
 
