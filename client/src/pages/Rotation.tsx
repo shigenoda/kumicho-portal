@@ -1,17 +1,54 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Calendar, Users, AlertTriangle, CheckCircle, Clock, Info } from "lucide-react";
+import { ArrowLeft, Calendar, Users, AlertTriangle, CheckCircle, Clock, Info, Edit, History, ChevronRight } from "lucide-react";
+import { useState } from "react";
 import { useLocation } from "wouter";
+import { toast } from "sonner";
 
 /**
- * ローテーション表示ページ
+ * ローテーション表示・管理ページ
  * 先9年分の組長ローテーションを表示
- * 免除理由と根拠も表示
+ * ステータス変更（仮→条件付き→確定）機能付き
  */
 export default function Rotation() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
+  const utils = trpc.useUtils();
+
+  // 編集ダイアログの状態
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedSchedule, setSelectedSchedule] = useState<{
+    id: number;
+    year: number;
+    primaryHouseholdId: string;
+    backupHouseholdId: string;
+    status: string;
+    reason: string | null;
+  } | null>(null);
+  const [editStatus, setEditStatus] = useState<"draft" | "conditional" | "confirmed">("draft");
+  const [editReason, setEditReason] = useState("");
+  const [editPrimary, setEditPrimary] = useState("");
+  const [editBackup, setEditBackup] = useState("");
+  const [editorName, setEditorName] = useState("");
 
   // API からデータ取得
   const { data: schedules = [], isLoading: schedulesLoading } = trpc.memberTop.getLeaderSchedule.useQuery({});
@@ -19,6 +56,21 @@ export default function Rotation() {
   const { data: exemptionStatuses = [] } = trpc.leaderRotation.getExemptionStatus.useQuery({});
   const { data: exemptionTypes = [] } = trpc.leaderRotation.getExemptionTypes.useQuery();
   const { data: history = [] } = trpc.leaderRotation.getHistory.useQuery({});
+  const { data: editHistory = [] } = trpc.edit.getHistory.useQuery({ entityType: "leader_schedule", limit: 20 });
+
+  // 更新 Mutation
+  const updateScheduleMutation = trpc.edit.updateLeaderSchedule.useMutation({
+    onSuccess: () => {
+      toast.success("ローテーションを更新しました");
+      utils.memberTop.getLeaderSchedule.invalidate();
+      utils.edit.getHistory.invalidate();
+      setEditDialogOpen(false);
+      setSelectedSchedule(null);
+    },
+    onError: (error) => {
+      toast.error(`更新に失敗しました: ${error.message}`);
+    },
+  });
 
   const isLoading = schedulesLoading || householdsLoading;
 
@@ -73,6 +125,55 @@ export default function Rotation() {
     }
   };
 
+  // 編集ダイアログを開く
+  const openEditDialog = (schedule: typeof selectedSchedule) => {
+    if (!schedule) return;
+    setSelectedSchedule(schedule);
+    setEditStatus(schedule.status as "draft" | "conditional" | "confirmed");
+    setEditReason(schedule.reason || "");
+    setEditPrimary(schedule.primaryHouseholdId);
+    setEditBackup(schedule.backupHouseholdId);
+    setEditorName(user?.name || "");
+    setEditDialogOpen(true);
+  };
+
+  // 更新を保存
+  const handleSaveEdit = () => {
+    if (!selectedSchedule) return;
+
+    updateScheduleMutation.mutate({
+      id: selectedSchedule.id,
+      primaryHouseholdId: editPrimary !== selectedSchedule.primaryHouseholdId ? editPrimary : undefined,
+      backupHouseholdId: editBackup !== selectedSchedule.backupHouseholdId ? editBackup : undefined,
+      status: editStatus !== selectedSchedule.status ? editStatus as "draft" | "conditional" | "confirmed" : undefined,
+      reason: editReason !== selectedSchedule.reason ? editReason : undefined,
+      editorName: editorName || undefined,
+    });
+  };
+
+  // ステータスを次のステップに進める
+  const getNextStatus = (currentStatus: string) => {
+    switch (currentStatus) {
+      case "draft":
+        return "conditional";
+      case "conditional":
+        return "confirmed";
+      default:
+        return currentStatus;
+    }
+  };
+
+  const getNextStatusLabel = (currentStatus: string) => {
+    switch (currentStatus) {
+      case "draft":
+        return "条件付きに変更";
+      case "conditional":
+        return "確定に変更";
+      default:
+        return null;
+    }
+  };
+
   const currentYear = new Date().getFullYear();
 
   return (
@@ -92,7 +193,7 @@ export default function Rotation() {
             </Button>
             <div>
               <h1 className="text-xl font-light text-gray-900">組長ローテーション</h1>
-              <p className="text-sm text-gray-500">先9年分の予定表</p>
+              <p className="text-sm text-gray-500">先9年分の予定表・管理</p>
             </div>
           </div>
         </div>
@@ -110,6 +211,7 @@ export default function Rotation() {
                 <li>• 入居年月が古い順に選定</li>
                 <li>• 免除対象：A（入居12ヶ月未満）、B（直近組長2年免除）、C（就任困難申告）</li>
                 <li>• 毎年12月の組長会議で次年度組長を確定</li>
+                <li>• ステータス変更：仮 → 条件付き → 確定</li>
               </ul>
             </div>
           </div>
@@ -141,12 +243,14 @@ export default function Rotation() {
                       <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 border-b">Backup（副）</th>
                       <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 border-b">ステータス</th>
                       <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 border-b">選定理由</th>
+                      <th className="px-4 py-3 text-center text-sm font-medium text-gray-600 border-b">操作</th>
                     </tr>
                   </thead>
                   <tbody>
                     {schedules.map((schedule) => {
                       const isPast = schedule.year < currentYear;
                       const isCurrent = schedule.year === currentYear;
+                      const nextStatusLabel = getNextStatusLabel(schedule.status);
                       
                       return (
                         <tr
@@ -187,6 +291,35 @@ export default function Rotation() {
                               {schedule.reason || "—"}
                             </p>
                           </td>
+                          <td className="px-4 py-4 border-b">
+                            <div className="flex items-center justify-center gap-2">
+                              {!isPast && nextStatusLabel && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs"
+                                  onClick={() => {
+                                    const nextStatus = getNextStatus(schedule.status);
+                                    updateScheduleMutation.mutate({
+                                      id: schedule.id,
+                                      status: nextStatus as "draft" | "conditional" | "confirmed",
+                                      editorName: user?.name || "匿名",
+                                    });
+                                  }}
+                                >
+                                  <ChevronRight className="w-3 h-3 mr-1" />
+                                  {nextStatusLabel}
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => openEditDialog(schedule)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
@@ -194,6 +327,30 @@ export default function Rotation() {
                 </table>
               </div>
             </div>
+
+            {/* 変更履歴 */}
+            {editHistory.length > 0 && (
+              <div className="mb-12">
+                <h2 className="text-lg font-light text-gray-900 mb-6 flex items-center gap-2">
+                  <History className="w-5 h-5 text-blue-900" />
+                  変更履歴
+                </h2>
+                <div className="space-y-2">
+                  {editHistory.slice(0, 10).map((log) => (
+                    <div key={log.id} className="p-3 bg-gray-50 rounded border border-gray-200 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">
+                          {log.changedByName || "匿名"} が {log.action === "update" ? "更新" : log.action}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {new Date(log.changedAt).toLocaleString("ja-JP")}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* 住戸一覧と免除状態 */}
             <div className="mb-12">
@@ -278,6 +435,114 @@ export default function Rotation() {
           </>
         )}
       </main>
+
+      {/* 編集ダイアログ */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>ローテーション編集</DialogTitle>
+            <DialogDescription>
+              {selectedSchedule?.year}年度のローテーション情報を編集します
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Primary（正）</Label>
+                <Select value={editPrimary} onValueChange={setEditPrimary}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {households.map((h) => (
+                      <SelectItem key={h.householdId} value={h.householdId}>
+                        {h.householdId}号室
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Backup（副）</Label>
+                <Select value={editBackup} onValueChange={setEditBackup}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {households.map((h) => (
+                      <SelectItem key={h.householdId} value={h.householdId}>
+                        {h.householdId}号室
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>ステータス</Label>
+              <Select value={editStatus} onValueChange={(v) => setEditStatus(v as "draft" | "conditional" | "confirmed")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">
+                    <span className="flex items-center gap-2">
+                      <Clock className="w-3 h-3 text-gray-500" />
+                      仮
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="conditional">
+                    <span className="flex items-center gap-2">
+                      <AlertTriangle className="w-3 h-3 text-yellow-500" />
+                      条件付き
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="confirmed">
+                    <span className="flex items-center gap-2">
+                      <CheckCircle className="w-3 h-3 text-green-500" />
+                      確定
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>選定理由・備考</Label>
+              <Textarea
+                value={editReason}
+                onChange={(e) => setEditReason(e.target.value)}
+                placeholder="選定理由や備考を入力"
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>編集者名（任意）</Label>
+              <Input
+                value={editorName}
+                onChange={(e) => setEditorName(e.target.value)}
+                placeholder="編集者名を入力"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              キャンセル
+            </Button>
+            <Button
+              onClick={handleSaveEdit}
+              disabled={updateScheduleMutation.isPending}
+            >
+              {updateScheduleMutation.isPending ? "保存中..." : "保存"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
