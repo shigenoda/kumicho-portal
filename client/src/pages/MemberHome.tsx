@@ -324,7 +324,7 @@ export default function MemberHome() {
                   引き継ぎ袋
                 </h3>
                 <p className="text-sm text-gray-600 leading-relaxed font-light">
-                  物理の中身チェックリスト
+                  鍵・印鑑・帳簺のチェックリスト
                 </p>
               </button>
 

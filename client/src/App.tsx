@@ -24,6 +24,7 @@ import AttendanceAdmin from "./pages/AttendanceAdmin";
 import EmailSettings from "./pages/EmailSettings";
 import ExemptionApplication from "./pages/ExemptionApplication";
 import ExemptionAdmin from "./pages/ExemptionAdmin";
+import HandoverBag from "./pages/HandoverBag";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 function Router() {
@@ -49,6 +50,7 @@ function Router() {
       <Route path={"/email-settings"} component={EmailSettings} />
       <Route path={"/exemption"} component={ExemptionApplication} />
       <Route path={"/exemption/admin"} component={user?.role === "admin" ? ExemptionAdmin : NotFound} />
+      <Route path={"/handover-bag"} component={HandoverBag} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

@@ -35,6 +35,7 @@ import {
   users,
 } from "../drizzle/schema";
 import { notifyOwner } from "./_core/notification";
+import { handoverRouter } from "./handover-router";
 
 export const appRouter = router({
   system: systemRouter,
@@ -1728,6 +1729,8 @@ export const appRouter = router({
       return result[0]?.count || 0;
     }),
   }),
+
+  handover: handoverRouter,
 });
 
 export type AppRouter = typeof appRouter;
