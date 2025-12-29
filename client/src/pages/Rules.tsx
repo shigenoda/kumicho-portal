@@ -8,7 +8,7 @@ import { trpc } from "@/lib/trpc";
 export default function Rules() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
-  const { data: rules = [] } = trpc.data.getRules.useQuery();
+  const { data: rules = [] } = trpc.rules.list.useQuery();
 
   if (!isAuthenticated) {
     return <div className="page-container flex items-center justify-center min-h-screen">ログインが必要です</div>;

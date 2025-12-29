@@ -1,4 +1,4 @@
-# 組長業務 引き継ぎポータル - TODO（4次実装：Minato Editorial Luxury + Private Vault）
+# 組長業務 引き継ぎポータル - TODO（5次実装完了）
 
 ## ✓ 完了項目
 
@@ -22,13 +22,14 @@
 ### フェーズ 3: Member トップ刷新
 - [x] 左上：小さめのラベル（YEAR / AREA）実装
 - [x] 中央：大きい H1（「組長引き継ぎ」）実装
-- [x] 下：Index List（01..06）実装
+- [x] 下：Index List（01..07）実装
   - [x] 01: 年間カレンダー
   - [x] 02: 河川清掃
   - [x] 03: 倉庫・備品
   - [x] 04: テンプレ置き場
-  - [x] 05: ルール・決定事項
-  - [x] 06: 年度ログ
+  - [x] 05: 組長ローテーション（NEW）
+  - [x] 06: ルール・決定事項
+  - [x] 07: 年度ログ
 - [x] 右下：小さな更新ログ（Last updated）実装
 - [x] 4枚カード削除、Index List に統合
 - [x] ヒーロー背景（グラデ + ノイズ）+ オーバーレイ実装
@@ -50,13 +51,45 @@
 - [x] ルーティング追加（/vault, /audit-logs）
 - [x] Admin限定チェック実装
 
+### フェーズ 5: 住戸データとローテーションルールの Seed 投入
+- [x] 住戸 9 件（101, 102, 103, 201, 202, 203, 301, 302, 303）
+- [x] 免除ルール 3 種（A: 入居12ヶ月未満、B: 直近組長、C: 就任困難申告）
+- [x] 免除ステータスデータ（202: A、203・301: B、302: C）
+- [x] 過去の組長担当履歴（101: 2022、102: 2025、103: 2023、201: 2021、203: 2024、301: 2023・2025、303: 2021）
+
+### フェーズ 6: 先9年ローテ自動計算ロジックの実装
+- [x] 入居年月が古い順でソート
+- [x] 免除対象（A/B/C）を自動判定
+- [x] 繰上げ処理
+- [x] 先9年分のローテを生成（2026〜2034）
+- [x] 選定理由を記録
+
+### フェーズ 7: ローテーション表示ページ
+- [x] /rotation ページ作成
+- [x] ローテ表を表示（年度、Primary、Backup、ステータス、選定理由）
+- [x] 住戸一覧と免除状態を表示
+- [x] 免除タイプ一覧を表示
+- [x] Member トップに「05: 組長ローテーション」リンク追加
+
+### フェーズ 8: Seed データ投入
+- [x] イベント（5件）：組長会議、河川清掃（春・秋）、会費締切
+- [x] 備品（10件）：トング、ゴミ袋、熊手、テント等
+- [x] テンプレ（4件）：河川清掃依頼、会費徴収、案内文、リマインド
+- [x] ルール（3件）：会費、ローテーション、出不足金
+- [x] FAQ（5件）：会費、河川清掃、備品、免除、個人情報
+- [x] 年度ログ（5件）：日程決定、Q&A、検討事項、トラブル対応、チェックリスト更新
+- [x] 引き継ぎ袋（5件）：鍵、印鑑、帳簿
+- [x] Vault エントリ（3件）：組長連絡先、管理会社連絡先、出不足金記録
+- [x] 変更履歴（5件）：最新の更新記録
+- [x] 返信待ちキュー（3件）：参加確認、意見募集、修繕依頼
+
 ## 実装内容サマリー
 
 **DB テーブル数：** 21 個
-- users, households, leader_schedule, leader_rotation_logic, exemption_requests, rule_versions, pending_queue, handover_bag_items, member_top_summary, audit_logs, vault_entries, data_classification, posts, events, river_cleaning_runs, inventory, templates, rules, faq, changelog, secret_notes
+- users, households, leader_schedule, leader_rotation_logic, exemption_requests, rule_versions, pending_queue, handover_bag_items, member_top_summary, audit_logs, vault_entries, data_classification, posts, events, river_cleaning_runs, inventory, templates, rules, faq, changelog, secret_notes, leader_history, exemption_types, exemption_status
 
-**ページ数：** 14 個
-- Public トップ、Member トップ、年間カレンダー、河川清掃、備品台帳、テンプレ、ルール、年度ログ、FAQ、Admin ダッシュボード、Private Vault、監査ログ、返信待ちキュー、引き継ぎ袋
+**ページ数：** 15 個
+- Public トップ、Member トップ、年間カレンダー、河川清掃、備品台帳、テンプレ、ルール、年度ログ、FAQ、Admin ダッシュボード、Private Vault、監査ログ、返信待ちキュー、引き継ぎ袋、**組長ローテーション（NEW）**
 
 **デザイン：** Minato Editorial Luxury
 - ホワイト背景、落ち着いた青緑アクセント
@@ -70,18 +103,28 @@
 - 監査ログ記録（誰が、いつ、何を）
 - 個人情報ガード（Public/Member に個人情報なし）
 
+**ローテーション機能：**
+- 先9年分の自動計算（2026〜2034）
+- 免除ルール3種（A/B/C）対応
+- 選定理由の自動生成
+- 住戸一覧と免除状態の表示
+
 ## 合格条件チェック
 - [x] Member トップが「雑誌の目次」型で「都心レジデンスの案内サイト感」がある
-- [x] Index List（01..06）から各ページに3タップ以内で到達可能
+- [x] Index List（01..07）から各ページに3タップ以内で到達可能
 - [x] Vault は Admin限定、マスキング表示がデフォルト
 - [x] 監査ログが記録・表示される
 - [x] Public/Member に個人情報が出ない
 - [x] Minato Editorial Luxury デザイン適用完了
+- [x] 先9年ローテーションが表示される
+- [x] 免除ルール（A/B/C）が適用される
+- [x] 選定理由が表示される
 
 ## 次のステップ候補
 
-1. **初期データ（Seed）投入**：住戸、ローテ、ルール、FAQ などのサンプルデータを投入
-2. **検索機能の実装**：全文検索（河川、備品、会費など）
-3. **画像アップロード機能**：備品・河川清掃・ログの写真を S3 に保存
-4. **パンくず（Breadcrumb）ナビゲーション**：各ページ上部に追加
-5. **Admin 管理画面の詳細実装**：投稿管理、ユーザー管理、ローテ自動計算ロジック編集
+1. **検索機能の実装**：全文検索（河川、備品、会費など）
+2. **画像アップロード機能**：備品・河川清掃・ログの写真を S3 に保存
+3. **パンくず（Breadcrumb）ナビゲーション**：各ページ上部に追加
+4. **Admin 管理画面の詳細実装**：投稿管理、ユーザー管理、ローテ自動計算ロジック編集
+5. **ローテーション確定機能**：Admin が「仮」→「確定」に変更
+6. **免除申請機能**：住民が就任困難申告を提出

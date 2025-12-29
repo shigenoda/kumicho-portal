@@ -1,6 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Copy, Eye, EyeOff, Lock } from "lucide-react";
+import { trpc } from "@/lib/trpc";
+import { AlertCircle, Copy, Eye, EyeOff, Lock, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 
@@ -12,8 +13,23 @@ import { useLocation } from "wouter";
 export default function Vault() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
-  const [revealed, setRevealed] = useState<Record<number, boolean>>({});
+  const [revealed, setRevealed] = useState<Record<number, string | null>>({});
   const [copied, setCopied] = useState<Record<number, boolean>>({});
+
+  // API からデータ取得
+  const { data: vaultEntries = [], isLoading } = trpc.vault.list.useQuery(undefined, {
+    enabled: user?.role === "admin",
+  });
+
+  // Reveal mutation
+  const revealMutation = trpc.vault.reveal.useMutation({
+    onSuccess: (data, variables) => {
+      setRevealed({ ...revealed, [variables.id]: data.actualValue });
+    },
+  });
+
+  // Copy mutation
+  const copyMutation = trpc.vault.copy.useMutation();
 
   // Admin限定チェック
   if (user?.role !== "admin") {
@@ -36,50 +52,31 @@ export default function Vault() {
     );
   }
 
-  // サンプルデータ
-  const vaultEntries = [
-    {
-      id: 1,
-      category: "連絡先",
-      key: "管理会社電話",
-      maskedValue: "****-****-****",
-      actualValue: "0120-123-4567",
-    },
-    {
-      id: 2,
-      category: "連絡先",
-      key: "町内会会長メール",
-      maskedValue: "****@example.com",
-      actualValue: "yamada@example.com",
-    },
-    {
-      id: 3,
-      category: "鍵/保管",
-      key: "倉庫鍵の保管場所",
-      maskedValue: "****",
-      actualValue: "管理会社事務所 鍵ボックス No.5",
-    },
-    {
-      id: 4,
-      category: "重要書類",
-      key: "規約ファイルの保管場所",
-      maskedValue: "****",
-      actualValue: "倉庫内 棚 C-2 段目 青いファイル",
-    },
-    {
-      id: 5,
-      category: "金銭関連",
-      key: "会費集金口座",
-      maskedValue: "****-****-****",
-      actualValue: "〇〇銀行 支店 普通 1234567",
-    },
-  ];
+  const handleReveal = (id: number) => {
+    if (revealed[id]) {
+      // 既に表示中なら隠す
+      setRevealed({ ...revealed, [id]: null });
+    } else {
+      // API を呼んで実際の値を取得
+      revealMutation.mutate({ id });
+    }
+  };
 
-  const handleCopy = (id: number, value: string) => {
-    navigator.clipboard.writeText(value);
+  const handleCopy = async (id: number, maskedValue: string) => {
+    // 表示中の値があればそれをコピー、なければ API を呼んで取得
+    let valueToCopy = revealed[id];
+    if (!valueToCopy) {
+      const result = await copyMutation.mutateAsync({ id });
+      valueToCopy = result.actualValue;
+    }
+    
+    navigator.clipboard.writeText(valueToCopy || maskedValue);
     setCopied({ ...copied, [id]: true });
     setTimeout(() => setCopied({ ...copied, [id]: false }), 2000);
   };
+
+  // カテゴリ一覧を動的に取得
+  const categories = Array.from(new Set(vaultEntries.map((e) => e.category)));
 
   return (
     <div className="min-h-screen bg-white">
@@ -113,83 +110,83 @@ export default function Vault() {
           </div>
         </div>
 
-        {/* カテゴリ別表示 */}
-        <div className="space-y-12">
-          {["連絡先", "鍵/保管", "重要書類", "金銭関連"].map((category) => {
-            const items = vaultEntries.filter((item) => item.category === category);
-            if (items.length === 0) return null;
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+          </div>
+        ) : vaultEntries.length === 0 ? (
+          <div className="text-center py-12">
+            <Lock className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500">秘匿情報がまだ登録されていません</p>
+          </div>
+        ) : (
+          /* カテゴリ別表示 */
+          <div className="space-y-12">
+            {categories.map((category) => {
+              const items = vaultEntries.filter((item) => item.category === category);
+              if (items.length === 0) return null;
 
-            return (
-              <section key={category}>
-                <h2 className="text-xl font-light text-gray-900 mb-6">{category}</h2>
-                <div className="space-y-4">
-                  {items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="p-4 border border-gray-200 rounded hover:border-gray-300 transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="text-sm font-medium text-gray-900 mb-2">
-                            {item.key}
-                          </h3>
-                          <div className="flex items-center gap-2">
-                            <code className="text-sm bg-gray-100 px-3 py-2 rounded font-mono text-gray-600">
-                              {revealed[item.id]
-                                ? item.actualValue
-                                : item.maskedValue}
-                            </code>
-                            <button
-                              onClick={() =>
-                                setRevealed({
-                                  ...revealed,
-                                  [item.id]: !revealed[item.id],
-                                })
-                              }
-                              className="p-2 hover:bg-gray-100 rounded transition-colors"
-                              title={revealed[item.id] ? "隠す" : "表示"}
-                            >
-                              {revealed[item.id] ? (
-                                <EyeOff className="w-4 h-4 text-gray-600" />
-                              ) : (
-                                <Eye className="w-4 h-4 text-gray-600" />
-                              )}
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleCopy(
-                                  item.id,
-                                  revealed[item.id]
-                                    ? item.actualValue
-                                    : item.maskedValue
-                                )
-                              }
-                              className="p-2 hover:bg-gray-100 rounded transition-colors"
-                              title="コピー"
-                            >
-                              <Copy
-                                className={`w-4 h-4 ${
-                                  copied[item.id]
-                                    ? "text-green-600"
-                                    : "text-gray-600"
-                                }`}
-                              />
-                            </button>
+              return (
+                <section key={category}>
+                  <h2 className="text-xl font-light text-gray-900 mb-6">{category}</h2>
+                  <div className="space-y-4">
+                    {items.map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-4 border border-gray-200 rounded hover:border-gray-300 transition-colors"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="text-sm font-medium text-gray-900 mb-2">
+                              {item.key}
+                            </h3>
+                            <div className="flex items-center gap-2">
+                              <code className="text-sm bg-gray-100 px-3 py-2 rounded font-mono text-gray-600">
+                                {revealed[item.id] || item.maskedValue}
+                              </code>
+                              <button
+                                onClick={() => handleReveal(item.id)}
+                                disabled={revealMutation.isPending}
+                                className="p-2 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
+                                title={revealed[item.id] ? "隠す" : "表示"}
+                              >
+                                {revealed[item.id] ? (
+                                  <EyeOff className="w-4 h-4 text-gray-600" />
+                                ) : (
+                                  <Eye className="w-4 h-4 text-gray-600" />
+                                )}
+                              </button>
+                              <button
+                                onClick={() => handleCopy(item.id, item.maskedValue)}
+                                disabled={copyMutation.isPending}
+                                className="p-2 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
+                                title="コピー"
+                              >
+                                <Copy
+                                  className={`w-4 h-4 ${
+                                    copied[item.id]
+                                      ? "text-green-600"
+                                      : "text-gray-600"
+                                  }`}
+                                />
+                              </button>
+                            </div>
+                            {copied[item.id] && (
+                              <p className="text-xs text-green-600 mt-2">
+                                コピーしました（監査ログに記録）
+                              </p>
+                            )}
+
                           </div>
-                          {copied[item.id] && (
-                            <p className="text-xs text-green-600 mt-2">
-                              コピーしました
-                            </p>
-                          )}
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            );
-          })}
-        </div>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        )}
 
         {/* 注記 */}
         <div className="mt-16 p-6 bg-gray-50 rounded border border-gray-200">

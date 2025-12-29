@@ -329,3 +329,47 @@ export const auditLogs = mysqlTable("audit_logs", {
 
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = typeof auditLogs.$inferInsert;
+
+
+// 組長担当履歴
+export const leaderHistory = mysqlTable("leader_history", {
+  id: int("id").autoincrement().primaryKey(),
+  householdId: varchar("householdId", { length: 50 }).notNull(),
+  year: int("year").notNull(), // 担当年度
+  notes: text("notes"), // 備考
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type LeaderHistory = typeof leaderHistory.$inferSelect;
+export type InsertLeaderHistory = typeof leaderHistory.$inferInsert;
+
+// 免除タイプマスタ
+export const exemptionTypes = mysqlTable("exemption_types", {
+  id: int("id").autoincrement().primaryKey(),
+  code: varchar("code", { length: 10 }).notNull().unique(), // A, B, C
+  name: varchar("name", { length: 100 }).notNull(), // 「入居12ヶ月未満」「直近組長」「就任困難申告」
+  description: text("description").notNull(),
+  autoApply: boolean("autoApply").default(false).notNull(), // 自動適用か申告制か
+  durationMonths: int("durationMonths"), // 免除期間（月）。nullの場合は年1回見直し
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ExemptionType = typeof exemptionTypes.$inferSelect;
+export type InsertExemptionType = typeof exemptionTypes.$inferInsert;
+
+// 免除ステータス（現在の免除状態）
+export const exemptionStatus = mysqlTable("exemption_status", {
+  id: int("id").autoincrement().primaryKey(),
+  householdId: varchar("householdId", { length: 50 }).notNull(),
+  exemptionTypeCode: varchar("exemptionTypeCode", { length: 10 }).notNull(), // A, B, C
+  startDate: timestamp("startDate").notNull(),
+  endDate: timestamp("endDate"), // nullの場合は無期限（年1回見直し）
+  reviewDate: timestamp("reviewDate"), // 次回見直し日
+  status: mysqlEnum("status", ["active", "expired", "cancelled"]).default("active").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ExemptionStatusRecord = typeof exemptionStatus.$inferSelect;
+export type InsertExemptionStatusRecord = typeof exemptionStatus.$inferInsert;

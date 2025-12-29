@@ -4,7 +4,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure, adminProcedure } from "./_core/trpc";
 import { z } from "zod";
 import { getDb } from "./db";
-import { eq, like, or, and, desc, asc, lte, gte } from "drizzle-orm";
+import { eq, like, or, and, desc, asc, lte, gte, sql } from "drizzle-orm";
 import {
   posts,
   events,
@@ -22,6 +22,11 @@ import {
   pendingQueue,
   handoverBagItems,
   memberTopSummary,
+  vaultEntries,
+  auditLogs,
+  leaderHistory,
+  exemptionTypes,
+  exemptionStatus,
 } from "../drizzle/schema";
 
 export const appRouter = router({
@@ -82,102 +87,220 @@ export const appRouter = router({
 
       return pending;
     }),
+
+    getChangelog: protectedProcedure
+      .input(z.object({ limit: z.number().default(5) }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+
+        const logs = await db
+          .select()
+          .from(changelog)
+          .orderBy(desc(changelog.date))
+          .limit(input.limit);
+
+        return logs;
+      }),
   }),
 
   // ローテ管理 API
   leaderRotation: router({
-    // ローテ選定ロジックの自動計算
+    // 住戸一覧取得
+    getHouseholds: protectedProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+
+      const allHouseholds = await db.select().from(households).orderBy(asc(households.householdId));
+      return allHouseholds;
+    }),
+
+    // 住戸の担当履歴取得
+    getHistory: protectedProcedure
+      .input(z.object({ householdId: z.string().optional() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+
+        if (input.householdId) {
+          return await db
+            .select()
+            .from(leaderHistory)
+            .where(eq(leaderHistory.householdId, input.householdId))
+            .orderBy(desc(leaderHistory.year));
+        }
+
+        return await db.select().from(leaderHistory).orderBy(desc(leaderHistory.year));
+      }),
+
+    // 免除タイプ一覧取得
+    getExemptionTypes: protectedProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+
+      return await db.select().from(exemptionTypes);
+    }),
+
+    // 免除ステータス取得
+    getExemptionStatus: protectedProcedure
+      .input(z.object({ householdId: z.string().optional() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+
+        if (input.householdId) {
+          return await db
+            .select()
+            .from(exemptionStatus)
+            .where(eq(exemptionStatus.householdId, input.householdId));
+        }
+
+        return await db.select().from(exemptionStatus).where(eq(exemptionStatus.status, "active"));
+      }),
+
+    // ローテ選定ロジックの自動計算（免除ルール対応版）
     calculateNextYear: adminProcedure
       .input(z.object({ year: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const db = await getDb();
         if (!db) throw new Error("Database not available");
 
-        // 1. 最新のローテロジックを取得
-        const logicRecords = await db
-          .select()
-          .from(leaderRotationLogic)
-          .orderBy(desc(leaderRotationLogic.version))
-          .limit(1);
+        const targetYear = input.year;
+        const targetDate = new Date(targetYear, 3, 1); // 4月1日を基準
 
-        const logic = logicRecords[0]?.logic;
-        if (!logic) throw new Error("No rotation logic defined");
-
-        // 2. 全住戸を取得
+        // 1. 全住戸を取得
         const allHouseholds = await db.select().from(households);
 
-        // 3. 前回担当者を取得
-        const prevYear = input.year - 1;
-        const prevScheduleArray = await db
+        // 2. 担当履歴を取得
+        const history = await db.select().from(leaderHistory);
+        const historyMap = new Map<string, number[]>();
+        history.forEach((h) => {
+          if (!historyMap.has(h.householdId)) {
+            historyMap.set(h.householdId, []);
+          }
+          historyMap.get(h.householdId)!.push(h.year);
+        });
+
+        // 3. 免除ステータスを取得
+        const activeExemptions = await db
           .select()
-          .from(leaderSchedule)
-          .where(eq(leaderSchedule.year, prevYear))
-          .limit(1);
-        const prevSchedule = prevScheduleArray[0];
+          .from(exemptionStatus)
+          .where(eq(exemptionStatus.status, "active"));
 
-        // 4. 免除申請を確認
-        const exemptions = await db
-          .select()
-          .from(exemptionRequests)
-          .where(
-            and(
-              eq(exemptionRequests.year, input.year),
-              eq(exemptionRequests.status, "approved")
-            )
-          );
+        const exemptionMap = new Map<string, { code: string; endDate: Date | null; reviewDate: Date | null }>();
+        activeExemptions.forEach((e) => {
+          exemptionMap.set(e.householdId, {
+            code: e.exemptionTypeCode,
+            endDate: e.endDate,
+            reviewDate: e.reviewDate,
+          });
+        });
 
-        const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
+        // 4. 免除タイプを取得
+        const exemptionTypeList = await db.select().from(exemptionTypes);
+        const exemptionTypeMap = new Map<string, typeof exemptionTypeList[0]>();
+        exemptionTypeList.forEach((t) => exemptionTypeMap.set(t.code, t));
 
-        // 5. 候補を計算（優先度順）
-        const candidates = allHouseholds
-          .filter((h) => !exemptedHouseholds.has(h.householdId))
-          .sort((a, b) => {
-            // 優先度1: 前回担当からの経過年数
-            const aYearsSinceLast = prevSchedule
-              ? prevSchedule.primaryHouseholdId === a.householdId
-                ? 1
-                : 999
-              : 999;
-            const bYearsSinceLast = prevSchedule
-              ? prevSchedule.primaryHouseholdId === b.householdId
-                ? 1
-                : 999
-              : 999;
+        // 5. 免除判定と候補リスト作成
+        const candidates: Array<{
+          householdId: string;
+          moveInDate: Date | null;
+          experienceCount: number;
+          lastYear: number | null;
+          isExempt: boolean;
+          exemptionReason: string | null;
+        }> = [];
 
-            if (aYearsSinceLast !== bYearsSinceLast) {
-              return bYearsSinceLast - aYearsSinceLast;
+        for (const h of allHouseholds) {
+          const years = historyMap.get(h.householdId) || [];
+          const experienceCount = years.length;
+          const lastYear = years.length > 0 ? Math.max(...years) : null;
+
+          let isExempt = false;
+          let exemptionReason: string | null = null;
+
+          // A: 入居12ヶ月未満
+          if (h.moveInDate) {
+            const monthsSinceMoveIn = (targetDate.getTime() - h.moveInDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
+            if (monthsSinceMoveIn < 12) {
+              isExempt = true;
+              exemptionReason = `入居12ヶ月未満 → 免除候補（A）`;
             }
+          }
 
-            // 優先度2: 入居開始が古い
+          // B: 直近組長（2年間免除）
+          if (!isExempt && lastYear && targetYear - lastYear <= 2) {
+            isExempt = true;
+            exemptionReason = `直近組長 → 2年間免除候補（B）`;
+          }
+
+          // C: 就任困難申告（exemptionStatus から取得）
+          if (!isExempt && exemptionMap.has(h.householdId)) {
+            const exemption = exemptionMap.get(h.householdId)!;
+            if (exemption.code === "C") {
+              // 見直し日が過ぎていなければ免除
+              if (!exemption.reviewDate || exemption.reviewDate > targetDate) {
+                isExempt = true;
+                exemptionReason = `就任困難申告 → 免除候補（C）`;
+              }
+            }
+          }
+
+          candidates.push({
+            householdId: h.householdId,
+            moveInDate: h.moveInDate,
+            experienceCount,
+            lastYear,
+            isExempt,
+            exemptionReason,
+          });
+        }
+
+        // 6. 免除対象外を入居年月順でソート
+        const eligibleCandidates = candidates
+          .filter((c) => !c.isExempt)
+          .sort((a, b) => {
+            // 優先度1: 入居年月が古い順
             if (a.moveInDate && b.moveInDate) {
               return a.moveInDate.getTime() - b.moveInDate.getTime();
             }
+            if (a.moveInDate && !b.moveInDate) return -1;
+            if (!a.moveInDate && b.moveInDate) return 1;
 
-            // 優先度3: 住戸ID昇順
+            // 優先度2: 住戸ID昇順
             return a.householdId.localeCompare(b.householdId);
           });
 
-        if (candidates.length < 2) {
-          throw new Error("Not enough eligible households for rotation");
+        if (eligibleCandidates.length < 1) {
+          throw new Error("免除対象外の住戸がありません");
         }
 
-        // 6. Primary と Backup を決定
-        const primary = candidates[0];
-        const backup = candidates[1];
+        // 7. Primary と Backup を決定
+        const primary = eligibleCandidates[0];
+        const backup = eligibleCandidates.length > 1 ? eligibleCandidates[1] : null;
 
-        // 7. DB に保存
+        // 8. 根拠を作成
+        const exemptedList = candidates.filter((c) => c.isExempt);
+        const reasonParts = exemptedList.map((c) => `${c.householdId}は${c.exemptionReason}`);
+        const reason = reasonParts.length > 0
+          ? `${reasonParts.join("、")} → 繰上げで${primary.householdId}`
+          : `入居年月順で${primary.householdId}`;
+
+        // 9. DB に保存
         await db.insert(leaderSchedule).values({
-          year: input.year,
+          year: targetYear,
           primaryHouseholdId: primary.householdId,
-          backupHouseholdId: backup.householdId,
+          backupHouseholdId: backup?.householdId || primary.householdId,
           status: "draft",
-          reason: `自動計算: 前回担当からの経過年数、入居開始日、住戸ID昇順で選定`,
+          reason,
         });
 
         return {
           success: true,
           primary: primary.householdId,
-          backup: backup.householdId,
+          backup: backup?.householdId || null,
+          reason,
+          exemptedCount: exemptedList.length,
         };
       }),
 
@@ -200,8 +323,10 @@ export const appRouter = router({
     updateLogic: adminProcedure
       .input(
         z.object({
-          priority: z.array(z.string()),
-          excludeConditions: z.array(z.string()),
+          logic: z.object({
+            priority: z.array(z.string()),
+            excludeConditions: z.array(z.string()),
+          }),
           reason: z.string(),
         })
       )
@@ -215,223 +340,217 @@ export const appRouter = router({
           .orderBy(desc(leaderRotationLogic.version))
           .limit(1);
 
-        const nextVersion = (latestLogic[0]?.version || 0) + 1;
+        const newVersion = (latestLogic[0]?.version || 0) + 1;
 
         await db.insert(leaderRotationLogic).values({
-          version: nextVersion,
-          logic: {
-            priority: input.priority,
-            excludeConditions: input.excludeConditions,
-          },
+          version: newVersion,
+          logic: input.logic,
           reason: input.reason,
         });
 
-        return { success: true, version: nextVersion };
+        return { success: true, version: newVersion };
       }),
-  }),
-
-  // 検索機能
-  search: router({
-    global: protectedProcedure
-      .input(z.object({ query: z.string().min(1) }))
-      .query(async ({ input }) => {
-        const db = await getDb();
-        if (!db) return [];
-
-        const searchTerm = `%${input.query}%`;
-
-        try {
-          const results = await Promise.all([
-            db
-              .select()
-              .from(posts)
-              .where(
-                or(
-                  like(posts.title, searchTerm),
-                  like(posts.body, searchTerm)
-                )
-              )
-              .limit(5),
-            db
-              .select()
-              .from(inventory)
-              .where(
-                or(
-                  like(inventory.name, searchTerm),
-                  like(inventory.notes, searchTerm)
-                )
-              )
-              .limit(5),
-            db
-              .select()
-              .from(rules)
-              .where(
-                or(
-                  like(rules.title, searchTerm),
-                  like(rules.details, searchTerm)
-                )
-              )
-              .limit(5),
-            db
-              .select()
-              .from(faq)
-              .where(
-                or(
-                  like(faq.question, searchTerm),
-                  like(faq.answer, searchTerm)
-                )
-              )
-              .limit(5),
-            db
-              .select()
-              .from(templates)
-              .where(
-                or(
-                  like(templates.title, searchTerm),
-                  like(templates.body, searchTerm)
-                )
-              )
-              .limit(5),
-          ]);
-
-          return {
-            posts: results[0],
-            inventory: results[1],
-            rules: results[2],
-            faq: results[3],
-            templates: results[4],
-          };
-        } catch (error) {
-          console.error("Search error:", error);
-          return [];
-        }
-      }),
-  }),
-
-  // データ取得 API
-  data: router({
-    getEvents: protectedProcedure.query(async () => {
-      const db = await getDb();
-      if (!db) return [];
-      return await db.select().from(events).orderBy(asc(events.date));
-    }),
-
-    getInventory: protectedProcedure.query(async () => {
-      const db = await getDb();
-      if (!db) return [];
-      return await db.select().from(inventory).orderBy(asc(inventory.name));
-    }),
-
-    getTemplates: protectedProcedure.query(async () => {
-      const db = await getDb();
-      if (!db) return [];
-      return await db.select().from(templates).orderBy(asc(templates.category));
-    }),
-
-    getRules: protectedProcedure.query(async () => {
-      const db = await getDb();
-      if (!db) return [];
-      return await db.select().from(rules).orderBy(asc(rules.title));
-    }),
-
-    getFAQ: protectedProcedure.query(async () => {
-      const db = await getDb();
-      if (!db) return [];
-      return await db.select().from(faq).orderBy(asc(faq.question));
-    }),
-
-    getPosts: protectedProcedure
-      .input(z.object({ year: z.number().optional() }))
-      .query(async ({ input }) => {
-        const db = await getDb();
-        if (!db) return [];
-
-        const currentYear = input.year || new Date().getFullYear();
-        return await db
-          .select()
-          .from(posts)
-          .where(
-            and(
-              eq(posts.year, currentYear),
-              eq(posts.status, "published")
-            )
-          )
-          .orderBy(desc(posts.publishedAt));
-      }),
-
-    getChangelog: protectedProcedure
-      .input(z.object({ limit: z.number().default(20) }))
-      .query(async ({ input }) => {
-        const db = await getDb();
-        if (!db) return [];
-        return await db
-          .select()
-          .from(changelog)
-          .orderBy(desc(changelog.date))
-          .limit(input.limit);
-      }),
-
-    getSecretNotes: adminProcedure.query(async () => {
-      const db = await getDb();
-      if (!db) return [];
-      return await db.select().from(secretNotes).orderBy(desc(secretNotes.updatedAt));
-    }),
-
-    getHandoverBagItems: protectedProcedure.query(async () => {
-      const db = await getDb();
-      if (!db) return [];
-      return await db.select().from(handoverBagItems).orderBy(asc(handoverBagItems.name));
-    }),
   }),
 
   // 投稿管理 API
   posts: router({
-    create: protectedProcedure
-      .input(
-        z.object({
-          title: z.string(),
-          body: z.string(),
-          tags: z.array(z.string()),
-          category: z.enum(["inquiry", "answer", "decision", "pending", "trouble", "improvement"]),
-          year: z.number(),
-          isHypothesis: z.boolean().default(false),
-          relatedLinks: z.array(z.string()).default([]),
-        })
-      )
-      .mutation(async ({ input, ctx }) => {
+    list: protectedProcedure
+      .input(z.object({ category: z.string().optional(), year: z.number().optional() }))
+      .query(async ({ input }) => {
         const db = await getDb();
-        if (!db) throw new Error("Database not available");
+        if (!db) return [];
 
-        if (!ctx.user) throw new Error("Not authenticated");
+        let query = db.select().from(posts);
 
-        await db.insert(posts).values({
-          title: input.title,
-          body: input.body,
-          tags: input.tags,
-          category: input.category,
-          year: input.year,
-          status: ctx.user.role === "admin" ? "published" : "pending",
-          authorId: ctx.user.id,
-          authorRole: ctx.user.role as "editor" | "admin",
-          isHypothesis: input.isHypothesis,
-          relatedLinks: input.relatedLinks,
-        });
+        if (input.category) {
+          query = query.where(eq(posts.category, input.category as any)) as any;
+        }
 
-        return { success: true };
+        if (input.year) {
+          query = query.where(eq(posts.year, input.year)) as any;
+        }
+
+        return await query.orderBy(desc(posts.createdAt));
       }),
 
-    approve: adminProcedure
-      .input(z.object({ postId: z.number() }))
-      .mutation(async ({ input }) => {
+    get: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return null;
+
+      const result = await db.select().from(posts).where(eq(posts.id, input.id)).limit(1);
+      return result[0] || null;
+    }),
+  }),
+
+  // イベント管理 API
+  events: router({
+    list: protectedProcedure.input(z.object({ year: z.number().optional() })).query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return [];
+
+      const currentYear = input.year || new Date().getFullYear();
+      const startDate = new Date(currentYear, 0, 1);
+      const endDate = new Date(currentYear, 11, 31);
+
+      return await db
+        .select()
+        .from(events)
+        .where(and(gte(events.date, startDate), lte(events.date, endDate)))
+        .orderBy(asc(events.date));
+    }),
+  }),
+
+  // 備品管理 API
+  inventory: router({
+    list: protectedProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+
+      return await db.select().from(inventory).orderBy(asc(inventory.name));
+    }),
+  }),
+
+  // テンプレ管理 API
+  templates: router({
+    list: protectedProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+
+      return await db.select().from(templates).orderBy(asc(templates.category), asc(templates.title));
+    }),
+  }),
+
+  // ルール管理 API
+  rules: router({
+    list: protectedProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+
+      return await db.select().from(rules).orderBy(desc(rules.status), asc(rules.title));
+    }),
+  }),
+
+  // FAQ 管理 API
+  faq: router({
+    list: protectedProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+
+      return await db.select().from(faq).orderBy(asc(faq.id));
+    }),
+  }),
+
+  // 引き継ぎ袋 API
+  handoverBag: router({
+    list: protectedProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+
+      return await db.select().from(handoverBagItems).orderBy(asc(handoverBagItems.id));
+    }),
+  }),
+
+  // 全文検索 API
+  search: router({
+    query: protectedProcedure.input(z.object({ q: z.string() })).query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return { posts: [], events: [], inventory: [], templates: [], rules: [], faq: [] };
+
+      const searchTerm = `%${input.q}%`;
+
+      const [postsResults, eventsResults, inventoryResults, templatesResults, rulesResults, faqResults] =
+        await Promise.all([
+          db.select().from(posts).where(or(like(posts.title, searchTerm), like(posts.body, searchTerm))),
+          db.select().from(events).where(or(like(events.title, searchTerm), like(events.notes, searchTerm))),
+          db.select().from(inventory).where(or(like(inventory.name, searchTerm), like(inventory.notes, searchTerm))),
+          db.select().from(templates).where(or(like(templates.title, searchTerm), like(templates.body, searchTerm))),
+          db.select().from(rules).where(or(like(rules.title, searchTerm), like(rules.summary, searchTerm))),
+          db.select().from(faq).where(or(like(faq.question, searchTerm), like(faq.answer, searchTerm))),
+        ]);
+
+      return {
+        posts: postsResults,
+        events: eventsResults,
+        inventory: inventoryResults,
+        templates: templatesResults,
+        rules: rulesResults,
+        faq: faqResults,
+      };
+    }),
+  }),
+
+  // Vault API（Admin限定）
+  vault: router({
+    list: adminProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return [];
+
+      // 監査ログに記録
+      await db.insert(auditLogs).values({
+        userId: ctx.user.id,
+        action: "list",
+        entityType: "vault",
+        entityId: 0,
+        details: "Vault一覧を閲覧",
+      });
+
+      return await db.select().from(vaultEntries).orderBy(asc(vaultEntries.category), asc(vaultEntries.key));
+    }),
+
+    reveal: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      const entry = await db.select().from(vaultEntries).where(eq(vaultEntries.id, input.id)).limit(1);
+      if (!entry[0]) throw new Error("Entry not found");
+
+      // 監査ログに記録
+      await db.insert(auditLogs).values({
+        userId: ctx.user.id,
+        action: "reveal",
+        entityType: "vault_entry",
+        entityId: input.id,
+        details: `マスキング解除: ${entry[0].key}`,
+      });
+
+      return { actualValue: entry[0].actualValue };
+    }),
+
+    copy: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      const entry = await db.select().from(vaultEntries).where(eq(vaultEntries.id, input.id)).limit(1);
+      if (!entry[0]) throw new Error("Entry not found");
+
+      // 監査ログに記録
+      await db.insert(auditLogs).values({
+        userId: ctx.user.id,
+        action: "copy",
+        entityType: "vault_entry",
+        entityId: input.id,
+        details: `コピー: ${entry[0].key}`,
+      });
+
+      return { actualValue: entry[0].actualValue };
+    }),
+  }),
+
+  // 監査ログ API（Admin限定）
+  auditLogs: router({
+    list: adminProcedure
+      .input(z.object({ limit: z.number().default(100), action: z.string().optional() }))
+      .query(async ({ input }) => {
         const db = await getDb();
-        if (!db) throw new Error("Database not available");
+        if (!db) return [];
 
-        await db
-          .update(posts)
-          .set({ status: "published", publishedAt: new Date() })
-          .where(eq(posts.id, input.postId));
+        let query = db.select().from(auditLogs);
 
-        return { success: true };
+        if (input.action) {
+          query = query.where(eq(auditLogs.action, input.action)) as any;
+        }
+
+        return await query.orderBy(desc(auditLogs.timestamp)).limit(input.limit);
       }),
   }),
 });

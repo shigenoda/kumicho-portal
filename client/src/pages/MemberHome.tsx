@@ -198,9 +198,9 @@ export default function MemberHome() {
               <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
             </button>
 
-            {/* 05: ルール・決定事項 */}
+            {/* 05: ローテーション */}
             <button
-              onClick={() => setLocation("/rules")}
+              onClick={() => setLocation("/rotation")}
               className="group cursor-pointer transition-all duration-300 text-left"
             >
               <div className="mb-4">
@@ -209,22 +209,41 @@ export default function MemberHome() {
                 </span>
               </div>
               <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
-                ルール・決定事項
+                組長ローテーション
               </h3>
               <p className="text-sm text-gray-600 leading-relaxed font-light">
-                会費・免除・ローテ・出不足金
+                先9年予定・免除ルール・住戸一覧
               </p>
               <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
             </button>
 
-            {/* 06: 年度ログ */}
+            {/* 06: ルール・決定事項 */}
+            <button
+              onClick={() => setLocation("/rules")}
+              className="group cursor-pointer transition-all duration-300 text-left"
+            >
+              <div className="mb-4">
+                <span className="text-xs text-gray-400 font-light tracking-widest">
+                  06
+                </span>
+              </div>
+              <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
+                ルール・決定事項
+              </h3>
+              <p className="text-sm text-gray-600 leading-relaxed font-light">
+                会費・免除・出不足金
+              </p>
+              <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
+            </button>
+
+            {/* 07: 年度ログ */}
             <button
               onClick={() => setLocation("/year-log")}
               className="group cursor-pointer transition-all duration-300 text-left"
             >
               <div className="mb-4">
                 <span className="text-xs text-gray-400 font-light tracking-widest">
-                  06
+                  07
                 </span>
               </div>
               <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">

@@ -9,7 +9,7 @@ import { useState } from "react";
 export default function Templates() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
-  const { data: templates = [] } = trpc.data.getTemplates.useQuery();
+  const { data: templates = [] } = trpc.templates.list.useQuery();
   const [copiedId, setCopiedId] = useState<number | null>(null);
 
   if (!isAuthenticated) {
