@@ -18,6 +18,10 @@ import AdminDashboard from "./pages/AdminDashboard";
 import Vault from "./pages/Vault";
 import AuditLogs from "./pages/AuditLogs";
 import Rotation from "./pages/Rotation";
+import Attendance from "./pages/Attendance";
+import AttendanceForm from "./pages/AttendanceForm";
+import AttendanceAdmin from "./pages/AttendanceAdmin";
+import EmailSettings from "./pages/EmailSettings";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 function Router() {
@@ -37,6 +41,10 @@ function Router() {
       <Route path={"/vault"} component={user?.role === "admin" ? Vault : NotFound} />
       <Route path={"/audit-logs"} component={user?.role === "admin" ? AuditLogs : NotFound} />
       <Route path={"/rotation"} component={Rotation} />
+      <Route path={"/attendance"} component={Attendance} />
+      <Route path={"/attendance/:id"} component={AttendanceForm} />
+      <Route path={"/attendance/:id/admin"} component={user?.role === "admin" ? AttendanceAdmin : NotFound} />
+      <Route path={"/email-settings"} component={EmailSettings} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

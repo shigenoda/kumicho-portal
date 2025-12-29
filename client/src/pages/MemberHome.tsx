@@ -236,14 +236,33 @@ export default function MemberHome() {
               <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
             </button>
 
-            {/* 07: 年度ログ */}
+            {/* 07: 出欠表 */}
+            <button
+              onClick={() => setLocation("/attendance")}
+              className="group cursor-pointer transition-all duration-300 text-left"
+            >
+              <div className="mb-4">
+                <span className="text-xs text-gray-400 font-light tracking-widest">
+                  07
+                </span>
+              </div>
+              <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
+                河川清掃 出欠表
+              </h3>
+              <p className="text-sm text-gray-600 leading-relaxed font-light">
+                出欠入力・回答状況・リマインダー
+              </p>
+              <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
+            </button>
+
+            {/* 08: 年度ログ */}
             <button
               onClick={() => setLocation("/year-log")}
               className="group cursor-pointer transition-all duration-300 text-left"
             >
               <div className="mb-4">
                 <span className="text-xs text-gray-400 font-light tracking-widest">
-                  07
+                  08
                 </span>
               </div>
               <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">

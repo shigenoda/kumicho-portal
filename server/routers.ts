@@ -27,7 +27,14 @@ import {
   leaderHistory,
   exemptionTypes,
   exemptionStatus,
+  riverCleaningEvents,
+  attendanceResponses,
+  householdEmails,
+  reminderLogs,
+  editHistory,
+  users,
 } from "../drizzle/schema";
+import { notifyOwner } from "./_core/notification";
 
 export const appRouter = router({
   system: systemRouter,
@@ -551,6 +558,635 @@ export const appRouter = router({
         }
 
         return await query.orderBy(desc(auditLogs.timestamp)).limit(input.limit);
+      }),
+  }),
+
+  // 河川清掃出欠表 API
+  attendance: router({
+    // 出欠イベント一覧取得
+    listEvents: publicProcedure
+      .input(z.object({ year: z.number().optional(), status: z.string().optional() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+
+        let query = db.select().from(riverCleaningEvents);
+        
+        if (input.year) {
+          query = query.where(eq(riverCleaningEvents.year, input.year)) as any;
+        }
+        if (input.status) {
+          query = query.where(eq(riverCleaningEvents.status, input.status as any)) as any;
+        }
+
+        return await query.orderBy(desc(riverCleaningEvents.scheduledDate));
+      }),
+
+    // 出欠イベント詳細取得
+    getEvent: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return null;
+
+        const event = await db.select().from(riverCleaningEvents).where(eq(riverCleaningEvents.id, input.id)).limit(1);
+        return event[0] || null;
+      }),
+
+    // 出欠イベント作成（誰でも可能）
+    createEvent: protectedProcedure
+      .input(z.object({
+        title: z.string(),
+        year: z.number(),
+        scheduledDate: z.string(), // ISO date string
+        deadline: z.string(), // ISO date string
+        description: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const result = await db.insert(riverCleaningEvents).values({
+          title: input.title,
+          year: input.year,
+          scheduledDate: new Date(input.scheduledDate),
+          deadline: new Date(input.deadline),
+          description: input.description || null,
+          status: "open",
+          createdBy: ctx.user.id,
+        });
+
+        return { success: true, id: result[0].insertId };
+      }),
+
+    // 出欠イベントステータス更新（Admin）
+    updateEventStatus: adminProcedure
+      .input(z.object({ id: z.number(), status: z.enum(["draft", "open", "closed", "completed"]) }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        await db.update(riverCleaningEvents).set({ status: input.status }).where(eq(riverCleaningEvents.id, input.id));
+        return { success: true };
+      }),
+
+    // 出欠回答一覧取得
+    getResponses: publicProcedure
+      .input(z.object({ eventId: z.number() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+
+        return await db.select().from(attendanceResponses).where(eq(attendanceResponses.eventId, input.eventId));
+      }),
+
+    // 出欠回答状況取得（何人入力済みか）
+    getResponseStats: publicProcedure
+      .input(z.object({ eventId: z.number() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return { total: 0, responded: 0, attend: 0, absent: 0, undecided: 0 };
+
+        const allHouseholds = await db.select().from(households);
+        const responses = await db.select().from(attendanceResponses).where(eq(attendanceResponses.eventId, input.eventId));
+
+        const respondedHouseholds = new Set(responses.map(r => r.householdId));
+        const attend = responses.filter(r => r.response === "attend").length;
+        const absent = responses.filter(r => r.response === "absent").length;
+        const undecided = responses.filter(r => r.response === "undecided").length;
+
+        return {
+          total: allHouseholds.length,
+          responded: respondedHouseholds.size,
+          attend,
+          absent,
+          undecided,
+          notResponded: allHouseholds.length - respondedHouseholds.size,
+        };
+      }),
+
+    // 出欠回答入力（誰でも）
+    submitResponse: publicProcedure
+      .input(z.object({
+        eventId: z.number(),
+        householdId: z.string(),
+        response: z.enum(["attend", "absent", "undecided"]),
+        respondentName: z.string().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        // 既存の回答を確認
+        const existing = await db.select().from(attendanceResponses)
+          .where(and(
+            eq(attendanceResponses.eventId, input.eventId),
+            eq(attendanceResponses.householdId, input.householdId)
+          ))
+          .limit(1);
+
+        if (existing[0]) {
+          // 更新
+          await db.update(attendanceResponses)
+            .set({
+              response: input.response,
+              respondentName: input.respondentName || null,
+              notes: input.notes || null,
+            })
+            .where(eq(attendanceResponses.id, existing[0].id));
+        } else {
+          // 新規作成
+          await db.insert(attendanceResponses).values({
+            eventId: input.eventId,
+            householdId: input.householdId,
+            response: input.response,
+            respondentName: input.respondentName || null,
+            notes: input.notes || null,
+          });
+        }
+
+        // 組長（Admin）に通知
+        const event = await db.select().from(riverCleaningEvents).where(eq(riverCleaningEvents.id, input.eventId)).limit(1);
+        if (event[0]) {
+          const responseText = input.response === "attend" ? "参加" : input.response === "absent" ? "欠席" : "未定";
+          await notifyOwner({
+            title: `出欠回答: ${input.householdId}号室`,
+            content: `${event[0].title}に${input.householdId}号室が「${responseText}」と回答しました。${input.notes ? `\n備考: ${input.notes}` : ""}`,
+          });
+        }
+
+        return { success: true };
+      }),
+
+    // 未回答者一覧取得
+    getNotResponded: publicProcedure
+      .input(z.object({ eventId: z.number() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+
+        const allHouseholds = await db.select().from(households);
+        const responses = await db.select().from(attendanceResponses).where(eq(attendanceResponses.eventId, input.eventId));
+        const respondedHouseholds = new Set(responses.map(r => r.householdId));
+
+        return allHouseholds.filter(h => !respondedHouseholds.has(h.householdId));
+      }),
+
+    // リマインダー送信（Admin）
+    sendReminders: adminProcedure
+      .input(z.object({ eventId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        // 未回答者を取得
+        const allHouseholds = await db.select().from(households);
+        const responses = await db.select().from(attendanceResponses).where(eq(attendanceResponses.eventId, input.eventId));
+        const respondedHouseholds = new Set(responses.map(r => r.householdId));
+        const notResponded = allHouseholds.filter(h => !respondedHouseholds.has(h.householdId));
+
+        // メールアドレスを取得
+        const emails = await db.select().from(householdEmails);
+        const emailMap = new Map(emails.map(e => [e.householdId, e.email]));
+
+        const event = await db.select().from(riverCleaningEvents).where(eq(riverCleaningEvents.id, input.eventId)).limit(1);
+        if (!event[0]) throw new Error("Event not found");
+
+        let sentCount = 0;
+        let failedCount = 0;
+
+        for (const household of notResponded) {
+          const email = emailMap.get(household.householdId);
+          if (email) {
+            // リマインダーログに記録
+            await db.insert(reminderLogs).values({
+              eventId: input.eventId,
+              householdId: household.householdId,
+              email,
+              status: "sent",
+            });
+            sentCount++;
+          } else {
+            failedCount++;
+          }
+        }
+
+        // 組長に通知
+        await notifyOwner({
+          title: `リマインダー送信完了`,
+          content: `${event[0].title}のリマインダーを送信しました。\n送信成功: ${sentCount}件\nメール未登録: ${failedCount}件`,
+        });
+
+        return { success: true, sentCount, failedCount };
+      }),
+  }),
+
+  // 住民メールアドレス API
+  householdEmail: router({
+    // メールアドレス取得（自分の住戸のみ）
+    get: publicProcedure
+      .input(z.object({ householdId: z.string() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return null;
+
+        const email = await db.select().from(householdEmails).where(eq(householdEmails.householdId, input.householdId)).limit(1);
+        return email[0] || null;
+      }),
+
+    // メールアドレス登録・更新
+    upsert: publicProcedure
+      .input(z.object({
+        householdId: z.string(),
+        email: z.string().email(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const existing = await db.select().from(householdEmails).where(eq(householdEmails.householdId, input.householdId)).limit(1);
+
+        if (existing[0]) {
+          await db.update(householdEmails).set({ email: input.email }).where(eq(householdEmails.id, existing[0].id));
+        } else {
+          await db.insert(householdEmails).values({
+            householdId: input.householdId,
+            email: input.email,
+          });
+        }
+
+        return { success: true };
+      }),
+
+    // メールアドレス一覧（Admin）
+    list: adminProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+
+      return await db.select().from(householdEmails);
+    }),
+  }),
+
+  // 編集機能 API（誰でも編集可能）
+  edit: router({
+    // ローテーション編集
+    updateLeaderSchedule: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        primaryHouseholdId: z.string().optional(),
+        backupHouseholdId: z.string().optional(),
+        status: z.enum(["draft", "conditional", "confirmed"]).optional(),
+        reason: z.string().optional(),
+        editorName: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        // 変更前の値を取得
+        const before = await db.select().from(leaderSchedule).where(eq(leaderSchedule.id, input.id)).limit(1);
+        if (!before[0]) throw new Error("Schedule not found");
+
+        const updates: Record<string, unknown> = {};
+        if (input.primaryHouseholdId) updates.primaryHouseholdId = input.primaryHouseholdId;
+        if (input.backupHouseholdId) updates.backupHouseholdId = input.backupHouseholdId;
+        if (input.status) updates.status = input.status;
+        if (input.reason !== undefined) updates.reason = input.reason;
+
+        await db.update(leaderSchedule).set(updates).where(eq(leaderSchedule.id, input.id));
+
+        // 編集履歴を記録
+        await db.insert(editHistory).values({
+          entityType: "leader_schedule",
+          entityId: input.id,
+          action: "update",
+          previousValue: before[0] as any,
+          newValue: { ...before[0], ...updates } as any,
+          changedBy: ctx.user?.id || null,
+          changedByName: input.editorName || ctx.user?.name || "匿名",
+        });
+
+        return { success: true };
+      }),
+
+    // 年度ログ編集
+    updatePost: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        body: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+        category: z.enum(["inquiry", "answer", "decision", "pending", "trouble", "improvement"]).optional(),
+        editorName: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const before = await db.select().from(posts).where(eq(posts.id, input.id)).limit(1);
+        if (!before[0]) throw new Error("Post not found");
+
+        const updates: Record<string, unknown> = {};
+        if (input.title) updates.title = input.title;
+        if (input.body) updates.body = input.body;
+        if (input.tags) updates.tags = input.tags;
+        if (input.category) updates.category = input.category;
+
+        await db.update(posts).set(updates).where(eq(posts.id, input.id));
+
+        await db.insert(editHistory).values({
+          entityType: "posts",
+          entityId: input.id,
+          action: "update",
+          previousValue: before[0] as any,
+          newValue: { ...before[0], ...updates } as any,
+          changedBy: ctx.user?.id || null,
+          changedByName: input.editorName || ctx.user?.name || "匿名",
+        });
+
+        return { success: true };
+      }),
+
+    // 年度ログ新規作成
+    createPost: publicProcedure
+      .input(z.object({
+        title: z.string(),
+        body: z.string(),
+        tags: z.array(z.string()),
+        year: z.number(),
+        category: z.enum(["inquiry", "answer", "decision", "pending", "trouble", "improvement"]),
+        editorName: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const result = await db.insert(posts).values({
+          title: input.title,
+          body: input.body,
+          tags: input.tags,
+          year: input.year,
+          category: input.category,
+          status: "published",
+          authorId: ctx.user?.id || 0,
+          authorRole: ctx.user?.role === "admin" ? "admin" : "editor",
+          relatedLinks: [],
+        });
+
+        await db.insert(editHistory).values({
+          entityType: "posts",
+          entityId: result[0].insertId,
+          action: "create",
+          newValue: input as any,
+          changedBy: ctx.user?.id || null,
+          changedByName: input.editorName || ctx.user?.name || "匿名",
+        });
+
+        return { success: true, id: result[0].insertId };
+      }),
+
+    // ルール新規作成
+    createRule: publicProcedure
+      .input(z.object({
+        title: z.string(),
+        summary: z.string(),
+        details: z.string(),
+        status: z.enum(["decided", "pending"]),
+        evidenceLinks: z.array(z.string()).optional(),
+        editorName: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const result = await db.insert(rules).values({
+          title: input.title,
+          summary: input.summary,
+          details: input.details,
+          status: input.status,
+          evidenceLinks: input.evidenceLinks || [],
+        });
+
+        await db.insert(editHistory).values({
+          entityType: "rules",
+          entityId: result[0].insertId,
+          action: "create",
+          newValue: input as any,
+          changedBy: ctx.user?.id || null,
+          changedByName: input.editorName || ctx.user?.name || "匿名",
+        });
+
+        return { success: true, id: result[0].insertId };
+      }),
+
+    // ルール編集
+    updateRule: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        summary: z.string().optional(),
+        details: z.string().optional(),
+        status: z.enum(["decided", "pending"]).optional(),
+        evidenceLinks: z.array(z.string()).optional(),
+        editorName: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const before = await db.select().from(rules).where(eq(rules.id, input.id)).limit(1);
+        if (!before[0]) throw new Error("Rule not found");
+
+        const updates: Record<string, unknown> = {};
+        if (input.title) updates.title = input.title;
+        if (input.summary) updates.summary = input.summary;
+        if (input.details) updates.details = input.details;
+        if (input.status) updates.status = input.status;
+        if (input.evidenceLinks) updates.evidenceLinks = input.evidenceLinks;
+
+        await db.update(rules).set(updates).where(eq(rules.id, input.id));
+
+        await db.insert(editHistory).values({
+          entityType: "rules",
+          entityId: input.id,
+          action: "update",
+          previousValue: before[0] as any,
+          newValue: { ...before[0], ...updates } as any,
+          changedBy: ctx.user?.id || null,
+          changedByName: input.editorName || ctx.user?.name || "匿名",
+        });
+
+        return { success: true };
+      }),
+
+    // FAQ編集
+    updateFaq: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        question: z.string().optional(),
+        answer: z.string().optional(),
+        editorName: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const before = await db.select().from(faq).where(eq(faq.id, input.id)).limit(1);
+        if (!before[0]) throw new Error("FAQ not found");
+
+        const updates: Record<string, unknown> = {};
+        if (input.question) updates.question = input.question;
+        if (input.answer) updates.answer = input.answer;
+
+        await db.update(faq).set(updates).where(eq(faq.id, input.id));
+
+        await db.insert(editHistory).values({
+          entityType: "faq",
+          entityId: input.id,
+          action: "update",
+          previousValue: before[0] as any,
+          newValue: { ...before[0], ...updates } as any,
+          changedBy: ctx.user?.id || null,
+          changedByName: input.editorName || ctx.user?.name || "匿名",
+        });
+
+        return { success: true };
+      }),
+
+    // 備品編集
+    updateInventory: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().optional(),
+        qty: z.number().optional(),
+        location: z.string().optional(),
+        condition: z.string().optional(),
+        notes: z.string().optional(),
+        photo: z.string().optional(),
+        editorName: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const before = await db.select().from(inventory).where(eq(inventory.id, input.id)).limit(1);
+        if (!before[0]) throw new Error("Inventory item not found");
+
+        const updates: Record<string, unknown> = {};
+        if (input.name) updates.name = input.name;
+        if (input.qty !== undefined) updates.qty = input.qty;
+        if (input.location) updates.location = input.location;
+        if (input.condition) updates.condition = input.condition;
+        if (input.notes !== undefined) updates.notes = input.notes;
+        if (input.photo !== undefined) updates.photo = input.photo;
+
+        await db.update(inventory).set(updates).where(eq(inventory.id, input.id));
+
+        await db.insert(editHistory).values({
+          entityType: "inventory",
+          entityId: input.id,
+          action: "update",
+          previousValue: before[0] as any,
+          newValue: { ...before[0], ...updates } as any,
+          changedBy: ctx.user?.id || null,
+          changedByName: input.editorName || ctx.user?.name || "匿名",
+        });
+
+        return { success: true };
+      }),
+
+    // 備品新規作成
+    createInventory: publicProcedure
+      .input(z.object({
+        name: z.string(),
+        qty: z.number(),
+        location: z.string(),
+        condition: z.string().optional(),
+        notes: z.string().optional(),
+        photo: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+        editorName: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const result = await db.insert(inventory).values({
+          name: input.name,
+          qty: input.qty,
+          location: input.location,
+          condition: input.condition || null,
+          notes: input.notes || null,
+          photo: input.photo || null,
+          tags: input.tags || [],
+        });
+
+        await db.insert(editHistory).values({
+          entityType: "inventory",
+          entityId: result[0].insertId,
+          action: "create",
+          newValue: input as any,
+          changedBy: ctx.user?.id || null,
+          changedByName: input.editorName || ctx.user?.name || "匿名",
+        });
+
+        return { success: true, id: result[0].insertId };
+      }),
+
+    // 編集履歴取得
+    getHistory: publicProcedure
+      .input(z.object({ entityType: z.string(), entityId: z.number().optional(), limit: z.number().default(50) }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+
+        if (input.entityId) {
+          return await db.select().from(editHistory)
+            .where(and(
+              eq(editHistory.entityType, input.entityType),
+              eq(editHistory.entityId, input.entityId)
+            ))
+            .orderBy(desc(editHistory.changedAt))
+            .limit(input.limit);
+        }
+
+        return await db.select().from(editHistory)
+          .where(eq(editHistory.entityType, input.entityType))
+          .orderBy(desc(editHistory.changedAt))
+          .limit(input.limit);
+      }),
+  }),
+
+  // 写真アップロード API
+  upload: router({
+    // 備品写真アップロード
+    inventoryPhoto: publicProcedure
+      .input(z.object({
+        inventoryId: z.number(),
+        photoUrl: z.string(),
+        editorName: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const before = await db.select().from(inventory).where(eq(inventory.id, input.inventoryId)).limit(1);
+        if (!before[0]) throw new Error("Inventory item not found");
+
+        await db.update(inventory).set({ photo: input.photoUrl }).where(eq(inventory.id, input.inventoryId));
+
+        await db.insert(editHistory).values({
+          entityType: "inventory",
+          entityId: input.inventoryId,
+          action: "update",
+          previousValue: { photo: before[0].photo } as any,
+          newValue: { photo: input.photoUrl } as any,
+          changedBy: ctx.user?.id || null,
+          changedByName: input.editorName || ctx.user?.name || "匿名",
+        });
+
+        return { success: true };
       }),
   }),
 });

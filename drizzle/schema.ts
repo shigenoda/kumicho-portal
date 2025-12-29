@@ -373,3 +373,82 @@ export const exemptionStatus = mysqlTable("exemption_status", {
 
 export type ExemptionStatusRecord = typeof exemptionStatus.$inferSelect;
 export type InsertExemptionStatusRecord = typeof exemptionStatus.$inferInsert;
+
+
+// 河川清掃出欠イベント
+export const riverCleaningEvents = mysqlTable("river_cleaning_events", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(), // 「2026年度 4月 河川清掃」
+  year: int("year").notNull(),
+  scheduledDate: timestamp("scheduledDate").notNull(), // 予定日
+  deadline: timestamp("deadline").notNull(), // 回答締切
+  description: text("description"),
+  status: mysqlEnum("status", ["draft", "open", "closed", "completed"]).default("draft").notNull(),
+  createdBy: int("createdBy").notNull(), // Admin の userId
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type RiverCleaningEvent = typeof riverCleaningEvents.$inferSelect;
+export type InsertRiverCleaningEvent = typeof riverCleaningEvents.$inferInsert;
+
+// 出欠回答
+export const attendanceResponses = mysqlTable("attendance_responses", {
+  id: int("id").autoincrement().primaryKey(),
+  eventId: int("eventId").notNull(), // river_cleaning_events.id
+  householdId: varchar("householdId", { length: 50 }).notNull(),
+  response: mysqlEnum("response", ["attend", "absent", "undecided"]).notNull(),
+  respondentName: varchar("respondentName", { length: 100 }), // 回答者名（任意）
+  notes: text("notes"), // 備考（欠席理由など）
+  respondedAt: timestamp("respondedAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AttendanceResponse = typeof attendanceResponses.$inferSelect;
+export type InsertAttendanceResponse = typeof attendanceResponses.$inferInsert;
+
+// 住民メールアドレス（住戸ごと）
+export const householdEmails = mysqlTable("household_emails", {
+  id: int("id").autoincrement().primaryKey(),
+  householdId: varchar("householdId", { length: 50 }).notNull().unique(),
+  email: varchar("email", { length: 320 }).notNull(),
+  isVerified: boolean("isVerified").default(false).notNull(),
+  verificationToken: varchar("verificationToken", { length: 100 }),
+  notificationEnabled: boolean("notificationEnabled").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type HouseholdEmail = typeof householdEmails.$inferSelect;
+export type InsertHouseholdEmail = typeof householdEmails.$inferInsert;
+
+// リマインダー送信履歴
+export const reminderLogs = mysqlTable("reminder_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  eventId: int("eventId").notNull(), // river_cleaning_events.id
+  householdId: varchar("householdId", { length: 50 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  sentAt: timestamp("sentAt").defaultNow().notNull(),
+  status: mysqlEnum("status", ["sent", "failed", "bounced"]).default("sent").notNull(),
+  errorMessage: text("errorMessage"),
+});
+
+export type ReminderLog = typeof reminderLogs.$inferSelect;
+export type InsertReminderLog = typeof reminderLogs.$inferInsert;
+
+// 編集履歴（全エンティティ共通）
+export const editHistory = mysqlTable("edit_history", {
+  id: int("id").autoincrement().primaryKey(),
+  entityType: varchar("entityType", { length: 100 }).notNull(), // posts, rules, faq, inventory, leader_schedule など
+  entityId: int("entityId").notNull(),
+  action: mysqlEnum("action", ["create", "update", "delete"]).notNull(),
+  previousValue: json("previousValue").$type<Record<string, unknown>>(), // 変更前の値
+  newValue: json("newValue").$type<Record<string, unknown>>(), // 変更後の値
+  changedBy: int("changedBy"), // userId（nullの場合は匿名）
+  changedByName: varchar("changedByName", { length: 100 }), // 編集者名（ログイン不要の場合）
+  changedAt: timestamp("changedAt").defaultNow().notNull(),
+  ipAddress: varchar("ipAddress", { length: 45 }),
+});
+
+export type EditHistoryRecord = typeof editHistory.$inferSelect;
+export type InsertEditHistoryRecord = typeof editHistory.$inferInsert;
