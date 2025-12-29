@@ -1054,6 +1054,159 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    // FAQ新規作成
+    createFaq: publicProcedure
+      .input(z.object({
+        question: z.string(),
+        answer: z.string(),
+        relatedRuleIds: z.array(z.number()).optional(),
+        relatedPostIds: z.array(z.number()).optional(),
+        editorName: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const result = await db.insert(faq).values({
+          question: input.question,
+          answer: input.answer,
+          relatedRuleIds: input.relatedRuleIds || [],
+          relatedPostIds: input.relatedPostIds || [],
+        });
+
+        await db.insert(editHistory).values({
+          entityType: "faq",
+          entityId: result[0].insertId,
+          action: "create",
+          newValue: input as any,
+          changedBy: ctx.user?.id || null,
+          changedByName: input.editorName || ctx.user?.name || "匿名",
+        });
+
+        return { success: true, id: result[0].insertId };
+      }),
+
+    // FAQ削除
+    deleteFaq: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        editorName: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const before = await db.select().from(faq).where(eq(faq.id, input.id)).limit(1);
+        if (!before[0]) throw new Error("FAQ not found");
+
+        await db.delete(faq).where(eq(faq.id, input.id));
+
+        await db.insert(editHistory).values({
+          entityType: "faq",
+          entityId: input.id,
+          action: "delete",
+          previousValue: before[0] as any,
+          changedBy: ctx.user?.id || null,
+          changedByName: input.editorName || ctx.user?.name || "匿名",
+        });
+
+        return { success: true };
+      }),
+
+    // テンプレート新規作成
+    createTemplate: publicProcedure
+      .input(z.object({
+        title: z.string(),
+        category: z.string(),
+        body: z.string(),
+        editorName: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const result = await db.insert(templates).values({
+          title: input.title,
+          category: input.category,
+          body: input.body,
+          tags: [],
+        });
+
+        await db.insert(editHistory).values({
+          entityType: "templates",
+          entityId: result[0].insertId,
+          action: "create",
+          newValue: input as any,
+          changedBy: ctx.user?.id || null,
+          changedByName: input.editorName || ctx.user?.name || "匿名",
+        });
+
+        return { success: true, id: result[0].insertId };
+      }),
+
+    // テンプレート編集
+    updateTemplate: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        category: z.string().optional(),
+        body: z.string().optional(),
+        editorName: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const before = await db.select().from(templates).where(eq(templates.id, input.id)).limit(1);
+        if (!before[0]) throw new Error("Template not found");
+
+        const updates: Record<string, unknown> = {};
+        if (input.title) updates.title = input.title;
+        if (input.category) updates.category = input.category;
+        if (input.body) updates.body = input.body;
+
+        await db.update(templates).set(updates).where(eq(templates.id, input.id));
+
+        await db.insert(editHistory).values({
+          entityType: "templates",
+          entityId: input.id,
+          action: "update",
+          previousValue: before[0] as any,
+          newValue: { ...before[0], ...updates } as any,
+          changedBy: ctx.user?.id || null,
+          changedByName: input.editorName || ctx.user?.name || "匿名",
+        });
+
+        return { success: true };
+      }),
+
+    // テンプレート削除
+    deleteTemplate: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        editorName: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const before = await db.select().from(templates).where(eq(templates.id, input.id)).limit(1);
+        if (!before[0]) throw new Error("Template not found");
+
+        await db.delete(templates).where(eq(templates.id, input.id));
+
+        await db.insert(editHistory).values({
+          entityType: "templates",
+          entityId: input.id,
+          action: "delete",
+          previousValue: before[0] as any,
+          changedBy: ctx.user?.id || null,
+          changedByName: input.editorName || ctx.user?.name || "匿名",
+        });
+
+        return { success: true };
+      }),
+
     // 備品編集
     updateInventory: publicProcedure
       .input(z.object({
