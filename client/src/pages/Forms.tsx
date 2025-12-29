@@ -5,6 +5,7 @@ import { Plus, Edit2, Trash2, Eye, Download, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { FormStatsModal } from "./FormStats";
+import { useLocation } from "wouter";
 
 /**
  * フォーム管理画面 - Admin限定
@@ -137,14 +138,8 @@ export default function Forms() {
       <main className="pt-24 pb-16">
         <div className="max-w-7xl mx-auto px-6 py-8">
           {/* 作成ボタン */}
-          <div className="mb-8">
-            <Button
-              onClick={() => setShowCreateForm(true)}
-              className="bg-blue-900 hover:bg-blue-800 text-white flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              新しいフォームを作成
-            </Button>
+          <div className="mb-8 flex gap-2">
+            <FormCreateButton />
           </div>
 
           {/* フォーム一覧 */}
@@ -383,5 +378,20 @@ export default function Forms() {
         />
       )}
     </div>
+  );
+}
+
+// フォーム作成ボタンコンポーネント
+function FormCreateButton() {
+  const [, navigate] = useLocation();
+
+  return (
+    <Button
+      onClick={() => navigate("/form-builder")}
+      className="bg-blue-900 hover:bg-blue-800 text-white flex items-center gap-2"
+    >
+      <Plus className="w-4 h-4" />
+      新しいフォームを作成
+    </Button>
   );
 }
