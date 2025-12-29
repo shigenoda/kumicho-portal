@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Settings, LogOut, X } from "lucide-react";
 import { getLoginUrl } from "@/const";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 
@@ -16,7 +16,22 @@ export default function MemberHome() {
   const [searchQuery, setSearchQuery] = useState("");
   const [, setLocation] = useLocation();
   const [showSettings, setShowSettings] = useState(false);
+  const [newEmails, setNewEmails] = useState<{ [key: number]: string }>({});
   const { data: households = [] } = trpc.data.getHouseholds.useQuery();
+  const { data: residentEmails = [] } = trpc.data.getResidentEmails.useQuery();
+
+  // 現在の年度を自動判定（4月が新年度）
+  const currentYear = useMemo(() => {
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    return month >= 4 ? now.getFullYear() : now.getFullYear() - 1;
+  }, []);
+
+  // 現年度の組長情報を取得
+  const { data: currentLeader } = trpc.data.getRotationWithReasons.useQuery(
+    { year: currentYear },
+    { enabled: !!currentYear }
+  );
 
   const handleLogout = async () => {
     await logout();
@@ -96,7 +111,7 @@ export default function MemberHome() {
             <div className="flex items-start justify-between">
               <div className="text-sm text-white/80 font-light tracking-wider">
                 <div>焼津市 集合住宅「グリーンピア」</div>
-                <div className="mt-1">年度：2025</div>
+                <div className="mt-1">年度：{currentYear}</div>
               </div>
             </div>
 
@@ -105,9 +120,6 @@ export default function MemberHome() {
               <h1 className="text-5xl md:text-6xl font-light text-white mb-2 tracking-tight">
                 組長引き継ぎ
               </h1>
-              <p className="text-sm text-white/70">
-                ロール：{user?.role || "member"}
-              </p>
             </div>
 
             {/* 右下：Last updated */}
@@ -386,6 +398,34 @@ export default function MemberHome() {
                   ))}
                 </div>
               </section>
+
+              {/* 住民メールアドレス登録セクション */}
+              {user?.role === "admin" && (
+                <section>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-6">住民メールアドレス登録</h3>
+                  <div className="space-y-4">
+                    {households.map((household: any) => (
+                      <div key={household.id} className="flex items-end gap-3">
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            {household.householdId}号室
+                          </label>
+                          <input
+                            type="email"
+                            value={newEmails[household.id] || residentEmails.find((e: any) => e.householdId === household.householdId)?.email || ""}
+                            onChange={(e) => setNewEmails({ ...newEmails, [household.id]: e.target.value })}
+                            placeholder="メールアドレスを入力"
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-900"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-900">
+                    <p>登録したメールアドレスに、ポータル登録完了の通知メールが送信されます。</p>
+                  </div>
+                </section>
+              )}
 
               {/* 保存ボタン */}
               <div className="flex gap-3 pt-4 border-t border-gray-200">

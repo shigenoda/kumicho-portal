@@ -22,6 +22,7 @@ import {
   pendingQueue,
   handoverBagItems,
   memberTopSummary,
+  residentEmails,
 } from "../drizzle/schema";
 
 export const appRouter = router({
@@ -578,6 +579,14 @@ export const appRouter = router({
           schedule: schedule[0] || null,
         };
       }),
+
+    getResidentEmails: publicProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+
+      const emails = await db.select().from(residentEmails);
+      return emails;
+    }),
   }),
 
   // 投稿管理 API

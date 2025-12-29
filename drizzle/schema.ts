@@ -11,6 +11,7 @@ export const users = mysqlTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
+  householdId: varchar("householdId", { length: 50 }),
   role: mysqlEnum("role", ["public", "member", "editor", "admin"]).default("member").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -330,3 +331,17 @@ export const auditLogs = mysqlTable("audit_logs", {
 
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = typeof auditLogs.$inferInsert;
+
+
+// 住民メールアドレス（組長が登録）
+export const residentEmails = mysqlTable("resident_emails", {
+  id: int("id").autoincrement().primaryKey(),
+  householdId: varchar("householdId", { length: 50 }).notNull(), // 住戸ID（例：101, 102 など）
+  email: varchar("email", { length: 320 }).notNull(),
+  registeredBy: int("registeredBy").notNull(), // 登録者（admin）のユーザーID
+  registeredAt: timestamp("registeredAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ResidentEmail = typeof residentEmails.$inferSelect;
+export type InsertResidentEmail = typeof residentEmails.$inferInsert;
