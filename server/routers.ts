@@ -784,6 +784,104 @@ export const appRouter = router({
           throw new Error("Failed to create form");
         }
       }),
+
+    getFormStats: adminProcedure
+      .input(z.object({ formId: z.number() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return null;
+
+        try {
+          // フォーム情報を取得
+          const form = await db.select().from(forms).where(eq(forms.id, input.formId)).limit(1);
+          if (!form.length) throw new Error("Form not found");
+
+          // 全質問を取得
+          const questions = await db
+            .select()
+            .from(formQuestions)
+            .where(eq(formQuestions.formId, input.formId))
+            .orderBy(asc(formQuestions.orderIndex));
+
+          // 各質問の統計を計算
+          const questionStats = await Promise.all(
+            questions.map(async (question) => {
+              // 選択肢を取得
+              const choices = await db
+                .select()
+                .from(formChoices)
+                .where(eq(formChoices.questionId, question.id))
+                .orderBy(asc(formChoices.orderIndex));
+
+              // 各選択肢の回答数を計算
+              const choiceStats = await Promise.all(
+                choices.map(async (choice) => {
+                  const count = await db
+                    .select()
+                    .from(formResponseItems)
+                    .where(and(eq(formResponseItems.questionId, question.id), eq(formResponseItems.choiceId, choice.id)));
+
+                  return {
+                    id: choice.id,
+                    text: choice.choiceText,
+                    count: count.length,
+                  };
+                })
+              );
+
+              return {
+                id: question.id,
+                text: question.questionText,
+                type: question.questionType,
+                choices: choiceStats,
+              };
+            })
+          );
+
+          // 回答者情報を取得
+          const responses = await db
+            .select()
+            .from(formResponses)
+            .where(eq(formResponses.formId, input.formId));
+
+          // 回答者詳細を取得
+          const respondents = await Promise.all(
+            responses.map(async (response) => {
+              const items = await db
+                .select()
+                .from(formResponseItems)
+                .where(eq(formResponseItems.responseId, response.id));
+
+              return {
+                id: response.id,
+                householdId: response.householdId,
+                submittedAt: response.submittedAt,
+                answerCount: items.length,
+              };
+            })
+          );
+
+          // 全住戸を取得（未回答者を計算するため）
+          const allHouseholds = await db.select().from(households);
+          const respondedHouseholds = new Set(respondents.map((r) => r.householdId));
+          const unansweredHouseholds = allHouseholds.filter(
+            (h) => !respondedHouseholds.has(h.householdId)
+          );
+
+          return {
+            form: form[0],
+            questions: questionStats,
+            respondents,
+            totalHouseholds: allHouseholds.length,
+            respondedCount: respondents.length,
+            unansweredCount: unansweredHouseholds.length,
+            unansweredHouseholds,
+          };
+        } catch (error) {
+          console.error("Form stats error:", error);
+          throw new Error("Failed to get form stats");
+        }
+      }),
   }),
 
   // 投稿管理 API

@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Edit2, Trash2, Eye, Download } from "lucide-react";
+import { Plus, Edit2, Trash2, Eye, Download, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { FormStatsModal } from "./FormStats";
 
 /**
  * フォーム管理画面 - Admin限定
@@ -13,6 +14,8 @@ export default function Forms() {
   const { user } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingFormId, setEditingFormId] = useState<number | null>(null);
+  const [selectedFormId, setSelectedFormId] = useState<number | null>(null);
+  const [showStats, setShowStats] = useState(false);
   const [formTitle, setFormTitle] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -171,6 +174,10 @@ export default function Forms() {
                         variant="outline"
                         size="sm"
                         className="flex items-center gap-1"
+                        onClick={() => {
+                          setSelectedFormId(form.id);
+                          setShowStats(true);
+                        }}
                       >
                         <Eye className="w-4 h-4" />
                         結果
@@ -363,6 +370,17 @@ export default function Forms() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 統計表示モーダル */}
+      {showStats && selectedFormId && (
+        <FormStatsModal
+          formId={selectedFormId}
+          onClose={() => {
+            setShowStats(false);
+            setSelectedFormId(null);
+          }}
+        />
       )}
     </div>
   );
