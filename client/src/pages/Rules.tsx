@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Scale, AlertCircle } from "lucide-react";
+import { ArrowLeft, Scale, AlertCircle, Pencil } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
@@ -10,6 +10,7 @@ export default function Rules() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const [selectedYear, setSelectedYear] = useState(2026);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const { data: rules = [] } = trpc.data.getRules.useQuery();
   const { data: rotationData } = trpc.data.getRotationWithReasons.useQuery({ year: selectedYear });
 
@@ -55,7 +56,14 @@ export default function Rules() {
             <h2 className="text-xl font-semibold mb-4">✓ 決定事項</h2>
             <div className="space-y-4">
               {decidedRules.map((rule: any) => (
-                <Card key={rule.id} className="p-4 sm:p-6 border-l-4 border-l-green-600">
+                <Card key={rule.id} className="p-4 sm:p-6 border-l-4 border-l-green-600 relative">
+                  <button
+                    onClick={() => setEditingId(editingId === rule.id ? null : rule.id)}
+                    className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded transition-colors text-blue-600"
+                    title="編集"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
                   <h3 className="font-semibold mb-2">{rule.title}</h3>
                   <p className="text-muted-foreground mb-3">{rule.summary}</p>
                   <div className="bg-muted p-4 rounded text-sm text-muted-foreground whitespace-pre-wrap">
@@ -87,7 +95,14 @@ export default function Rules() {
             <h2 className="text-xl font-semibold mb-4">⏳ 検討中</h2>
             <div className="space-y-4">
               {pendingRules.map((rule: any) => (
-                <Card key={rule.id} className="p-4 sm:p-6 border-l-4 border-l-yellow-600 bg-yellow-50 dark:bg-yellow-900/10">
+                <Card key={rule.id} className="p-4 sm:p-6 border-l-4 border-l-yellow-600 bg-yellow-50 dark:bg-yellow-900/10 relative">
+                  <button
+                    onClick={() => setEditingId(editingId === rule.id ? null : rule.id)}
+                    className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded transition-colors text-blue-600"
+                    title="編集"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
                   <div className="flex items-start gap-2 mb-2">
                     <span className="badge-hypothesis">検討中</span>
                     <h3 className="font-semibold">{rule.title}</h3>

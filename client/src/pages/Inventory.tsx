@@ -1,13 +1,15 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Package } from "lucide-react";
+import { ArrowLeft, Package, Pencil } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { useState } from "react";
 
 export default function Inventory() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
+  const [editingId, setEditingId] = useState<number | null>(null);
   const { data: inventory = [] } = trpc.data.getInventory.useQuery();
 
   if (!isAuthenticated) {
@@ -43,7 +45,14 @@ export default function Inventory() {
         {inventory.length > 0 ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {inventory.map((item: any) => (
-              <Card key={item.id} className="p-4">
+              <Card key={item.id} className="p-4 relative">
+                <button
+                  onClick={() => setEditingId(editingId === item.id ? null : item.id)}
+                  className="absolute top-2 right-2 p-2 hover:bg-gray-100 rounded transition-colors text-blue-600"
+                  title="編集"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
                 {item.photo && (
                   <img
                     src={item.photo}

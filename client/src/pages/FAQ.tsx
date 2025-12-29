@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, HelpCircle } from "lucide-react";
+import { ArrowLeft, HelpCircle, Pencil } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
@@ -11,6 +11,7 @@ export default function FAQ() {
   const [, setLocation] = useLocation();
   const { data: faqData = [] } = trpc.data.getFAQ.useQuery();
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   if (!isAuthenticated) {
     return <div className="page-container flex items-center justify-center min-h-screen">ログインが必要です</div>;
@@ -47,13 +48,20 @@ export default function FAQ() {
             {faqData.map((item: any) => (
               <Card
                 key={item.id}
-                className="overflow-hidden"
+                className="overflow-hidden relative"
               >
+                <button
+                  onClick={() => setEditingId(editingId === item.id ? null : item.id)}
+                  className="absolute top-2 right-2 p-2 hover:bg-gray-100 rounded transition-colors text-blue-600 z-10"
+                  title="編集"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
                 <button
                   onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
                   className="w-full p-4 sm:p-6 text-left hover:bg-muted/50 transition-colors flex items-center justify-between"
                 >
-                  <h3 className="font-semibold">{item.question}</h3>
+                  <h3 className="font-semibold pr-10">{item.question}</h3>
                   <span className={`text-xl transition-transform ${expandedId === item.id ? "rotate-180" : ""}`}>
                     ▼
                   </span>

@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Copy, Download } from "lucide-react";
+import { ArrowLeft, Copy, Download, Pencil } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
@@ -11,6 +11,7 @@ export default function Templates() {
   const [, setLocation] = useLocation();
   const { data: templates = [] } = trpc.data.getTemplates.useQuery();
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   if (!isAuthenticated) {
     return <div className="page-container flex items-center justify-center min-h-screen">ログインが必要です</div>;
@@ -55,8 +56,15 @@ export default function Templates() {
                   <h2 className="text-xl font-semibold mb-4 capitalize">{category}</h2>
                   <div className="space-y-3">
                     {categoryTemplates.map((template) => (
-                      <Card key={template.id} className="p-4 sm:p-6">
-                        <h3 className="font-semibold mb-2">{template.title}</h3>
+                      <Card key={template.id} className="p-4 sm:p-6 relative">
+                        <button
+                          onClick={() => setEditingId(editingId === template.id ? null : template.id)}
+                          className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded transition-colors text-blue-600"
+                          title="編集"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <h3 className="font-semibold mb-2 pr-10">{template.title}</h3>
                         <div className="bg-muted p-4 rounded text-sm text-muted-foreground whitespace-pre-wrap max-h-48 overflow-y-auto mb-3">
                           {template.body}
                         </div>

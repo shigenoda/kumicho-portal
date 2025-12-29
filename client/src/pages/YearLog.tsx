@@ -1,13 +1,15 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, BookOpen } from "lucide-react";
+import { ArrowLeft, BookOpen, Pencil } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { useState } from "react";
 
 export default function YearLog() {
   const { isAuthenticated, user } = useAuth();
   const [, setLocation] = useLocation();
+  const [editingId, setEditingId] = useState<number | null>(null);
   const { data: posts = [] } = trpc.data.getPosts.useQuery({ year: new Date().getFullYear() });
 
   if (!isAuthenticated) {
@@ -76,7 +78,14 @@ export default function YearLog() {
         {posts.length > 0 ? (
           <div className="space-y-4">
             {posts.map((post: any) => (
-              <Card key={post.id} className="p-4 sm:p-6">
+              <Card key={post.id} className="p-4 sm:p-6 relative">
+                <button
+                  onClick={() => setEditingId(editingId === post.id ? null : post.id)}
+                  className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded transition-colors text-blue-600"
+                  title="編集"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
                     <h3 className="font-semibold text-lg mb-2">{post.title}</h3>
