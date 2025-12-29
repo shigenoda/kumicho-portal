@@ -20,6 +20,9 @@ export default function Rules() {
   const decidedRules = rules.filter((r) => r.status === "decided");
   const pendingRules = rules.filter((r) => r.status === "pending");
 
+  // rotationData の型チェック
+  const isRotationDataValid = rotationData && typeof rotationData === 'object' && 'households' in rotationData;
+
   return (
     <div className="page-container">
       {/* Header */}
@@ -124,13 +127,13 @@ export default function Rules() {
           </div>
 
           {/* ローテーション詳細 */}
-          {rotationData && (
+          {isRotationDataValid && (
             <div className="space-y-6">
               {/* 候補状況 */}
               <Card className="p-4 sm:p-6">
                 <h3 className="font-semibold mb-4">{selectedYear}年度 候補状況</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {rotationData.households.map((h: any) => (
+                  {(rotationData as any).households.map((h: any) => (
                     <div
                       key={h.householdId}
                       className={`p-3 rounded border ${
@@ -185,26 +188,26 @@ export default function Rules() {
               </Card>
 
               {/* 現在のスケジュール */}
-              {rotationData.schedule && (
+              {(rotationData as any).schedule && (
                 <Card className="p-4 sm:p-6 border-l-4 border-l-blue-600">
                   <h3 className="font-semibold mb-4">現在の選定結果</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground mb-1">Primary</p>
                       <p className="text-lg font-semibold text-foreground">
-                        {rotationData.schedule.primaryHouseholdId}号室
+                        {(rotationData as any).schedule.primaryHouseholdId}号室
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        ステータス: {rotationData.schedule.status}
+                        ステータス: {(rotationData as any).schedule.status}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground mb-1">Backup</p>
                       <p className="text-lg font-semibold text-foreground">
-                        {rotationData.schedule.backupHouseholdId}号室
+                        {(rotationData as any).schedule.backupHouseholdId}号室
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        理由: {rotationData.schedule.reason}
+                        理由: {(rotationData as any).schedule.reason}
                       </p>
                     </div>
                   </div>

@@ -495,6 +495,89 @@ export const appRouter = router({
 
         return { success: true, candidateCount: candidates.length };
       }),
+
+    getRotationWithReasons: protectedProcedure
+      .input(z.object({ year: z.number() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+
+        // 全住戸を取得
+        const allHouseholds = await db.select().from(households);
+
+        // 前回担当者を取得
+        const prevYear = input.year - 1;
+        const prevScheduleArray = await db
+          .select()
+          .from(leaderSchedule)
+          .where(eq(leaderSchedule.year, prevYear))
+          .limit(1);
+        const prevSchedule = prevScheduleArray[0];
+
+        // 免除申請を確認
+        const exemptions = await db
+          .select()
+          .from(exemptionRequests)
+          .where(
+            and(
+              eq(exemptionRequests.year, input.year),
+              eq(exemptionRequests.status, "approved")
+            )
+          );
+
+        const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
+
+        // 入居12ヶ月未満の住戸を確認
+        const now = new Date();
+        const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, now.getDate());
+        const lessThanYearHouseholds = new Set(
+          allHouseholds
+            .filter((h) => h.moveInDate && h.moveInDate > twelveMonthsAgo)
+            .map((h) => h.householdId)
+        );
+
+        // 直近2年以内に組長経験のある住戸を確認
+        const recentLeaderHouseholds = new Set(
+          allHouseholds
+            .filter((h) => (h.leaderHistoryCount || 0) > 0)
+            .map((h) => h.householdId)
+        );
+
+        // 各住戸の候補外理由を計算
+        const householdsWithReasons = allHouseholds.map((h) => {
+          const reasons: string[] = [];
+          if (lessThanYearHouseholds.has(h.householdId)) {
+            reasons.push("A");
+          }
+          if (recentLeaderHouseholds.has(h.householdId)) {
+            reasons.push("B");
+          }
+          if (exemptedHouseholds.has(h.householdId)) {
+            reasons.push("C");
+          }
+
+          return {
+            householdId: h.householdId,
+            moveInDate: h.moveInDate,
+            leaderHistoryCount: h.leaderHistoryCount || 0,
+            reasons: reasons,
+            isCandidate: reasons.length === 0,
+          };
+        });
+
+        // 現在のスケジュールを取得
+        const schedule = await db
+          .select()
+          .from(leaderSchedule)
+          .where(eq(leaderSchedule.year, input.year))
+          .limit(1);
+
+        return {
+          year: input.year,
+          households: householdsWithReasons,
+          schedule: schedule[0] || null,
+        };
+      }),
   }),
 
   // 投稿管理 API
