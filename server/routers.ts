@@ -601,6 +601,116 @@ export const appRouter = router({
       return allForms;
     }),
 
+    getUnansweredForms: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return [];
+
+      // アクティブなフォーム一覧を取得
+      const activeForms = await db
+        .select()
+        .from(forms)
+        .where(eq(forms.status, "active"))
+        .orderBy(desc(forms.createdAt));
+
+      // ユーザーが回答済みのフォームを取得
+      const answeredFormIds = await db
+        .select({ formId: formResponses.formId })
+        .from(formResponses)
+        .where(eq(formResponses.userId, ctx.user.id));
+
+      const answeredFormIdSet = new Set(answeredFormIds.map((r) => r.formId));
+
+      // 未回答のフォームをフィルタリング
+      const unansweredForms = activeForms.filter((form) => !answeredFormIdSet.has(form.id));
+
+      // 各フォームの質問と選択肢を取得
+      const formsWithDetails = await Promise.all(
+        unansweredForms.map(async (form) => {
+          const questions = await db
+            .select()
+            .from(formQuestions)
+            .where(eq(formQuestions.formId, form.id))
+            .orderBy(asc(formQuestions.orderIndex));
+
+          const questionsWithChoices = await Promise.all(
+            questions.map(async (question) => {
+              const choices = await db
+                .select()
+                .from(formChoices)
+                .where(eq(formChoices.questionId, question.id))
+                .orderBy(asc(formChoices.orderIndex));
+
+              return {
+                ...question,
+                choices,
+              };
+            })
+          );
+
+          return {
+            ...form,
+            questions: questionsWithChoices,
+          };
+        })
+      );
+
+      return formsWithDetails;
+    }),
+
+    submitFormResponse: protectedProcedure
+      .input(
+        z.object({
+          formId: z.number(),
+          answers: z.array(
+            z.object({
+              questionId: z.number(),
+              choiceId: z.number().optional(),
+              textAnswer: z.string().optional(),
+            })
+          ),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database connection failed");
+
+        try {
+          // フォーム回答を作成
+          const response = await db.insert(formResponses).values({
+            formId: input.formId,
+            userId: ctx.user.id,
+            householdId: ctx.user.householdId || "unknown",
+            submittedAt: new Date(),
+          });
+
+          // 回答IDを取得
+          const createdResponse = await db
+            .select()
+            .from(formResponses)
+            .where(and(eq(formResponses.formId, input.formId), eq(formResponses.userId, ctx.user.id)))
+            .orderBy(desc(formResponses.submittedAt))
+            .limit(1);
+
+          if (!createdResponse.length) throw new Error("Response creation failed");
+          const responseId = createdResponse[0].id;
+
+          // 各質問への回答を保存
+          for (const answer of input.answers) {
+            await db.insert(formResponseItems).values({
+              responseId,
+              questionId: answer.questionId,
+              choiceId: answer.choiceId || null,
+              textAnswer: answer.textAnswer || null,
+            });
+          }
+
+          return { success: true, responseId };
+        } catch (error) {
+          console.error("Form submission error:", error);
+          throw new Error("Failed to submit form response");
+        }
+      }),
+
     createForm: adminProcedure
       .input(
         z.object({

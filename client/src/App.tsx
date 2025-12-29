@@ -18,6 +18,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import Vault from "./pages/Vault";
 import AuditLogs from "./pages/AuditLogs";
 import Forms from "./pages/Forms";
+import FormResponse from "./pages/FormResponse";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 function Router() {
@@ -37,6 +38,7 @@ function Router() {
       <Route path={"/vault"} component={user?.role === "admin" ? Vault : NotFound} />
       <Route path={"/audit-logs"} component={user?.role === "admin" ? AuditLogs : NotFound} />
       <Route path={"/forms"} component={user?.role === "admin" ? Forms : NotFound} />
+      <Route path={"/form-response/:formId"} component={isAuthenticated ? FormResponse : NotFound} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

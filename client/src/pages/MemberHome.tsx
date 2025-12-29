@@ -7,6 +7,7 @@ import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 
+
 /**
  * Member トップページ - Minato Editorial Luxury デザイン
  * 「雑誌の目次」型レイアウト：左上ラベル、中央H1、下Index List、右下更新ログ
@@ -19,6 +20,7 @@ export default function MemberHome() {
   const [newEmails, setNewEmails] = useState<{ [key: number]: string }>({});
   const { data: households = [] } = trpc.data.getHouseholds.useQuery();
   const { data: residentEmails = [] } = trpc.data.getResidentEmails.useQuery();
+  const { data: unansweredForms = [] } = trpc.data.getUnansweredForms.useQuery();
 
   // 現在の年度を自動判定（4月が新年度）
   const currentYear = useMemo(() => {
@@ -131,6 +133,41 @@ export default function MemberHome() {
             </div>
           </div>
         </div>
+
+        {/* 未回答フォームセクション */}
+        {unansweredForms.length > 0 && (
+          <div className="bg-blue-50 border-t border-blue-200 py-16">
+            <div className="max-w-7xl mx-auto px-6">
+              <h2 className="text-2xl font-light text-gray-900 mb-8">
+                未回答フォーム
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {unansweredForms.map((form: any) => (
+                  <button
+                    key={form.id}
+                    onClick={() => setLocation(`/form-response/${form.id}`)}
+                    className="group bg-white border border-blue-200 rounded-lg p-6 text-left hover:shadow-lg transition-all duration-300"
+                  >
+                    <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
+                      {form.title}
+                    </h3>
+                    {form.description && (
+                      <p className="text-sm text-gray-600 mb-4 font-light">
+                        {form.description}
+                      </p>
+                    )}
+                    {form.dueDate && (
+                      <div className="text-xs text-gray-500">
+                        期限: {new Date(form.dueDate).toLocaleDateString('ja-JP')}
+                      </div>
+                    )}
+                    <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Index List（導線 01..06） */}
         <div className="max-w-7xl mx-auto px-6 py-24">
