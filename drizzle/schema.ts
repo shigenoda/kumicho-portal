@@ -345,3 +345,72 @@ export const residentEmails = mysqlTable("resident_emails", {
 
 export type ResidentEmail = typeof residentEmails.$inferSelect;
 export type InsertResidentEmail = typeof residentEmails.$inferInsert;
+
+
+// フォーム（汎用フォーム管理）
+export const forms = mysqlTable("forms", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(), // フォームタイトル（例：河川清掃出欠）
+  description: text("description"), // フォーム説明
+  createdBy: int("createdBy").notNull(), // 作成者（admin）のユーザーID
+  dueDate: timestamp("dueDate"), // 回答期限
+  status: mysqlEnum("status", ["draft", "active", "closed"]).default("draft").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Form = typeof forms.$inferSelect;
+export type InsertForm = typeof forms.$inferInsert;
+
+// フォーム質問（各質問と選択肢）
+export const formQuestions = mysqlTable("form_questions", {
+  id: int("id").autoincrement().primaryKey(),
+  formId: int("formId").notNull(), // フォームID
+  questionText: varchar("questionText", { length: 500 }).notNull(), // 質問テキスト
+  questionType: mysqlEnum("questionType", ["single_choice", "multiple_choice"]).default("single_choice").notNull(),
+  required: boolean("required").default(true).notNull(),
+  orderIndex: int("orderIndex").notNull(), // 質問の順序
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type FormQuestion = typeof formQuestions.$inferSelect;
+export type InsertFormQuestion = typeof formQuestions.$inferInsert;
+
+// フォーム選択肢
+export const formChoices = mysqlTable("form_choices", {
+  id: int("id").autoincrement().primaryKey(),
+  questionId: int("questionId").notNull(), // 質問ID
+  choiceText: varchar("choiceText", { length: 255 }).notNull(), // 選択肢テキスト
+  orderIndex: int("orderIndex").notNull(), // 選択肢の順序
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type FormChoice = typeof formChoices.$inferSelect;
+export type InsertFormChoice = typeof formChoices.$inferInsert;
+
+// フォーム回答（各回答者の回答）
+export const formResponses = mysqlTable("form_responses", {
+  id: int("id").autoincrement().primaryKey(),
+  formId: int("formId").notNull(), // フォームID
+  userId: int("userId").notNull(), // 回答者のユーザーID
+  householdId: varchar("householdId", { length: 50 }).notNull(), // 住戸ID
+  submittedAt: timestamp("submittedAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type FormResponse = typeof formResponses.$inferSelect;
+export type InsertFormResponse = typeof formResponses.$inferInsert;
+
+// フォーム回答内容（各質問への回答）
+export const formResponseItems = mysqlTable("form_response_items", {
+  id: int("id").autoincrement().primaryKey(),
+  responseId: int("responseId").notNull(), // 回答ID
+  questionId: int("questionId").notNull(), // 質問ID
+  choiceId: int("choiceId"), // 選択した選択肢ID
+  textAnswer: text("textAnswer"), // 自由記述の場合のテキスト
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type FormResponseItem = typeof formResponseItems.$inferSelect;
+export type InsertFormResponseItem = typeof formResponseItems.$inferInsert;

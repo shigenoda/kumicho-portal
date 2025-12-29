@@ -23,6 +23,11 @@ import {
   handoverBagItems,
   memberTopSummary,
   residentEmails,
+  forms,
+  formQuestions,
+  formChoices,
+  formResponses,
+  formResponseItems,
 } from "../drizzle/schema";
 
 export const appRouter = router({
@@ -586,6 +591,14 @@ export const appRouter = router({
 
       const emails = await db.select().from(residentEmails);
       return emails;
+    }),
+
+    getForms: adminProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+
+      const allForms = await db.select().from(forms).orderBy(desc(forms.createdAt));
+      return allForms;
     }),
   }),
 
