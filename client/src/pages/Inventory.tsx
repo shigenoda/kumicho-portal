@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Package, Pencil } from "lucide-react";
+import { ArrowLeft, Package, Pencil, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
@@ -46,13 +46,25 @@ export default function Inventory() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {inventory.map((item: any) => (
               <Card key={item.id} className="p-4 relative">
-                <button
-                  onClick={() => setEditingId(editingId === item.id ? null : item.id)}
-                  className="absolute top-2 right-2 p-2 hover:bg-gray-100 rounded transition-colors text-blue-600"
-                  title="編集"
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
+                <div className="absolute top-2 right-2 flex gap-1">
+                  <button
+                    onClick={() => setEditingId(editingId === item.id ? null : item.id)}
+                    className="p-2 hover:bg-gray-100 rounded transition-colors text-blue-600"
+                    title="編集"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm("この備品を削除しますか？")) {
+                      }
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded transition-colors text-red-600"
+                    title="削除"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
                 {item.photo && (
                   <img
                     src={item.photo}

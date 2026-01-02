@@ -347,6 +347,41 @@ export const appRouter = router({
       return await db.select().from(faq).orderBy(asc(faq.question));
     }),
 
+    updateFAQ: adminProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          question: z.string().min(1),
+          answer: z.string().min(1),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database connection failed");
+
+        await db
+          .update(faq)
+          .set({
+            question: input.question,
+            answer: input.answer,
+            updatedAt: new Date(),
+          })
+          .where(eq(faq.id, input.id));
+
+        return { success: true };
+      }),
+
+    deleteFAQ: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database connection failed");
+
+        await db.delete(faq).where(eq(faq.id, input.id));
+
+        return { success: true };
+      }),
+
     getPosts: protectedProcedure
       .input(z.object({ year: z.number().optional() }))
       .query(async ({ input }) => {

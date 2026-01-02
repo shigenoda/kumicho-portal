@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Scale, AlertCircle, Pencil } from "lucide-react";
+import { ArrowLeft, Scale, AlertCircle, Pencil, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
@@ -57,13 +57,25 @@ export default function Rules() {
             <div className="space-y-4">
               {decidedRules.map((rule: any) => (
                 <Card key={rule.id} className="p-4 sm:p-6 border-l-4 border-l-green-600 relative">
-                  <button
-                    onClick={() => setEditingId(editingId === rule.id ? null : rule.id)}
-                    className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded transition-colors text-blue-600"
-                    title="編集"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
+                  <div className="absolute top-4 right-4 flex gap-1">
+                    <button
+                      onClick={() => setEditingId(editingId === rule.id ? null : rule.id)}
+                      className="p-2 hover:bg-gray-100 rounded transition-colors text-blue-600"
+                      title="編集"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm("このルールを削除しますか？")) {
+                        }
+                      }}
+                      className="p-2 hover:bg-gray-100 rounded transition-colors text-red-600"
+                      title="削除"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                   <h3 className="font-semibold mb-2">{rule.title}</h3>
                   <p className="text-muted-foreground mb-3">{rule.summary}</p>
                   <div className="bg-muted p-4 rounded text-sm text-muted-foreground whitespace-pre-wrap">

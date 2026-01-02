@@ -1,6 +1,6 @@
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Calendar, Pencil } from "lucide-react";
+import { ChevronLeft, Calendar, Pencil, Trash2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 
@@ -84,6 +84,16 @@ export default function CalendarPage() {
                           title="編集"
                         >
                           <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm("このイベントを削除しますか？")) {
+                            }
+                          }}
+                          className="p-2 hover:bg-gray-100 rounded transition-colors text-red-600"
+                          title="削除"
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </div>

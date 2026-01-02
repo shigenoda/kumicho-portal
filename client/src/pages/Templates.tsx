@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Copy, Download, Pencil } from "lucide-react";
+import { ArrowLeft, Copy, Download, Pencil, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
@@ -57,13 +57,25 @@ export default function Templates() {
                   <div className="space-y-3">
                     {categoryTemplates.map((template) => (
                       <Card key={template.id} className="p-4 sm:p-6 relative">
-                        <button
-                          onClick={() => setEditingId(editingId === template.id ? null : template.id)}
-                          className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded transition-colors text-blue-600"
-                          title="編集"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
+                        <div className="absolute top-4 right-4 flex gap-1">
+                          <button
+                            onClick={() => setEditingId(editingId === template.id ? null : template.id)}
+                            className="p-2 hover:bg-gray-100 rounded transition-colors text-blue-600"
+                            title="編集"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm("このテンプレートを削除しますか？")) {
+                              }
+                            }}
+                            className="p-2 hover:bg-gray-100 rounded transition-colors text-red-600"
+                            title="削除"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                         <h3 className="font-semibold mb-2 pr-10">{template.title}</h3>
                         <div className="bg-muted p-4 rounded text-sm text-muted-foreground whitespace-pre-wrap max-h-48 overflow-y-auto mb-3">
                           {template.body}
