@@ -1,27 +1,31 @@
 import "dotenv/config";
-import express from "express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
+import type { Request, Response } from "express";
 import { registerOAuthRoutes } from "../server/_core/oauth";
 import { appRouter } from "../server/routers";
 import { createContext } from "../server/_core/context";
 
-const app = express();
+// Vercel Serverless Function用のハンドラー
+export default async function handler(req: Request, res: Response) {
+  // CORSヘッダーを設定
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
 
-// Configure body parser with larger size limit for file uploads
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
 
-// OAuth callback under /api/oauth/callback
-registerOAuthRoutes(app);
-
-// tRPC API
-app.use(
-  "/api/trpc",
-  createExpressMiddleware({
+  // tRPC APIハンドラー
+  const trpcHandler = createExpressMiddleware({
     router: appRouter,
     createContext,
-  })
-);
+  });
 
-// Export for Vercel Serverless Functions
-export default app;
+  return trpcHandler(req, res);
+}
