@@ -1,20 +1,32 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, json, boolean } from "drizzle-orm/mysql-core";
+import { integer, pgEnum, pgTable, text, timestamp, varchar, jsonb, boolean, serial } from "drizzle-orm/pg-core";
 
 /**
  * Core user table backing auth flow.
  * Extend this file with additional tables as your product grows.
  * Columns use camelCase to match both database fields and generated types.
  */
-export const users = mysqlTable("users", {
-  id: int("id").autoincrement().primaryKey(),
+
+// Enum definitions
+export const roleEnum = pgEnum("role", ["public", "member", "editor", "admin"]);
+export const statusEnum = pgEnum("status", ["draft", "conditional", "confirmed", "pending", "published", "decided", "active", "closed"]);
+export const categoryEnum = pgEnum("category", ["inquiry", "answer", "decision", "pending", "trouble", "improvement"]);
+export const authorRoleEnum = pgEnum("author_role", ["member", "editor", "admin"]);
+export const exemptionStatusEnum = pgEnum("exemption_status", ["pending", "approved", "rejected"]);
+export const priorityEnum = pgEnum("priority", ["low", "medium", "high"]);
+export const pendingStatusEnum = pgEnum("pending_status", ["pending", "resolved", "transferred"]);
+export const classificationEnum = pgEnum("classification", ["public", "internal", "confidential"]);
+export const questionTypeEnum = pgEnum("question_type", ["single_choice", "multiple_choice"]);
+
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   householdId: varchar("householdId", { length: 50 }),
-  role: mysqlEnum("role", ["public", "member", "editor", "admin"]).default("member").notNull(),
+  role: roleEnum("role").default("member").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 });
 
@@ -22,177 +34,177 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
 // 住戸（個人情報なし、住戸IDのみ）
-export const households = mysqlTable("households", {
-  id: int("id").autoincrement().primaryKey(),
-  householdId: varchar("householdId", { length: 50 }).notNull().unique(), // 例：101, 102, 201 など
+export const households = pgTable("households", {
+  id: serial("id").primaryKey(),
+  householdId: varchar("householdId", { length: 50 }).notNull().unique(),
   moveInDate: timestamp("moveInDate"),
-  leaderHistoryCount: int("leaderHistoryCount").default(0).notNull(), // 過去の組長経歴回数
-  notes: text("notes"), // 個人情報なし。例：「角部屋」「エレベーター近い」など
+  leaderHistoryCount: integer("leaderHistoryCount").default(0).notNull(),
+  notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type Household = typeof households.$inferSelect;
 export type InsertHousehold = typeof households.$inferInsert;
 
 // 先9年ローテ（Primary/Backup）
-export const leaderSchedule = mysqlTable("leader_schedule", {
-  id: int("id").autoincrement().primaryKey(),
-  year: int("year").notNull(), // 2025, 2026, ...
+export const leaderSchedule = pgTable("leader_schedule", {
+  id: serial("id").primaryKey(),
+  year: integer("year").notNull(),
   primaryHouseholdId: varchar("primaryHouseholdId", { length: 50 }).notNull(),
   backupHouseholdId: varchar("backupHouseholdId", { length: 50 }).notNull(),
-  status: mysqlEnum("status", ["draft", "conditional", "confirmed"]).default("draft").notNull(),
-  reason: text("reason"), // 「前回担当から3年経過」「入居開始が古い」など
+  status: statusEnum("status").default("draft").notNull(),
+  reason: text("reason"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type LeaderSchedule = typeof leaderSchedule.$inferSelect;
 export type InsertLeaderSchedule = typeof leaderSchedule.$inferInsert;
 
 // ローテ選定ロジック（版管理）
-export const leaderRotationLogic = mysqlTable("leader_rotation_logic", {
-  id: int("id").autoincrement().primaryKey(),
-  version: int("version").default(1).notNull(), // v1, v2, v3, ...
-  logic: json("logic").$type<{
-    priority: string[]; // 例：["yearsFromLastTerm", "moveInDate", "householdIdAsc"]
-    excludeConditions: string[]; // 例：["moveOutWithin6Months"]
+export const leaderRotationLogic = pgTable("leader_rotation_logic", {
+  id: serial("id").primaryKey(),
+  version: integer("version").default(1).notNull(),
+  logic: jsonb("logic").$type<{
+    priority: string[];
+    excludeConditions: string[];
   }>().notNull(),
-  reason: text("reason"), // 「前回担当からの経過年数を優先」など
+  reason: text("reason"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type LeaderRotationLogic = typeof leaderRotationLogic.$inferSelect;
 export type InsertLeaderRotationLogic = typeof leaderRotationLogic.$inferInsert;
 
 // 免除申請（版管理）
-export const exemptionRequests = mysqlTable("exemption_requests", {
-  id: int("id").autoincrement().primaryKey(),
+export const exemptionRequests = pgTable("exemption_requests", {
+  id: serial("id").primaryKey(),
   householdId: varchar("householdId", { length: 50 }).notNull(),
-  year: int("year").notNull(),
-  version: int("version").default(1).notNull(),
-  reason: text("reason"), // 個人情報なし。例：「健康上の理由」「転勤予定」など
-  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
-  approvedBy: int("approvedBy"), // Admin ID
+  year: integer("year").notNull(),
+  version: integer("version").default(1).notNull(),
+  reason: text("reason"),
+  status: exemptionStatusEnum("status").default("pending").notNull(),
+  approvedBy: integer("approvedBy"),
   approvedAt: timestamp("approvedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type ExemptionRequest = typeof exemptionRequests.$inferSelect;
 export type InsertExemptionRequest = typeof exemptionRequests.$inferInsert;
 
 // 年度ログ（投稿）
-export const posts = mysqlTable("posts", {
-  id: int("id").autoincrement().primaryKey(),
+export const posts = pgTable("posts", {
+  id: serial("id").primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),
   body: text("body").notNull(),
-  tags: json("tags").$type<string[]>().notNull(),
-  year: int("year").notNull(),
-  category: mysqlEnum("category", ["inquiry", "answer", "decision", "pending", "trouble", "improvement"]).notNull(),
-  status: mysqlEnum("status", ["draft", "pending", "published"]).default("draft").notNull(),
-  authorId: int("authorId").notNull(),
-  authorRole: mysqlEnum("authorRole", ["editor", "admin"]).notNull(),
+  tags: jsonb("tags").$type<string[]>().notNull(),
+  year: integer("year").notNull(),
+  category: categoryEnum("category").notNull(),
+  status: statusEnum("status").default("draft").notNull(),
+  authorId: integer("authorId").notNull(),
+  authorRole: authorRoleEnum("authorRole").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   publishedAt: timestamp("publishedAt"),
-  relatedLinks: json("relatedLinks").$type<string[]>().notNull(),
-  isHypothesis: boolean("isHypothesis").default(false).notNull(), // （仮説）タグ
+  relatedLinks: jsonb("relatedLinks").$type<string[]>().notNull(),
+  isHypothesis: boolean("isHypothesis").default(false).notNull(),
 });
 
 export type Post = typeof posts.$inferSelect;
 export type InsertPost = typeof posts.$inferInsert;
 
 // 年間カレンダー（行事）
-export const events = mysqlTable("events", {
-  id: int("id").autoincrement().primaryKey(),
+export const events = pgTable("events", {
+  id: serial("id").primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),
   date: timestamp("date").notNull(),
   category: varchar("category", { length: 100 }).notNull(),
-  checklist: json("checklist").$type<Array<{ id: string; text: string; completed: boolean }>>().notNull(),
+  checklist: jsonb("checklist").$type<Array<{ id: string; text: string; completed: boolean }>>().notNull(),
   notes: text("notes"),
-  attachments: json("attachments").$type<Array<{ url: string; name: string }>>().notNull(),
+  attachments: jsonb("attachments").$type<Array<{ url: string; name: string }>>().notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type Event = typeof events.$inferSelect;
 export type InsertEvent = typeof events.$inferInsert;
 
 // 河川清掃実施ログ
-export const riverCleaningRuns = mysqlTable("river_cleaning_runs", {
-  id: int("id").autoincrement().primaryKey(),
+export const riverCleaningRuns = pgTable("river_cleaning_runs", {
+  id: serial("id").primaryKey(),
   date: timestamp("date").notNull(),
-  participantsCount: int("participantsCount"),
+  participantsCount: integer("participantsCount"),
   issues: text("issues"),
   whatWorked: text("whatWorked"),
   whatToImprove: text("whatToImprove"),
-  attachments: json("attachments").$type<Array<{ url: string; name: string }>>().notNull(),
-  linkedInventoryIds: json("linkedInventoryIds").$type<number[]>().notNull(),
+  attachments: jsonb("attachments").$type<Array<{ url: string; name: string }>>().notNull(),
+  linkedInventoryIds: jsonb("linkedInventoryIds").$type<number[]>().notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type RiverCleaningRun = typeof riverCleaningRuns.$inferSelect;
 export type InsertRiverCleaningRun = typeof riverCleaningRuns.$inferInsert;
 
 // 備品台帳
-export const inventory = mysqlTable("inventory", {
-  id: int("id").autoincrement().primaryKey(),
+export const inventory = pgTable("inventory", {
+  id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
   photo: varchar("photo", { length: 500 }),
-  qty: int("qty").default(0).notNull(),
+  qty: integer("qty").default(0).notNull(),
   location: varchar("location", { length: 255 }).notNull(),
   condition: varchar("condition", { length: 100 }),
   lastCheckedAt: timestamp("lastCheckedAt"),
   notes: text("notes"),
-  tags: json("tags").$type<string[]>().notNull(),
+  tags: jsonb("tags").$type<string[]>().notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type InventoryItem = typeof inventory.$inferSelect;
 export type InsertInventoryItem = typeof inventory.$inferInsert;
 
 // テンプレ
-export const templates = mysqlTable("templates", {
-  id: int("id").autoincrement().primaryKey(),
+export const templates = pgTable("templates", {
+  id: serial("id").primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),
   body: text("body").notNull(),
   category: varchar("category", { length: 100 }).notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  tags: json("tags").$type<string[]>().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+  tags: jsonb("tags").$type<string[]>().notNull(),
 });
 
 export type Template = typeof templates.$inferSelect;
 export type InsertTemplate = typeof templates.$inferInsert;
 
 // ルール・決定事項（版管理）
-export const rules = mysqlTable("rules", {
-  id: int("id").autoincrement().primaryKey(),
+export const rules = pgTable("rules", {
+  id: serial("id").primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),
-  status: mysqlEnum("status", ["decided", "pending"]).default("decided").notNull(),
+  status: statusEnum("status").default("decided").notNull(),
   summary: text("summary").notNull(),
   details: text("details").notNull(),
-  evidenceLinks: json("evidenceLinks").$type<string[]>().notNull(),
-  isHypothesis: boolean("isHypothesis").default(false).notNull(), // （仮説）タグ
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  evidenceLinks: jsonb("evidenceLinks").$type<string[]>().notNull(),
+  isHypothesis: boolean("isHypothesis").default(false).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type Rule = typeof rules.$inferSelect;
 export type InsertRule = typeof rules.$inferInsert;
 
 // ルール版管理
-export const ruleVersions = mysqlTable("rule_versions", {
-  id: int("id").autoincrement().primaryKey(),
-  ruleId: int("ruleId").notNull(),
-  version: int("version").default(1).notNull(),
+export const ruleVersions = pgTable("rule_versions", {
+  id: serial("id").primaryKey(),
+  ruleId: integer("ruleId").notNull(),
+  version: integer("version").default(1).notNull(),
   title: varchar("title", { length: 255 }).notNull(),
   summary: text("summary").notNull(),
   details: text("details").notNull(),
-  reason: text("reason"), // 「会費徴収方法を変更」など
-  changedBy: int("changedBy").notNull(), // Admin ID
+  reason: text("reason"),
+  changedBy: integer("changedBy").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -200,132 +212,132 @@ export type RuleVersion = typeof ruleVersions.$inferSelect;
 export type InsertRuleVersion = typeof ruleVersions.$inferInsert;
 
 // FAQ
-export const faq = mysqlTable("faq", {
-  id: int("id").autoincrement().primaryKey(),
+export const faq = pgTable("faq", {
+  id: serial("id").primaryKey(),
   question: varchar("question", { length: 500 }).notNull(),
   answer: text("answer").notNull(),
-  relatedRuleIds: json("relatedRuleIds").$type<number[]>().notNull(),
-  relatedPostIds: json("relatedPostIds").$type<number[]>().notNull(),
-  isHypothesis: boolean("isHypothesis").default(false).notNull(), // （仮説）タグ
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  relatedRuleIds: jsonb("relatedRuleIds").$type<number[]>().notNull(),
+  relatedPostIds: jsonb("relatedPostIds").$type<number[]>().notNull(),
+  isHypothesis: boolean("isHypothesis").default(false).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type FAQ = typeof faq.$inferSelect;
 export type InsertFAQ = typeof faq.$inferInsert;
 
 // 返信待ちキュー（Pending Queue）
-export const pendingQueue = mysqlTable("pending_queue", {
-  id: int("id").autoincrement().primaryKey(),
+export const pendingQueue = pgTable("pending_queue", {
+  id: serial("id").primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description").notNull(),
-  toWhom: varchar("toWhom", { length: 100 }).notNull(), // 「管理会社」「町内会」「自治会」など
-  status: mysqlEnum("status", ["pending", "resolved", "transferred"]).default("pending").notNull(),
-  priority: mysqlEnum("priority", ["low", "medium", "high"]).default("medium").notNull(),
+  toWhom: varchar("toWhom", { length: 100 }).notNull(),
+  status: pendingStatusEnum("status").default("pending").notNull(),
+  priority: priorityEnum("priority").default("medium").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   resolvedAt: timestamp("resolvedAt"),
   transferredToNextYear: boolean("transferredToNextYear").default(false).notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type PendingQueue = typeof pendingQueue.$inferSelect;
 export type InsertPendingQueue = typeof pendingQueue.$inferInsert;
 
 // 引き継ぎ袋チェックリスト
-export const handoverBagItems = mysqlTable("handover_bag_items", {
-  id: int("id").autoincrement().primaryKey(),
+export const handoverBagItems = pgTable("handover_bag_items", {
+  id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   location: varchar("location", { length: 255 }).notNull(),
   isChecked: boolean("isChecked").default(false).notNull(),
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type HandoverBagItem = typeof handoverBagItems.$inferSelect;
 export type InsertHandoverBagItem = typeof handoverBagItems.$inferInsert;
 
 // 変更履歴
-export const changelog = mysqlTable("changelog", {
-  id: int("id").autoincrement().primaryKey(),
+export const changelog = pgTable("changelog", {
+  id: serial("id").primaryKey(),
   summary: varchar("summary", { length: 255 }).notNull(),
   date: timestamp("date").defaultNow().notNull(),
-  authorId: int("authorId").notNull(),
-  authorRole: mysqlEnum("authorRole", ["member", "editor", "admin"]).notNull(),
+  authorId: integer("authorId").notNull(),
+  authorRole: authorRoleEnum("authorRole").notNull(),
   relatedEntityType: varchar("relatedEntityType", { length: 100 }).notNull(),
-  relatedEntityId: int("relatedEntityId"),
+  relatedEntityId: integer("relatedEntityId"),
 });
 
 export type Changelog = typeof changelog.$inferSelect;
 export type InsertChangelog = typeof changelog.$inferInsert;
 
 // 秘匿メモ（Admin限定）
-export const secretNotes = mysqlTable("secret_notes", {
-  id: int("id").autoincrement().primaryKey(),
+export const secretNotes = pgTable("secret_notes", {
+  id: serial("id").primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),
   body: text("body").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type SecretNote = typeof secretNotes.$inferSelect;
 export type InsertSecretNote = typeof secretNotes.$inferInsert;
 
 // Member トップ用の集計テーブル（キャッシュ）
-export const memberTopSummary = mysqlTable("member_top_summary", {
-  id: int("id").autoincrement().primaryKey(),
-  year: int("year").notNull(),
+export const memberTopSummary = pgTable("member_top_summary", {
+  id: serial("id").primaryKey(),
+  year: integer("year").notNull(),
   weekStartDate: timestamp("weekStartDate").notNull(),
-  thisWeekTasks: json("thisWeekTasks").$type<Array<{ id: number; title: string }>>().notNull(),
-  topPriorities: json("topPriorities").$type<Array<{ id: number; title: string }>>().notNull(),
-  unresolvedIssues: json("unresolvedIssues").$type<Array<{ id: number; title: string }>>().notNull(),
-  pendingReplies: json("pendingReplies").$type<Array<{ id: number; title: string; toWhom: string }>>().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  thisWeekTasks: jsonb("thisWeekTasks").$type<Array<{ id: number; title: string }>>().notNull(),
+  topPriorities: jsonb("topPriorities").$type<Array<{ id: number; title: string }>>().notNull(),
+  unresolvedIssues: jsonb("unresolvedIssues").$type<Array<{ id: number; title: string }>>().notNull(),
+  pendingReplies: jsonb("pendingReplies").$type<Array<{ id: number; title: string; toWhom: string }>>().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type MemberTopSummary = typeof memberTopSummary.$inferSelect;
-export type InsertMemberTopSummary = typeof memberTopSummary.$inferInsert;
+export type InsertMemberTopSummary = typeof memberTopSummary.$inferInsert();
 
 
 // データ分類ラベル（public / internal / confidential）
-export const dataClassification = mysqlTable("data_classification", {
-  id: int("id").autoincrement().primaryKey(),
-  entityType: varchar("entityType", { length: 100 }).notNull(), // posts, inventory, templates, rules, faq など
-  entityId: int("entityId").notNull(),
-  classification: mysqlEnum("classification", ["public", "internal", "confidential"]).default("public").notNull(),
-  reason: text("reason"), // 分類理由
+export const dataClassification = pgTable("data_classification", {
+  id: serial("id").primaryKey(),
+  entityType: varchar("entityType", { length: 100 }).notNull(),
+  entityId: integer("entityId").notNull(),
+  classification: classificationEnum("classification").default("public").notNull(),
+  reason: text("reason"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type DataClassification = typeof dataClassification.$inferSelect;
 export type InsertDataClassification = typeof dataClassification.$inferInsert;
 
 // Private Vault エントリ（Admin限定秘匿情報）
-export const vaultEntries = mysqlTable("vault_entries", {
-  id: int("id").autoincrement().primaryKey(),
-  category: varchar("category", { length: 100 }).notNull(), // 「連絡先」「鍵/保管」「重要書類」「金銭関連」「住戸マスタ」
-  key: varchar("key", { length: 255 }).notNull(), // 例：「管理会社電話」「倉庫鍵の保管場所」
-  maskedValue: varchar("maskedValue", { length: 500 }).notNull(), // マスキング表示用（例：「****」）
-  actualValue: text("actualValue").notNull(), // 実際の値（暗号化推奨）
-  classification: mysqlEnum("classification", ["internal", "confidential"]).default("confidential").notNull(),
-  createdBy: int("createdBy").notNull(), // Admin の userId
+export const vaultEntries = pgTable("vault_entries", {
+  id: serial("id").primaryKey(),
+  category: varchar("category", { length: 100 }).notNull(),
+  key: varchar("key", { length: 255 }).notNull(),
+  maskedValue: varchar("maskedValue", { length: 500 }).notNull(),
+  actualValue: text("actualValue").notNull(),
+  classification: classificationEnum("classification").default("confidential").notNull(),
+  createdBy: integer("createdBy").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type VaultEntry = typeof vaultEntries.$inferSelect;
 export type InsertVaultEntry = typeof vaultEntries.$inferInsert;
 
 // 監査ログ（Vault アクセス・編集・コピーを記録）
-export const auditLogs = mysqlTable("audit_logs", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  action: varchar("action", { length: 50 }).notNull(), // view, copy, edit, delete など
-  entityType: varchar("entityType", { length: 100 }).notNull(), // vault_entry など
-  entityId: int("entityId").notNull(),
-  details: text("details"), // アクション詳細（例：「マスキング解除」）
-  ipAddress: varchar("ipAddress", { length: 45 }), // IPv4/IPv6
+export const auditLogs = pgTable("audit_logs", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull(),
+  action: varchar("action", { length: 50 }).notNull(),
+  entityType: varchar("entityType", { length: 100 }).notNull(),
+  entityId: integer("entityId").notNull(),
+  details: text("details"),
+  ipAddress: varchar("ipAddress", { length: 45 }),
   timestamp: timestamp("timestamp").defaultNow().notNull(),
 });
 
@@ -334,13 +346,13 @@ export type InsertAuditLog = typeof auditLogs.$inferInsert;
 
 
 // 住民メールアドレス（組長が登録）
-export const residentEmails = mysqlTable("resident_emails", {
-  id: int("id").autoincrement().primaryKey(),
-  householdId: varchar("householdId", { length: 50 }).notNull(), // 住戸ID（例：101, 102 など）
+export const residentEmails = pgTable("resident_emails", {
+  id: serial("id").primaryKey(),
+  householdId: varchar("householdId", { length: 50 }).notNull(),
   email: varchar("email", { length: 320 }).notNull(),
-  registeredBy: int("registeredBy").notNull(), // 登録者（admin）のユーザーID
+  registeredBy: integer("registeredBy").notNull(),
   registeredAt: timestamp("registeredAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type ResidentEmail = typeof residentEmails.$inferSelect;
@@ -348,41 +360,41 @@ export type InsertResidentEmail = typeof residentEmails.$inferInsert;
 
 
 // フォーム（汎用フォーム管理）
-export const forms = mysqlTable("forms", {
-  id: int("id").autoincrement().primaryKey(),
-  title: varchar("title", { length: 255 }).notNull(), // フォームタイトル（例：河川清掃出欠）
-  description: text("description"), // フォーム説明
-  createdBy: int("createdBy").notNull(), // 作成者（admin）のユーザーID
-  dueDate: timestamp("dueDate"), // 回答期限
-  status: mysqlEnum("status", ["draft", "active", "closed"]).default("draft").notNull(),
+export const forms = pgTable("forms", {
+  id: serial("id").primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  createdBy: integer("createdBy").notNull(),
+  dueDate: timestamp("dueDate"),
+  status: statusEnum("status").default("draft").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type Form = typeof forms.$inferSelect;
 export type InsertForm = typeof forms.$inferInsert;
 
 // フォーム質問（各質問と選択肢）
-export const formQuestions = mysqlTable("form_questions", {
-  id: int("id").autoincrement().primaryKey(),
-  formId: int("formId").notNull(), // フォームID
-  questionText: varchar("questionText", { length: 500 }).notNull(), // 質問テキスト
-  questionType: mysqlEnum("questionType", ["single_choice", "multiple_choice"]).default("single_choice").notNull(),
+export const formQuestions = pgTable("form_questions", {
+  id: serial("id").primaryKey(),
+  formId: integer("formId").notNull(),
+  questionText: varchar("questionText", { length: 500 }).notNull(),
+  questionType: questionTypeEnum("questionType").default("single_choice").notNull(),
   required: boolean("required").default(true).notNull(),
-  orderIndex: int("orderIndex").notNull(), // 質問の順序
+  orderIndex: integer("orderIndex").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type FormQuestion = typeof formQuestions.$inferSelect;
 export type InsertFormQuestion = typeof formQuestions.$inferInsert;
 
 // フォーム選択肢
-export const formChoices = mysqlTable("form_choices", {
-  id: int("id").autoincrement().primaryKey(),
-  questionId: int("questionId").notNull(), // 質問ID
-  choiceText: varchar("choiceText", { length: 255 }).notNull(), // 選択肢テキスト
-  orderIndex: int("orderIndex").notNull(), // 選択肢の順序
+export const formChoices = pgTable("form_choices", {
+  id: serial("id").primaryKey(),
+  questionId: integer("questionId").notNull(),
+  choiceText: varchar("choiceText", { length: 255 }).notNull(),
+  orderIndex: integer("orderIndex").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -390,25 +402,25 @@ export type FormChoice = typeof formChoices.$inferSelect;
 export type InsertFormChoice = typeof formChoices.$inferInsert;
 
 // フォーム回答（各回答者の回答）
-export const formResponses = mysqlTable("form_responses", {
-  id: int("id").autoincrement().primaryKey(),
-  formId: int("formId").notNull(), // フォームID
-  userId: int("userId").notNull(), // 回答者のユーザーID
-  householdId: varchar("householdId", { length: 50 }).notNull(), // 住戸ID
+export const formResponses = pgTable("form_responses", {
+  id: serial("id").primaryKey(),
+  formId: integer("formId").notNull(),
+  userId: integer("userId").notNull(),
+  householdId: varchar("householdId", { length: 50 }).notNull(),
   submittedAt: timestamp("submittedAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type FormResponse = typeof formResponses.$inferSelect;
 export type InsertFormResponse = typeof formResponses.$inferInsert;
 
 // フォーム回答内容（各質問への回答）
-export const formResponseItems = mysqlTable("form_response_items", {
-  id: int("id").autoincrement().primaryKey(),
-  responseId: int("responseId").notNull(), // 回答ID
-  questionId: int("questionId").notNull(), // 質問ID
-  choiceId: int("choiceId"), // 選択した選択肢ID
-  textAnswer: text("textAnswer"), // 自由記述の場合のテキスト
+export const formResponseItems = pgTable("form_response_items", {
+  id: serial("id").primaryKey(),
+  responseId: integer("responseId").notNull(),
+  questionId: integer("questionId").notNull(),
+  choiceId: integer("choiceId"),
+  textAnswer: text("textAnswer"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

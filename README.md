@@ -6,7 +6,7 @@
 
 - **フロントエンド**: React 19 + Vite + TypeScript + Tailwind CSS
 - **バックエンド**: Express + tRPC
-- **データベース**: MySQL (Drizzle ORM)
+- **データベース**: PostgreSQL (Drizzle ORM)
 - **デプロイ**: Vercel (推奨)
 
 ## ローカル開発
@@ -15,7 +15,7 @@
 
 - Node.js 18以上
 - pnpm
-- MySQL データベース
+- PostgreSQL データベース (本番環境ではNeon推奨)
 
 ### セットアップ
 
@@ -53,17 +53,18 @@ pnpm dev
 
 ### 2. データベースの準備
 
-#### オプション A: PlanetScale (MySQL - 推奨)
+#### オプション A: Neon (PostgreSQL - 推奨・完全無料)
 
-1. [PlanetScale](https://planetscale.com)でアカウント作成
-2. 新しいデータベースを作成
-3. 接続文字列を取得 (例: `mysql://user:password@host.connect.psdb.cloud/database?sslaccept=strict`)
+1. Vercelダッシュボード → 「Storage」→「Browse Storage」→「Create New」
+2. 「Neon」を選択
+3. データベース名を入力、リージョンは「Tokyo (ap-northeast-1)」を選択
+4. 環境変数が自動的にVercelに設定されます
 
 #### オプション B: Vercel Postgres
 
 1. Vercelダッシュボードから「Storage」→「Create Database」
 2. 「Postgres」を選択
-3. 注意: MySQLからPostgreSQLへの移行が必要
+3. Neonより容量が少ないが、Vercel統合が簡単
 
 ### 3. 環境変数の設定
 
@@ -72,11 +73,13 @@ Vercelプロジェクトの Settings → Environment Variables で以下を設�
 #### 必須の環境変数
 
 ```
-VITE_APP_ID=your-app-id
+VITE_APP_ID=kumicho-portal
 JWT_SECRET=your-secure-random-secret-key
-DATABASE_URL=mysql://user:password@host:port/database
+DATABASE_URL=postgres://user:password@host:port/database
 NODE_ENV=production
 ```
+
+**注意**: Neonを使用している場合、`DATABASE_URL` はVercelが自動設定するため手動設定不要です。
 
 #### オプションの環境変数（機能に応じて）
 
@@ -108,11 +111,12 @@ Vercelは`vercel.json`の設定を自動的に読み込みますが、以下を�
 
 ## データベースマイグレーション（本番環境）
 
-PlanetScaleを使用する場合、本番環境でのマイグレーションは以下の手順で実行:
+Neonを使用する場合、本番環境でのマイグレーションは以下の手順で実行:
 
-1. ローカルで`DATABASE_URL`を本番環境の接続文字列に一時変更
-2. `pnpm db:push`を実行
-3. または、PlanetScaleのブランチ機能を使用してスキーマ変更を管理
+1. Vercelの環境変数から`DATABASE_URL`を取得（Settingsページ）
+2. ローカルで`.env`ファイルに一時的に設定
+3. `pnpm db:push`を実行
+4. 完了後、ローカルの`.env`を元に戻す
 
 ## プロジェクト構成
 
@@ -130,8 +134,8 @@ PlanetScaleを使用する場合、本番環境でのマイグレーションは
 ### データベース接続エラー
 
 - `DATABASE_URL`が正しく設定されているか確認
-- PlanetScaleの場合、`?sslaccept=strict`パラメータが必要
-- ファイアウォール設定でVercelのIPアドレスが許可されているか確認
+- Neonの場合、`?sslmode=require`パラメータが含まれているか確認
+- ファイアウォール設定でVercelのIPアドレスが許可されているか確認（Neonは通常不要）
 
 ### ビルドエラー
 
