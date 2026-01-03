@@ -1,40 +1,12 @@
 {
   "version": "7",
-  "dialect": "mysql",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "5",
-      "when": 1766938494278,
-      "tag": "0000_light_mystique",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "5",
-      "when": 1767003753610,
-      "tag": "0001_wild_iron_fist",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "5",
-      "when": 1767007476980,
-      "tag": "0002_tough_spirit",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "5",
-      "when": 1767007522082,
-      "tag": "0003_whole_silk_fever",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "5",
-      "when": 1767008362565,
-      "tag": "0004_magical_doctor_octopus",
+      "version": "7",
+      "when": 1767416196930,
+      "tag": "0000_classy_edwin_jarvis",
       "breakpoints": true
     }
   ]

@@ -296,7 +296,7 @@ export const memberTopSummary = pgTable("member_top_summary", {
 });
 
 export type MemberTopSummary = typeof memberTopSummary.$inferSelect;
-export type InsertMemberTopSummary = typeof memberTopSummary.$inferInsert();
+export type InsertMemberTopSummary = typeof memberTopSummary.$inferInsert;
 
 
 // データ分類ラベル（public / internal / confidential）
