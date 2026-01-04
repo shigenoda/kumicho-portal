@@ -7,41 +7,56 @@ export default function PublicHome() {
     <div className="page-container">
       {/* Header */}
       <header className="relative bg-cover bg-center border-b-2 border-gray-200 sticky top-0 z-50 shadow-md" style={{ backgroundImage: "url('/greenpia-yaizu.jpg')" }}>
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/85 to-blue-800/75" />
+        <div className="absolute inset-0 bg-white/85 backdrop-blur-sm" />
         <div className="container py-5 flex items-center justify-between relative">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
             集合住宅 組長引き継ぎポータル
           </h1>
-          <a href={getLoginUrl()}>
-            <Button className="bg-white text-blue-900 hover:bg-gray-100 px-6 py-3 rounded-lg font-bold inline-flex items-center justify-center shadow-md hover:shadow-lg transition-all">
-              <Lock className="w-5 h-5 mr-2" />
-              ログイン
-            </Button>
-          </a>
+          <div className="flex items-center gap-3">
+            <a href="/register">
+              <Button className="bg-white text-blue-900 hover:bg-gray-50 border-2 border-blue-900 px-6 py-3 rounded-lg font-bold inline-flex items-center justify-center shadow-sm hover:shadow-md transition-all">
+                新規登録
+              </Button>
+            </a>
+            <a href={getLoginUrl()}>
+              <Button className="bg-blue-900 text-white hover:bg-blue-800 px-6 py-3 rounded-lg font-bold inline-flex items-center justify-center shadow-md hover:shadow-lg transition-all">
+                <Lock className="w-5 h-5 mr-2" />
+                ログイン
+              </Button>
+            </a>
+          </div>
         </div>
       </header>
 
       {/* Hero Section */}
       <section className="relative h-[500px] sm:h-[600px] bg-cover bg-center overflow-hidden" style={{ backgroundImage: "url('/greenpia-yaizu.jpg')", backgroundAttachment: "fixed" }}>
-        {/* オーバーレイ */}
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/75 via-blue-800/60 to-transparent" />
+        {/* オーバーレイ - 白ベースで洗練された印象 */}
+        <div className="absolute inset-0 bg-gradient-to-r from-white/75 via-white/60 to-white/40 backdrop-blur-[2px]" />
 
         {/* コンテンツ */}
         <div className="relative h-full flex flex-col justify-center container py-12 sm:py-16">
           <div className="max-w-3xl">
-            <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6 drop-shadow-lg">
+            <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
               焼津市 集合住宅「グリーンピア」
             </h2>
-            <p className="text-xl sm:text-2xl text-white mb-8 leading-relaxed drop-shadow-md">
+            <p className="text-xl sm:text-2xl text-gray-800 mb-8 leading-relaxed">
               組長業務の引き継ぎを、シンプルに。<br />
               次年度の組長が迷わず運用できるよう、必要な情報をまとめています。
             </p>
-            <a href={getLoginUrl()}>
-              <Button className="bg-white text-blue-900 hover:bg-gray-100 px-8 py-4 rounded-xl text-lg font-bold shadow-lg hover:shadow-xl transition-all inline-flex items-center justify-center">
-                ログインして始める
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-            </a>
+            <div className="flex items-center gap-4">
+              <a href="/register">
+                <Button className="bg-white text-blue-900 hover:bg-gray-50 border-2 border-blue-900 px-8 py-4 rounded-xl text-lg font-bold shadow-md hover:shadow-lg transition-all inline-flex items-center justify-center">
+                  新規登録
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              </a>
+              <a href={getLoginUrl()}>
+                <Button className="bg-blue-900 text-white hover:bg-blue-800 px-8 py-4 rounded-xl text-lg font-bold shadow-lg hover:shadow-xl transition-all inline-flex items-center justify-center">
+                  ログイン
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              </a>
+            </div>
           </div>
         </div>
       </section>
