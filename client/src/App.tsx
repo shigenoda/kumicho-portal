@@ -7,6 +7,8 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import PublicHome from "./pages/PublicHome";
 import MemberHome from "./pages/MemberHome";
+import Register from "./pages/Register";
+import Login from "./pages/Login";
 import Calendar from "./pages/Calendar";
 import RiverCleaning from "./pages/RiverCleaning";
 import Inventory from "./pages/Inventory";
@@ -30,6 +32,8 @@ function Router() {
   return (
     <Switch>
       <Route path={"/"} component={isAuthenticated ? MemberHome : PublicHome} />
+      <Route path={"/register"} component={Register} />
+      <Route path={"/login"} component={Login} />
       <Route path={"/calendar"} component={Calendar} />
       <Route path={"/river-cleaning"} component={RiverCleaning} />
       <Route path={"/inventory"} component={Inventory} />

@@ -19,10 +19,11 @@ export const questionTypeEnum = pgEnum("question_type", ["single_choice", "multi
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  openId: varchar("openId", { length: 64 }).notNull().unique(),
+  openId: varchar("openId", { length: 64 }).unique(), // OAuth用（nullable）
+  passwordHash: text("passwordHash"), // パスワード認証用（nullable）
   name: text("name"),
-  email: varchar("email", { length: 320 }),
-  loginMethod: varchar("loginMethod", { length: 64 }),
+  email: varchar("email", { length: 320 }).unique(), // ログイン用にunique
+  loginMethod: varchar("loginMethod", { length: 64 }), // "password" or "oauth"
   householdId: varchar("householdId", { length: 50 }),
   role: roleEnum("role").default("member").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
