@@ -11,7 +11,7 @@
   "routes": [
     {
       "src": "/api/trpc/(.*)",
-      "dest": "/api/index"
+      "dest": "/api/trpc"
     },
     {
       "handle": "filesystem"
