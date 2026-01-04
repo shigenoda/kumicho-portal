@@ -78,7 +78,7 @@ class OAuthService {
 
 const createOAuthHttpClient = (): AxiosInstance =>
   axios.create({
-    baseURL: ENV.oAuthServerUrl,
+    baseURL: ENV.oAuthServerUrl || 'http://localhost:3000',
     timeout: AXIOS_TIMEOUT_MS,
   });
 
