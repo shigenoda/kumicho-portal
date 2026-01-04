@@ -1,12 +1,15 @@
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure, adminProcedure } from "./_core/trpc";
 import { notifyOwner } from "./_core/notification";
+import { sdk } from "./_core/sdk";
 import { z } from "zod";
 import { getDb } from "./db";
 import { eq, like, or, and, desc, asc, lte, gte } from "drizzle-orm";
+import * as bcrypt from "bcryptjs";
 import {
+  users,
   posts,
   events,
   inventory,
@@ -35,6 +38,118 @@ export const appRouter = router({
   system: systemRouter,
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
+
+    // パスワード認証：新規登録
+    register: publicProcedure
+      .input(
+        z.object({
+          householdId: z.string().min(1),
+          name: z.string().min(1),
+          email: z.string().email(),
+          password: z.string().min(8),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        // メールアドレスの重複チェック
+        const existingUser = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, input.email))
+          .limit(1);
+
+        if (existingUser.length > 0) {
+          throw new Error("このメールアドレスは既に登録されています");
+        }
+
+        // パスワードをハッシュ化
+        const passwordHash = await bcrypt.hash(input.password, 10);
+
+        // ユーザーを作成
+        const [newUser] = await db
+          .insert(users)
+          .values({
+            householdId: input.householdId,
+            name: input.name,
+            email: input.email,
+            passwordHash,
+            loginMethod: "password",
+            role: "member",
+          })
+          .returning();
+
+        return {
+          success: true,
+          user: {
+            id: newUser.id,
+            name: newUser.name,
+            email: newUser.email,
+          },
+        };
+      }),
+
+    // パスワード認証：ログイン
+    login: publicProcedure
+      .input(
+        z.object({
+          email: z.string().email(),
+          password: z.string(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        // ユーザーを検索
+        const [user] = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, input.email))
+          .limit(1);
+
+        if (!user || !user.passwordHash) {
+          throw new Error("メールアドレスまたはパスワードが正しくありません");
+        }
+
+        // パスワードを検証
+        const isValid = await bcrypt.compare(input.password, user.passwordHash);
+
+        if (!isValid) {
+          throw new Error("メールアドレスまたはパスワードが正しくありません");
+        }
+
+        // セッショントークンを生成（ユーザーIDをopenIdとして使用）
+        const sessionToken = await sdk.createSessionToken(`user_${user.id}`, {
+          name: user.name || "",
+          expiresInMs: ONE_YEAR_MS,
+        });
+
+        // Cookieにセット
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, {
+          ...cookieOptions,
+          maxAge: ONE_YEAR_MS,
+        });
+
+        // 最終ログイン日時を更新
+        await db
+          .update(users)
+          .set({ lastSignedIn: new Date() })
+          .where(eq(users.id, user.id));
+
+        return {
+          success: true,
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+          },
+        };
+      }),
+
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
