@@ -6,13 +6,13 @@ export default function PublicHome() {
   return (
     <div className="page-container">
       {/* Header */}
-      <header className="bg-background border-b-2 border-border sticky top-0 z-50 shadow-sm">
+      <header className="bg-white border-b-2 border-gray-200 sticky top-0 z-50 shadow-sm">
         <div className="container py-5 flex items-center justify-between">
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
             集合住宅 組長引き継ぎポータル
           </h1>
           <a href={getLoginUrl()}>
-            <Button className="cta-button">
+            <Button className="bg-blue-900 hover:bg-blue-800 text-white px-6 py-3 rounded-lg font-bold inline-flex items-center justify-center shadow-md hover:shadow-lg transition-all">
               <Lock className="w-5 h-5 mr-2" />
               ログイン
             </Button>
@@ -21,18 +21,18 @@ export default function PublicHome() {
       </header>
 
       {/* Hero Section */}
-      <section className="hero-section">
+      <section className="bg-gradient-to-br from-blue-900 to-blue-800 py-16 sm:py-24">
         <div className="container py-12 sm:py-16">
           <div className="max-w-3xl">
-            <h2 className="text-4xl sm:text-5xl font-bold text-foreground mb-6">
+            <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6">
               焼津市 集合住宅「グリーンピア」
             </h2>
-            <p className="text-xl sm:text-2xl text-foreground/80 mb-8 leading-relaxed">
+            <p className="text-xl sm:text-2xl text-white/90 mb-8 leading-relaxed">
               組長業務の引き継ぎを、シンプルに。<br />
               次年度の組長が迷わず運用できるよう、必要な情報をまとめています。
             </p>
             <a href={getLoginUrl()}>
-              <Button className="cta-button">
+              <Button className="bg-white text-blue-900 hover:bg-gray-100 px-8 py-4 rounded-xl text-lg font-bold shadow-lg hover:shadow-xl transition-all inline-flex items-center justify-center">
                 ログインして始める
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
@@ -45,27 +45,27 @@ export default function PublicHome() {
       <main className="container py-16 sm:py-20">
         {/* About Section */}
         <section className="mb-20">
-          <h3 className="text-3xl sm:text-4xl font-bold text-foreground mb-10">
+          <h3 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-10">
             このサイトについて
           </h3>
           <div className="grid md:grid-cols-2 gap-8">
-            <div className="info-card">
+            <div className="bg-white border-2 border-gray-200 rounded-xl p-6 sm:p-8 shadow-md hover:shadow-lg transition-shadow">
               <div className="flex items-start gap-5">
-                <BookOpen className="w-8 h-8 text-accent flex-shrink-0 mt-1" />
+                <BookOpen className="w-8 h-8 text-blue-900 flex-shrink-0 mt-1" />
                 <div>
-                  <h4 className="text-xl font-bold text-foreground mb-3">組長業務の引き継ぎ</h4>
-                  <p className="text-foreground/70 text-base leading-relaxed">
+                  <h4 className="text-xl font-bold text-gray-900 mb-3">組長業務の引き継ぎ</h4>
+                  <p className="text-gray-600 text-base leading-relaxed">
                     河川清掃、備品管理、ルール、年度ログなど、必要な情報を一元管理。
                   </p>
                 </div>
               </div>
             </div>
-            <div className="info-card">
+            <div className="bg-white border-2 border-gray-200 rounded-xl p-6 sm:p-8 shadow-md hover:shadow-lg transition-shadow">
               <div className="flex items-start gap-5">
-                <Users className="w-8 h-8 text-accent flex-shrink-0 mt-1" />
+                <Users className="w-8 h-8 text-blue-900 flex-shrink-0 mt-1" />
                 <div>
-                  <h4 className="text-xl font-bold text-foreground mb-3">会員限定</h4>
-                  <p className="text-foreground/70 text-base leading-relaxed">
+                  <h4 className="text-xl font-bold text-gray-900 mb-3">会員限定</h4>
+                  <p className="text-gray-600 text-base leading-relaxed">
                     ログイン後、詳細な情報にアクセスできます。
                   </p>
                 </div>
@@ -76,12 +76,12 @@ export default function PublicHome() {
 
         {/* Privacy Notice */}
         <section className="mb-20">
-          <div className="warning-box">
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 sm:p-8">
             <div className="flex items-start gap-4">
-              <AlertCircle className="w-8 h-8 text-orange-600 dark:text-orange-400 flex-shrink-0 mt-1" />
+              <AlertCircle className="w-8 h-8 text-blue-900 flex-shrink-0 mt-1" />
               <div>
-                <h4 className="text-xl font-bold text-foreground mb-3">個人情報について</h4>
-                <p className="text-base text-foreground/80 leading-relaxed">
+                <h4 className="text-xl font-bold text-gray-900 mb-3">個人情報について</h4>
+                <p className="text-base text-gray-700 leading-relaxed">
                   このサイトでは、氏名・部屋番号・電話・メール・金額などの個人情報は原則保存・表示しません。<br />
                   必要な場合は、Admin限定の秘匿メモに隔離されます。
                 </p>
@@ -92,7 +92,7 @@ export default function PublicHome() {
 
         {/* Features Section */}
         <section>
-          <h3 className="text-3xl sm:text-4xl font-bold text-foreground mb-10">
+          <h3 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-10">
             主な機能
           </h3>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -104,9 +104,9 @@ export default function PublicHome() {
               { title: "⚖️ ルール・決定事項", desc: "会費・ローテーション・出不足金" },
               { title: "📖 年度ログ", desc: "時系列・タグ・承認フロー" },
             ].map((feature, idx) => (
-              <div key={idx} className="info-card">
-                <h5 className="text-xl font-bold text-foreground mb-2">{feature.title}</h5>
-                <p className="text-base text-foreground/70 leading-relaxed">{feature.desc}</p>
+              <div key={idx} className="bg-white border-2 border-gray-200 rounded-xl p-6 sm:p-8 shadow-md hover:shadow-lg transition-shadow">
+                <h5 className="text-xl font-bold text-gray-900 mb-2">{feature.title}</h5>
+                <p className="text-base text-gray-600 leading-relaxed">{feature.desc}</p>
               </div>
             ))}
           </div>
@@ -114,8 +114,8 @@ export default function PublicHome() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-muted/30 border-t-2 border-border py-10 mt-20">
-        <div className="container text-center text-base text-muted-foreground">
+      <footer className="bg-gray-50 border-t-2 border-gray-200 py-10 mt-20">
+        <div className="container text-center text-base text-gray-600">
           <p>&copy; 2025 焼津市 集合住宅「グリーンピア」 組長引き継ぎポータル</p>
         </div>
       </footer>

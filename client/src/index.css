@@ -44,40 +44,40 @@
 }
 
 :root {
-  /* Warm & Accessible Color Palette */
-  --primary: oklch(0.55 0.12 200);
-  --primary-foreground: oklch(1 0 0);
-  --sidebar-primary: oklch(0.55 0.12 200);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --chart-1: oklch(0.65 0.10 200);
-  --chart-2: oklch(0.60 0.11 200);
-  --chart-3: oklch(0.55 0.12 200);
-  --chart-4: oklch(0.50 0.13 200);
-  --chart-5: oklch(0.45 0.14 200);
-  --radius: 0.875rem;
-  --background: oklch(0.98 0 0);
-  --foreground: oklch(0.20 0.02 250);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.20 0.02 250);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.20 0.02 250);
-  --secondary: oklch(0.94 0.01 250);
-  --secondary-foreground: oklch(0.30 0.02 250);
-  --muted: oklch(0.92 0.01 250);
-  --muted-foreground: oklch(0.45 0.02 250);
-  --accent: oklch(0.55 0.12 200);
-  --accent-foreground: oklch(1 0 0);
-  --destructive: oklch(0.60 0.18 25);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.88 0.01 250);
-  --input: oklch(0.95 0.01 250);
-  --ring: oklch(0.55 0.12 200);
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.20 0.02 250);
-  --sidebar-accent: oklch(0.92 0.01 250);
-  --sidebar-accent-foreground: oklch(0.55 0.12 200);
-  --sidebar-border: oklch(0.88 0.01 250);
-  --sidebar-ring: oklch(0.55 0.12 200);
+  /* Blue & White Theme - Matching logged-in page */
+  --primary: #1e3a8a;
+  --primary-foreground: #ffffff;
+  --sidebar-primary: #1e3a8a;
+  --sidebar-primary-foreground: #ffffff;
+  --chart-1: #3b82f6;
+  --chart-2: #2563eb;
+  --chart-3: #1d4ed8;
+  --chart-4: #1e40af;
+  --chart-5: #1e3a8a;
+  --radius: 0.75rem;
+  --background: #ffffff;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --popover: #ffffff;
+  --popover-foreground: #111827;
+  --secondary: #f3f4f6;
+  --secondary-foreground: #374151;
+  --muted: #f9fafb;
+  --muted-foreground: #6b7280;
+  --accent: #1e3a8a;
+  --accent-foreground: #ffffff;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #e5e7eb;
+  --input: #f9fafb;
+  --ring: #1e3a8a;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #111827;
+  --sidebar-accent: #f3f4f6;
+  --sidebar-accent-foreground: #1e3a8a;
+  --sidebar-border: #e5e7eb;
+  --sidebar-ring: #1e3a8a;
 }
 
 .dark {
@@ -215,37 +215,37 @@
     }
   }
 
-  /* 高齢者向け - 読みやすいコンポーネント */
+  /* Blue & White Theme Components */
   .page-container {
-    @apply min-h-screen bg-background;
+    @apply min-h-screen bg-white;
   }
 
   .hero-section {
-    @apply bg-gradient-to-br from-accent/8 to-accent/12 py-16 sm:py-24;
+    @apply bg-gradient-to-br from-blue-900 to-blue-800 py-16 sm:py-24;
   }
 
   .info-card {
-    @apply bg-card border-2 border-border rounded-xl p-6 sm:p-8 shadow-md hover:shadow-lg transition-shadow;
+    @apply bg-white border-2 border-gray-200 rounded-xl p-6 sm:p-8 shadow-md hover:shadow-lg transition-shadow;
   }
 
   .hypothesis-badge {
-    @apply inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200;
+    @apply inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-blue-100 text-blue-800;
   }
 
   .warning-box {
-    @apply bg-orange-50 dark:bg-orange-900/20 border-2 border-orange-300 dark:border-orange-700 rounded-xl p-6 sm:p-8;
+    @apply bg-blue-50 border-2 border-blue-200 rounded-xl p-6 sm:p-8;
   }
 
   .success-box {
-    @apply bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-300 dark:border-emerald-700 rounded-xl p-6 sm:p-8;
+    @apply bg-emerald-50 border-2 border-emerald-300 rounded-xl p-6 sm:p-8;
   }
 
   .tag-pill {
-    @apply inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-muted text-muted-foreground;
+    @apply inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-gray-100 text-gray-700;
   }
 
   .breadcrumb {
-    @apply flex items-center gap-3 text-base text-muted-foreground;
+    @apply flex items-center gap-3 text-base text-gray-600;
   }
 
   .breadcrumb-item {
@@ -253,7 +253,7 @@
   }
 
   .breadcrumb-separator {
-    @apply text-muted-foreground;
+    @apply text-gray-400;
   }
 
   .section-divider {
@@ -261,16 +261,16 @@
   }
 
   .cta-button {
-    /* ボタンを大きく、タップしやすく */
-    @apply inline-flex items-center justify-center px-8 py-4 rounded-xl text-lg font-bold bg-accent text-accent-foreground hover:bg-accent/90 transition-all shadow-lg hover:shadow-xl;
+    /* Large, accessible buttons */
+    @apply inline-flex items-center justify-center px-8 py-4 rounded-xl text-lg font-bold bg-blue-900 text-white hover:bg-blue-800 transition-all shadow-lg hover:shadow-xl;
   }
 
   .secondary-button {
-    @apply inline-flex items-center justify-center px-8 py-4 rounded-xl text-lg font-bold bg-muted text-foreground hover:bg-muted/80 transition-all;
+    @apply inline-flex items-center justify-center px-8 py-4 rounded-xl text-lg font-bold bg-gray-100 text-gray-900 hover:bg-gray-200 transition-all;
   }
 
   .search-input {
-    /* 入力欄を大きく */
-    @apply w-full px-5 py-3 text-lg rounded-xl border-2 border-border bg-card text-foreground placeholder-muted-foreground focus:outline-none focus:ring-4 focus:ring-accent/30;
+    /* Large input fields */
+    @apply w-full px-5 py-3 text-lg rounded-xl border-2 border-gray-200 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-4 focus:ring-blue-900/30;
   }
 }
