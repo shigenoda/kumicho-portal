@@ -1,13 +1,6 @@
 {
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist/public"
-      }
-    }
-  ],
+  "buildCommand": "pnpm vercel-build",
+  "outputDirectory": "dist/public",
   "routes": [
     {
       "src": "/api/trpc/(.*)",
