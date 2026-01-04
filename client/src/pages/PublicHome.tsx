@@ -14,12 +14,12 @@ export default function PublicHome() {
           </h1>
           <div className="flex items-center gap-4">
             <a href="/register">
-              <Button className="bg-transparent text-white hover:bg-white/10 border border-white/30 px-5 py-2 rounded-md font-light text-sm backdrop-blur-sm transition-all">
+              <Button className="bg-white text-black hover:bg-gray-100 px-5 py-2 rounded-md font-medium text-sm transition-all">
                 新規登録
               </Button>
             </a>
             <a href={getLoginUrl()}>
-              <Button className="bg-white text-black hover:bg-gray-100 px-5 py-2 rounded-md font-medium text-sm transition-all">
+              <Button className="bg-transparent text-white hover:bg-white/10 border border-white/30 px-5 py-2 rounded-md font-light text-sm backdrop-blur-sm transition-all">
                 ログイン
               </Button>
             </a>
@@ -43,11 +43,11 @@ export default function PublicHome() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8">
               <a href="/register">
                 <Button className="w-full sm:w-auto bg-white text-black hover:bg-gray-100 px-12 py-4 rounded-md font-medium text-base transition-all shadow-2xl">
-                  始める
+                  新規登録
                 </Button>
               </a>
               <a href={getLoginUrl()}>
-                <Button className="w-full sm:w-auto bg-transparent text-white hover:bg-white/10 border border-white/50 px-12 py-4 rounded-md font-light text-base backdrop-blur-sm transition-all">
+                <Button className="w-full sm:w-auto bg-transparent text-white hover:bg-white/10 border border-white/30 px-12 py-4 rounded-md font-light text-base backdrop-blur-sm transition-all">
                   ログイン
                 </Button>
               </a>
