@@ -1,17 +1,18 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { trpc } from "@/lib/trpc";
 import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 
 export default function Login() {
   const [, setLocation] = useLocation();
+  const loginMutation = trpc.auth.login.useMutation();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,19 +24,16 @@ export default function Login() {
       return;
     }
 
-    setLoading(true);
-
     try {
-      // TODO: API実装後にここでログイン処理を呼び出す
-      console.log("Login data:", formData);
+      await loginMutation.mutateAsync({
+        email: formData.email,
+        password: formData.password,
+      });
 
-      // 仮の成功処理
-      alert("ログインに成功しました！");
-      setLocation("/");
-    } catch (err) {
-      setError("メールアドレスまたはパスワードが正しくありません");
-    } finally {
-      setLoading(false);
+      // ログイン成功後、ホームページにリダイレクト
+      window.location.href = "/";
+    } catch (err: any) {
+      setError(err.message || "メールアドレスまたはパスワードが正しくありません");
     }
   };
 
@@ -111,10 +109,10 @@ export default function Login() {
               {/* Submit Button */}
               <Button
                 type="submit"
-                disabled={loading}
+                disabled={loginMutation.isPending}
                 className="w-full bg-white text-black hover:bg-gray-100 py-3 rounded-md font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? "ログイン中..." : "ログイン"}
+                {loginMutation.isPending ? "ログイン中..." : "ログイン"}
               </Button>
 
               {/* Register Link */}

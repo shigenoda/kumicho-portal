@@ -1,11 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { trpc } from "@/lib/trpc";
 import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 
 export default function Register() {
   const [, setLocation] = useLocation();
+  const registerMutation = trpc.auth.register.useMutation();
   const [formData, setFormData] = useState({
     householdId: "",
     name: "",
@@ -14,7 +16,6 @@ export default function Register() {
     confirmPassword: "",
   });
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,19 +37,18 @@ export default function Register() {
       return;
     }
 
-    setLoading(true);
-
     try {
-      // TODO: API実装後にここで登録処理を呼び出す
-      console.log("Registration data:", formData);
+      await registerMutation.mutateAsync({
+        householdId: formData.householdId,
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+      });
 
-      // 仮の成功処理
       alert("登録が完了しました！ログインしてください。");
       setLocation("/login");
-    } catch (err) {
-      setError("登録に失敗しました。もう一度お試しください。");
-    } finally {
-      setLoading(false);
+    } catch (err: any) {
+      setError(err.message || "登録に失敗しました。もう一度お試しください。");
     }
   };
 
@@ -171,10 +171,10 @@ export default function Register() {
               {/* Submit Button */}
               <Button
                 type="submit"
-                disabled={loading}
+                disabled={registerMutation.isPending}
                 className="w-full bg-white text-black hover:bg-gray-100 py-3 rounded-md font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? "登録中..." : "登録する"}
+                {registerMutation.isPending ? "登録中..." : "登録する"}
               </Button>
 
               {/* Login Link */}
