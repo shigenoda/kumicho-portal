@@ -6,13 +6,14 @@ export default function PublicHome() {
   return (
     <div className="page-container">
       {/* Header */}
-      <header className="bg-white border-b-2 border-gray-200 sticky top-0 z-50 shadow-sm">
-        <div className="container py-5 flex items-center justify-between">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+      <header className="relative bg-cover bg-center border-b-2 border-gray-200 sticky top-0 z-50 shadow-md" style={{ backgroundImage: "url('/greenpia-yaizu.jpg')" }}>
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/85 to-blue-800/75" />
+        <div className="container py-5 flex items-center justify-between relative">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">
             集合住宅 組長引き継ぎポータル
           </h1>
           <a href={getLoginUrl()}>
-            <Button className="bg-blue-900 hover:bg-blue-800 text-white px-6 py-3 rounded-lg font-bold inline-flex items-center justify-center shadow-md hover:shadow-lg transition-all">
+            <Button className="bg-white text-blue-900 hover:bg-gray-100 px-6 py-3 rounded-lg font-bold inline-flex items-center justify-center shadow-md hover:shadow-lg transition-all">
               <Lock className="w-5 h-5 mr-2" />
               ログイン
             </Button>
@@ -21,13 +22,17 @@ export default function PublicHome() {
       </header>
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-blue-900 to-blue-800 py-16 sm:py-24">
-        <div className="container py-12 sm:py-16">
+      <section className="relative h-[500px] sm:h-[600px] bg-cover bg-center overflow-hidden" style={{ backgroundImage: "url('/greenpia-yaizu.jpg')", backgroundAttachment: "fixed" }}>
+        {/* オーバーレイ */}
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/75 via-blue-800/60 to-transparent" />
+
+        {/* コンテンツ */}
+        <div className="relative h-full flex flex-col justify-center container py-12 sm:py-16">
           <div className="max-w-3xl">
-            <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6">
+            <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6 drop-shadow-lg">
               焼津市 集合住宅「グリーンピア」
             </h2>
-            <p className="text-xl sm:text-2xl text-white/90 mb-8 leading-relaxed">
+            <p className="text-xl sm:text-2xl text-white mb-8 leading-relaxed drop-shadow-md">
               組長業務の引き継ぎを、シンプルに。<br />
               次年度の組長が迷わず運用できるよう、必要な情報をまとめています。
             </p>
