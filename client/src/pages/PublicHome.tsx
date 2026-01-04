@@ -64,9 +64,10 @@ export default function PublicHome() {
               <div className="flex items-start gap-5">
                 <Users className="w-8 h-8 text-blue-900 flex-shrink-0 mt-1" />
                 <div>
-                  <h4 className="text-xl font-bold text-gray-900 mb-3">会員限定</h4>
+                  <h4 className="text-xl font-bold text-gray-900 mb-3">マンション住人限定</h4>
                   <p className="text-gray-600 text-base leading-relaxed">
-                    ログイン後、詳細な情報にアクセスできます。
+                    ログイン後、詳細な情報にアクセスできます。<br />
+                    新規登録も可能です。
                   </p>
                 </div>
               </div>
