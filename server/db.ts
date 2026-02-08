@@ -6,11 +6,17 @@ import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
+// Support both DATABASE_URL and POSTGRES_URL (Neon/Vercel integration)
+function getDatabaseUrl() {
+  return process.env.DATABASE_URL || process.env.POSTGRES_URL || "";
+}
+
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
+  const dbUrl = getDatabaseUrl();
+  if (!_db && dbUrl) {
     try {
-      const client = postgres(process.env.DATABASE_URL);
+      const client = postgres(dbUrl);
       _db = drizzle(client);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
