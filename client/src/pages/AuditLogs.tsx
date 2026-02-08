@@ -95,7 +95,7 @@ export default function AuditLogs() {
             </h1>
           </div>
           <p className="text-sm font-light text-gray-500 ml-8">
-            システムの変更履歴とアクセス記録
+            変更履歴・アクセスログ
           </p>
         </div>
       </header>

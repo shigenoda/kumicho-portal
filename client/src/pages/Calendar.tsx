@@ -26,11 +26,12 @@ import {
   Square,
   CheckSquare,
   ListChecks,
+  X,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 
-const CATEGORIES = ["定例", "行事", "清掃", "会議", "その他"] as const;
+const CATEGORIES = ["定例", "行事", "清掃", "会議", "締切", "その他"] as const;
 
 const JAPANESE_MONTHS: Record<number, string> = {
   0: "1月",
@@ -78,9 +79,13 @@ export default function CalendarPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState<EventFormData>(emptyForm);
 
-  // Checklist add state
+  // Checklist add state (inline on event cards)
   const [checklistInputId, setChecklistInputId] = useState<number | null>(null);
   const [newChecklistText, setNewChecklistText] = useState("");
+
+  // Checklist state for create/edit dialog
+  const [dialogChecklist, setDialogChecklist] = useState<ChecklistItem[]>([]);
+  const [dialogChecklistText, setDialogChecklistText] = useState("");
 
   // Mutations
   const createEvent = trpc.data.createEvent.useMutation({
@@ -88,6 +93,8 @@ export default function CalendarPage() {
       utils.data.getEvents.invalidate();
       setShowAddDialog(false);
       setFormData(emptyForm);
+      setDialogChecklist([]);
+      setDialogChecklistText("");
     },
   });
 
@@ -97,6 +104,8 @@ export default function CalendarPage() {
       setShowEditDialog(false);
       setEditingId(null);
       setFormData(emptyForm);
+      setDialogChecklist([]);
+      setDialogChecklistText("");
     },
   });
 
@@ -130,6 +139,8 @@ export default function CalendarPage() {
   // Handlers
   const handleAdd = () => {
     setFormData(emptyForm);
+    setDialogChecklist([]);
+    setDialogChecklistText("");
     setShowAddDialog(true);
   };
 
@@ -140,6 +151,7 @@ export default function CalendarPage() {
       date: new Date(formData.date).toISOString(),
       category: formData.category,
       notes: formData.notes.trim() || undefined,
+      checklist: dialogChecklist.length > 0 ? dialogChecklist : undefined,
     });
   };
 
@@ -151,6 +163,10 @@ export default function CalendarPage() {
       category: event.category,
       notes: event.notes || "",
     });
+    setDialogChecklist(
+      Array.isArray(event.checklist) ? [...event.checklist] : []
+    );
+    setDialogChecklistText("");
     setShowEditDialog(true);
   };
 
@@ -162,6 +178,7 @@ export default function CalendarPage() {
       date: new Date(formData.date).toISOString(),
       category: formData.category,
       notes: formData.notes.trim() || undefined,
+      checklist: dialogChecklist,
     });
   };
 
@@ -284,6 +301,77 @@ export default function CalendarPage() {
               placeholder="補足メモ（任意）"
               rows={3}
             />
+          </div>
+          <div>
+            <label className="text-sm font-light text-gray-700 mb-1 block flex items-center gap-1">
+              <ListChecks className="w-3.5 h-3.5" />
+              チェックリスト
+            </label>
+            {dialogChecklist.length > 0 && (
+              <ul className="space-y-1.5 mb-2">
+                {dialogChecklist.map((item) => (
+                  <li
+                    key={item.id}
+                    className="flex items-center justify-between gap-2 px-2 py-1 bg-gray-50 rounded text-sm font-light text-gray-700"
+                  >
+                    <span>{item.text}</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDialogChecklist((prev) =>
+                          prev.filter((i) => i.id !== item.id)
+                        )
+                      }
+                      className="p-0.5 text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex items-center gap-2">
+              <Input
+                value={dialogChecklistText}
+                onChange={(e) => setDialogChecklistText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (!dialogChecklistText.trim()) return;
+                    setDialogChecklist((prev) => [
+                      ...prev,
+                      {
+                        id: crypto.randomUUID(),
+                        text: dialogChecklistText.trim(),
+                        completed: false,
+                      },
+                    ]);
+                    setDialogChecklistText("");
+                  }
+                }}
+                placeholder="項目を入力して追加"
+                className="h-8 text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (!dialogChecklistText.trim()) return;
+                  setDialogChecklist((prev) => [
+                    ...prev,
+                    {
+                      id: crypto.randomUUID(),
+                      text: dialogChecklistText.trim(),
+                      completed: false,
+                    },
+                  ]);
+                  setDialogChecklistText("");
+                }}
+                disabled={!dialogChecklistText.trim()}
+                className="p-1.5 text-gray-500 hover:text-gray-700 disabled:text-gray-300 border border-gray-200 rounded hover:bg-gray-50 transition-colors flex-shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
         <DialogFooter>

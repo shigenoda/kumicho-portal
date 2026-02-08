@@ -244,7 +244,7 @@ export default function MemberHome() {
                 年間カレンダー
               </h3>
               <p className="text-sm text-gray-600 leading-relaxed font-light">
-                行事・締切・準備チェックリストを一元管理
+                行事・締切・清掃・会議のスケジュールとチェックリスト
               </p>
               <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
             </button>
@@ -282,7 +282,7 @@ export default function MemberHome() {
                 倉庫・備品台帳
               </h3>
               <p className="text-sm text-gray-600 leading-relaxed font-light">
-                写真・数量・保管場所・棚卸し手順
+                写真・数量・保管場所・棚卸し管理
               </p>
               <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
             </button>
@@ -433,7 +433,7 @@ export default function MemberHome() {
                   監査ログ
                 </h3>
                 <p className="text-sm text-gray-600 leading-relaxed font-light">
-                  Vault アクセス履歴
+                  変更履歴・アクセスログの一覧
                 </p>
               </button>
 

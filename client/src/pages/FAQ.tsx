@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, HelpCircle, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, HelpCircle, Pencil, Plus, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
@@ -21,7 +21,10 @@ export default function FAQ() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingData, setEditingData] = useState<{ question: string; answer: string } | null>(null);
   const [showDialog, setShowDialog] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newFaqData, setNewFaqData] = useState({ question: "", answer: "" });
 
+  const createFAQMutation = trpc.data.createFAQ.useMutation();
   const updateFAQMutation = trpc.data.updateFAQ.useMutation();
   const deleteFAQMutation = trpc.data.deleteFAQ.useMutation();
 
@@ -68,6 +71,29 @@ export default function FAQ() {
         }
       );
     }
+  };
+
+  const handleCreate = () => {
+    if (!newFaqData.question.trim() || !newFaqData.answer.trim()) return;
+
+    createFAQMutation.mutate(
+      {
+        question: newFaqData.question,
+        answer: newFaqData.answer,
+        relatedRuleIds: [],
+        relatedPostIds: [],
+      },
+      {
+        onSuccess: () => {
+          setShowCreateDialog(false);
+          setNewFaqData({ question: "", answer: "" });
+          refetch();
+        },
+        onError: (error: any) => {
+          alert("作成に失敗しました: " + error.message);
+        },
+      }
+    );
   };
 
   return (
