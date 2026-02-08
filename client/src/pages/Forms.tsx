@@ -203,6 +203,7 @@ export default function Forms() {
                       <p className="text-sm text-gray-600 mt-1">{form.description}</p>
                       <div className="flex gap-4 mt-3 text-sm text-gray-500">
                         <span>ステータス: {form.status}</span>
+                        <span>回答: {form.responseCount ?? 0}/{form.totalHouseholds ?? 9} 世帯</span>
                         {form.dueDate && (
                           <span>
                             期限: {new Date(form.dueDate).toLocaleDateString("ja-JP")}

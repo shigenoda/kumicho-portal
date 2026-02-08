@@ -43,13 +43,8 @@ export default function MemberHome() {
   const currentPrimary = useMemo(() => {
     if (!currentLeader) return null;
     const data = currentLeader as any;
-    if (data.schedule?.householdId) {
-      return { householdId: data.schedule.householdId };
-    }
-    // Fallback: first candidate with isCandidate=true
-    if (data.households) {
-      const candidate = data.households.find((h: any) => h.isCandidate);
-      return candidate ? { householdId: candidate.householdId } : null;
+    if (data.schedule?.primaryHouseholdId) {
+      return { householdId: data.schedule.primaryHouseholdId };
     }
     return null;
   }, [currentLeader]);
@@ -57,9 +52,10 @@ export default function MemberHome() {
   const nextPrimary = useMemo(() => {
     if (!nextLeader) return null;
     const data = nextLeader as any;
-    if (data.schedule?.householdId) {
-      return { householdId: data.schedule.householdId };
+    if (data.schedule?.primaryHouseholdId) {
+      return { householdId: data.schedule.primaryHouseholdId };
     }
+    // Fallback: first candidate
     if (data.households) {
       const candidate = data.households.find((h: any) => h.isCandidate);
       return candidate ? { householdId: candidate.householdId } : null;
@@ -297,7 +293,7 @@ export default function MemberHome() {
           <div className="bg-blue-50 border-t border-blue-200 py-16">
             <div className="max-w-7xl mx-auto px-6">
               <h2 className="text-2xl font-light text-gray-900 mb-8">
-                未回答フォーム
+                回答受付中のフォーム
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {activeForms.map((form: any) => (
