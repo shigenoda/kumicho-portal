@@ -31,7 +31,7 @@ export default function AdminDashboard() {
             <ArrowLeft className="w-4 h-4" />
             <span className="font-light">戻る</span>
           </button>
-          <h1 className="text-2xl font-light text-gray-900 tracking-wide">
+          <h1 className="text-2xl font-medium text-gray-900 tracking-wide">
             管理ダッシュボード
           </h1>
           <p className="text-sm font-light text-gray-400 mt-1">

@@ -164,7 +164,7 @@ export default function Templates() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
-              <h1 className="text-2xl font-light text-gray-900 flex items-center gap-2">
+              <h1 className="text-2xl font-medium text-gray-900 flex items-center gap-2">
                 <FileText className="w-5 h-5 text-gray-400" />
                 テンプレート管理
               </h1>

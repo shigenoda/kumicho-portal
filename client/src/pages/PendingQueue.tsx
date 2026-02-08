@@ -262,7 +262,7 @@ export default function PendingQueue() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
-              <h1 className="text-2xl font-light text-gray-900">
+              <h1 className="text-2xl font-medium text-gray-900">
                 返信待ちキュー
               </h1>
               <p className="text-sm text-gray-500 font-light mt-1">

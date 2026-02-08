@@ -316,7 +316,7 @@ export default function MemberHome() {
           <div className="bg-gray-50 border-t border-gray-200 py-16">
             <div className="max-w-7xl mx-auto px-6">
               <div className="flex items-center justify-between mb-8">
-                <h2 className="text-2xl font-light text-gray-900 flex items-center gap-3">
+                <h2 className="text-2xl font-medium text-gray-900 flex items-center gap-3">
                   <BarChart3 className="w-5 h-5 text-gray-400" />
                   フォーム
                 </h2>
@@ -439,12 +439,12 @@ export default function MemberHome() {
               onClick={() => setLocation("/calendar")}
               className="group cursor-pointer transition-all duration-300 text-left"
             >
-              <div className="mb-4">
-                <span className="text-xs text-gray-400 font-light tracking-widest">
+              <div className="mb-6">
+                <span className="text-3xl font-bold text-gray-100 tracking-tight">
                   01
                 </span>
               </div>
-              <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
+              <h3 className="text-xl font-medium text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
                 年間カレンダー
               </h3>
               <p className="text-sm text-gray-600 leading-relaxed font-light">
@@ -458,12 +458,12 @@ export default function MemberHome() {
               onClick={() => setLocation("/river-cleaning")}
               className="group cursor-pointer transition-all duration-300 text-left"
             >
-              <div className="mb-4">
-                <span className="text-xs text-gray-400 font-light tracking-widest">
+              <div className="mb-6">
+                <span className="text-3xl font-bold text-gray-100 tracking-tight">
                   02
                 </span>
               </div>
-              <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
+              <h3 className="text-xl font-medium text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
                 河川清掃
               </h3>
               <p className="text-sm text-gray-600 leading-relaxed font-light">
@@ -477,12 +477,12 @@ export default function MemberHome() {
               onClick={() => setLocation("/inventory")}
               className="group cursor-pointer transition-all duration-300 text-left"
             >
-              <div className="mb-4">
-                <span className="text-xs text-gray-400 font-light tracking-widest">
+              <div className="mb-6">
+                <span className="text-3xl font-bold text-gray-100 tracking-tight">
                   03
                 </span>
               </div>
-              <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
+              <h3 className="text-xl font-medium text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
                 倉庫・備品台帳
               </h3>
               <p className="text-sm text-gray-600 leading-relaxed font-light">
@@ -496,12 +496,12 @@ export default function MemberHome() {
               onClick={() => setLocation("/templates")}
               className="group cursor-pointer transition-all duration-300 text-left"
             >
-              <div className="mb-4">
-                <span className="text-xs text-gray-400 font-light tracking-widest">
+              <div className="mb-6">
+                <span className="text-3xl font-bold text-gray-100 tracking-tight">
                   04
                 </span>
               </div>
-              <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
+              <h3 className="text-xl font-medium text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
                 テンプレ置き場
               </h3>
               <p className="text-sm text-gray-600 leading-relaxed font-light">
@@ -515,12 +515,12 @@ export default function MemberHome() {
               onClick={() => setLocation("/rules")}
               className="group cursor-pointer transition-all duration-300 text-left"
             >
-              <div className="mb-4">
-                <span className="text-xs text-gray-400 font-light tracking-widest">
+              <div className="mb-6">
+                <span className="text-3xl font-bold text-gray-100 tracking-tight">
                   05
                 </span>
               </div>
-              <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
+              <h3 className="text-xl font-medium text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
                 ルール・決定事項
               </h3>
               <p className="text-sm text-gray-600 leading-relaxed font-light">
@@ -534,12 +534,12 @@ export default function MemberHome() {
               onClick={() => setLocation("/year-log")}
               className="group cursor-pointer transition-all duration-300 text-left"
             >
-              <div className="mb-4">
-                <span className="text-xs text-gray-400 font-light tracking-widest">
+              <div className="mb-6">
+                <span className="text-3xl font-bold text-gray-100 tracking-tight">
                   06
                 </span>
               </div>
-              <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
+              <h3 className="text-xl font-medium text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
                 年度ログ
               </h3>
               <p className="text-sm text-gray-600 leading-relaxed font-light">
@@ -553,12 +553,12 @@ export default function MemberHome() {
               onClick={() => setLocation("/form-builder")}
               className="group cursor-pointer transition-all duration-300 text-left"
             >
-              <div className="mb-4">
-                <span className="text-xs text-gray-400 font-light tracking-widest">
+              <div className="mb-6">
+                <span className="text-3xl font-bold text-gray-100 tracking-tight">
                   07
                 </span>
               </div>
-              <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
+              <h3 className="text-xl font-medium text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
                 フォーム作成
               </h3>
               <p className="text-sm text-gray-600 leading-relaxed font-light">
@@ -572,8 +572,8 @@ export default function MemberHome() {
         {/* 追加セクション：Pending / FAQ / Vault etc. */}
         <div className="bg-gray-50 border-t border-gray-200 py-24">
           <div className="max-w-7xl mx-auto px-6">
-            <h2 className="text-2xl font-light text-gray-900 mb-12">
-              その他のセクション
+            <h2 className="text-sm font-medium text-gray-400 uppercase tracking-widest mb-12">
+              More
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
               {/* 返信待ちキュー */}
@@ -581,7 +581,7 @@ export default function MemberHome() {
                 onClick={() => setLocation("/pending-queue")}
                 className="group cursor-pointer text-left"
               >
-                <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
+                <h3 className="text-base font-medium text-gray-900 mb-1 group-hover:text-blue-900 transition-colors">
                   返信待ちキュー
                 </h3>
                 <p className="text-sm text-gray-600 leading-relaxed font-light">
@@ -594,7 +594,7 @@ export default function MemberHome() {
                 onClick={() => setLocation("/handover-bag")}
                 className="group cursor-pointer text-left"
               >
-                <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
+                <h3 className="text-base font-medium text-gray-900 mb-1 group-hover:text-blue-900 transition-colors">
                   引き継ぎ袋
                 </h3>
                 <p className="text-sm text-gray-600 leading-relaxed font-light">
@@ -607,7 +607,7 @@ export default function MemberHome() {
                 onClick={() => setLocation("/faq")}
                 className="group cursor-pointer text-left"
               >
-                <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
+                <h3 className="text-base font-medium text-gray-900 mb-1 group-hover:text-blue-900 transition-colors">
                   FAQ
                 </h3>
                 <p className="text-sm text-gray-600 leading-relaxed font-light">
@@ -620,7 +620,7 @@ export default function MemberHome() {
                 onClick={() => setLocation("/vault")}
                 className="group cursor-pointer text-left"
               >
-                <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
+                <h3 className="text-base font-medium text-gray-900 mb-1 group-hover:text-blue-900 transition-colors">
                   Private Vault
                 </h3>
                 <p className="text-sm text-gray-600 leading-relaxed font-light">
@@ -633,7 +633,7 @@ export default function MemberHome() {
                 onClick={() => setLocation("/audit-logs")}
                 className="group cursor-pointer text-left"
               >
-                <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
+                <h3 className="text-base font-medium text-gray-900 mb-1 group-hover:text-blue-900 transition-colors">
                   監査ログ
                 </h3>
                 <p className="text-sm text-gray-600 leading-relaxed font-light">
@@ -646,7 +646,7 @@ export default function MemberHome() {
                 onClick={() => setLocation("/changelog")}
                 className="group cursor-pointer text-left"
               >
-                <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
+                <h3 className="text-base font-medium text-gray-900 mb-1 group-hover:text-blue-900 transition-colors">
                   更新履歴
                 </h3>
                 <p className="text-sm text-gray-600 leading-relaxed font-light">
@@ -663,7 +663,7 @@ export default function MemberHome() {
         <div className="fixed inset-0 bg-black/50 z-40 flex items-end">
           <div className="w-full max-w-2xl bg-white rounded-t-lg shadow-lg max-h-[80vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
-              <h2 className="text-2xl font-light text-gray-900">設定</h2>
+              <h2 className="text-2xl font-medium text-gray-900">設定</h2>
               <button
                 onClick={() => setShowSettings(false)}
                 className="p-2 hover:bg-gray-100 rounded transition-colors"

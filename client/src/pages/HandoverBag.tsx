@@ -124,7 +124,7 @@ export default function HandoverBag() {
           </button>
           <div className="flex items-center gap-3 mb-2">
             <Briefcase className="w-5 h-5 text-gray-400" />
-            <h1 className="text-2xl font-light text-gray-900 tracking-wide">
+            <h1 className="text-2xl font-medium text-gray-900 tracking-wide">
               引き継ぎ袋チェックリスト
             </h1>
           </div>

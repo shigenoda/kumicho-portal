@@ -61,7 +61,7 @@ export function FormStatsModal({
 
             <div className="mb-3">
               <div className="flex items-baseline justify-between mb-2">
-                <span className="text-2xl font-light text-gray-900">
+                <span className="text-2xl font-medium text-gray-900">
                   {stats.respondedCount} / {stats.totalHouseholds}{" "}
                   <span className="text-sm font-light text-gray-400">
                     住戸回答済み
@@ -88,7 +88,7 @@ export function FormStatsModal({
                     総住戸数
                   </span>
                 </div>
-                <div className="text-2xl font-light text-gray-900">
+                <div className="text-2xl font-medium text-gray-900">
                   {stats.totalHouseholds}
                 </div>
               </div>
@@ -99,7 +99,7 @@ export function FormStatsModal({
                     回答済み
                   </span>
                 </div>
-                <div className="text-2xl font-light text-gray-900">
+                <div className="text-2xl font-medium text-gray-900">
                   {stats.respondedCount}
                 </div>
               </div>
@@ -110,7 +110,7 @@ export function FormStatsModal({
                     未回答
                   </span>
                 </div>
-                <div className="text-2xl font-light text-gray-900">
+                <div className="text-2xl font-medium text-gray-900">
                   {stats.unansweredCount}
                 </div>
               </div>
