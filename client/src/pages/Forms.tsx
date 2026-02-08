@@ -43,6 +43,7 @@ export default function Forms() {
   const handleDownloadCSV = async (formId: number) => {
     try {
       const stats = await utils.data.getFormStats.fetch({ formId });
+      if (!stats) return;
 
       const rows: string[][] = [["質問", "選択肢", "回答数", "回答率(%)"]];
 
