@@ -117,7 +117,8 @@ export const appRouter = router({
       const eventData = [
         { title: "河川清掃（第1回）", date: new Date("2025-04-20T08:00:00"), category: "清掃", checklist: [{ id: "1", text: "手袋準備", completed: false }, { id: "2", text: "参加者確認", completed: false }], notes: "黒石川周辺。出不足金対象活動。", attachments: [] as Array<{url:string,name:string}> },
         { title: "町内会報告書提出", date: new Date("2025-05-02T00:00:00"), category: "締切", checklist: [{ id: "1", text: "報告書作成", completed: false }], notes: "町内会への年間報告書", attachments: [] as Array<{url:string,name:string}> },
-        { title: "総会・組長会", date: new Date("2025-05-26T19:00:00"), category: "会議", checklist: [{ id: "1", text: "議案書準備", completed: false }, { id: "2", text: "出欠確認", completed: false }], notes: "総会後に組長会。年度初回。大住公会堂にて。", attachments: [] as Array<{url:string,name:string}> },
+        { title: "総会・組長会", date: new Date("2025-04-26T19:00:00"), category: "会議", checklist: [{ id: "1", text: "議案書準備", completed: false }, { id: "2", text: "出欠確認", completed: false }], notes: "総会後に組長会。年度初回。大住公会堂にて。", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長会", date: new Date("2025-05-26T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
         { title: "組長会", date: new Date("2025-06-26T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
         { title: "世帯家族調査配布・回収", date: new Date("2025-06-15T00:00:00"), category: "行事", checklist: [{ id: "1", text: "調査用紙配布", completed: false }, { id: "2", text: "回収", completed: false }], notes: "各世帯への調査用紙の配布と回収", attachments: [] as Array<{url:string,name:string}> },
         { title: "河川清掃（第2回）", date: new Date("2025-07-06T08:00:00"), category: "清掃", checklist: [{ id: "1", text: "手袋準備", completed: false }], notes: "黒石川周辺", attachments: [] as Array<{url:string,name:string}> },
