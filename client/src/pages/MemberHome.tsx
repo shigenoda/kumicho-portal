@@ -5,6 +5,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { FormStatsModal } from "@/pages/FormStats";
+import { QRCodeSVG } from "qrcode.react";
 
 
 /**
@@ -283,7 +284,7 @@ export default function MemberHome() {
               )}
             </div>
 
-            {/* 右下：Last updated + 現組長 */}
+            {/* 右下：Last updated + 現組長 + QR */}
             <div className="flex justify-between items-end">
               <div className="text-xs text-white/60 font-light">
                 {currentPrimary && (
@@ -293,9 +294,18 @@ export default function MemberHome() {
                   </div>
                 )}
               </div>
-              <div className="text-xs text-white/60 font-light text-right">
-                <div>Last updated</div>
-                <div className="mt-1 text-white/70">{recentChanges[0]?.date ? new Date(recentChanges[0].date).toLocaleDateString("ja-JP") : ""}</div>
+              <div className="flex items-end gap-4">
+                <div className="text-xs text-white/60 font-light text-right">
+                  <div>Last updated</div>
+                  <div className="mt-1 text-white/70">{recentChanges[0]?.date ? new Date(recentChanges[0].date).toLocaleDateString("ja-JP") : ""}</div>
+                </div>
+                <div className="bg-white rounded-md p-1.5">
+                  <QRCodeSVG
+                    value={typeof window !== "undefined" ? window.location.origin : "https://kumicho-portal.vercel.app"}
+                    size={56}
+                    level="M"
+                  />
+                </div>
               </div>
             </div>
           </div>
