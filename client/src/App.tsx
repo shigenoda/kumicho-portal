@@ -4,11 +4,7 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import Home from "./pages/Home";
-import PublicHome from "./pages/PublicHome";
 import MemberHome from "./pages/MemberHome";
-import Register from "./pages/Register";
-import Login from "./pages/Login";
 import Calendar from "./pages/Calendar";
 import RiverCleaning from "./pages/RiverCleaning";
 import Inventory from "./pages/Inventory";
@@ -24,16 +20,12 @@ import FormResponse from "./pages/FormResponse";
 import FormBuilder from "./pages/FormBuilder";
 import PendingQueue from "./pages/PendingQueue";
 import HandoverBag from "./pages/HandoverBag";
-import { useAuth } from "@/_core/hooks/useAuth";
+import Changelog from "./pages/Changelog";
 
 function Router() {
-  const { isAuthenticated, user } = useAuth();
-
   return (
     <Switch>
-      <Route path={"/"} component={isAuthenticated ? MemberHome : PublicHome} />
-      <Route path={"/register"} component={Register} />
-      <Route path={"/login"} component={Login} />
+      <Route path={"/"} component={MemberHome} />
       <Route path={"/calendar"} component={Calendar} />
       <Route path={"/river-cleaning"} component={RiverCleaning} />
       <Route path={"/inventory"} component={Inventory} />
@@ -41,14 +33,15 @@ function Router() {
       <Route path={"/rules"} component={Rules} />
       <Route path={"/year-log"} component={YearLog} />
       <Route path={"/faq"} component={FAQ} />
-      <Route path={"/admin"} component={user?.role === "admin" ? AdminDashboard : NotFound} />
-      <Route path={"/vault"} component={user?.role === "admin" ? Vault : NotFound} />
-      <Route path={"/audit-logs"} component={user?.role === "admin" ? AuditLogs : NotFound} />
-      <Route path={"/forms"} component={user?.role === "admin" ? Forms : NotFound} />
-      <Route path={"/form-builder"} component={user?.role === "admin" ? FormBuilder : NotFound} />
-      <Route path={"/form-response/:formId"} component={isAuthenticated ? FormResponse : NotFound} />
-      <Route path={"/pending-queue"} component={isAuthenticated ? PendingQueue : NotFound} />
-      <Route path={"/handover-bag"} component={isAuthenticated ? HandoverBag : NotFound} />
+      <Route path={"/admin"} component={AdminDashboard} />
+      <Route path={"/vault"} component={Vault} />
+      <Route path={"/audit-logs"} component={AuditLogs} />
+      <Route path={"/forms"} component={Forms} />
+      <Route path={"/form-builder"} component={FormBuilder} />
+      <Route path={"/form-response/:formId"} component={FormResponse} />
+      <Route path={"/pending-queue"} component={PendingQueue} />
+      <Route path={"/handover-bag"} component={HandoverBag} />
+      <Route path={"/changelog"} component={Changelog} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

@@ -1,4 +1,3 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, Copy, Download, Pencil, Trash2 } from "lucide-react";
@@ -7,15 +6,10 @@ import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 
 export default function Templates() {
-  const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const { data: templates = [] } = trpc.data.getTemplates.useQuery();
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
-
-  if (!isAuthenticated) {
-    return <div className="page-container flex items-center justify-center min-h-screen">ログインが必要です</div>;
-  }
 
   const categories = Array.from(new Set(templates.map((t: any) => t.category)));
 
@@ -80,22 +74,29 @@ export default function Templates() {
                         <div className="bg-muted p-4 rounded text-sm text-muted-foreground whitespace-pre-wrap max-h-48 overflow-y-auto mb-3">
                           {template.body}
                         </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleCopy(template.body, template.id)}
-                          >
-                            <Copy className="w-4 h-4 mr-1" />
-                            {copiedId === template.id ? "コピーしました" : "コピー"}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                          >
-                            <Download className="w-4 h-4 mr-1" />
-                            ダウンロード
-                          </Button>
+                        <div className="flex items-center justify-between">
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleCopy(template.body, template.id)}
+                            >
+                              <Copy className="w-4 h-4 mr-1" />
+                              {copiedId === template.id ? "コピーしました" : "コピー"}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                            >
+                              <Download className="w-4 h-4 mr-1" />
+                              ダウンロード
+                            </Button>
+                          </div>
+                          {template.updatedAt && (
+                            <p className="text-xs text-gray-400 font-light">
+                              最終更新: {new Date(template.updatedAt).toLocaleDateString("ja-JP")}
+                            </p>
+                          )}
                         </div>
                       </Card>
                     ))}

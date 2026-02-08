@@ -1,4 +1,3 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, Package, Pencil, Trash2 } from "lucide-react";
@@ -7,14 +6,9 @@ import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 
 export default function Inventory() {
-  const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const [editingId, setEditingId] = useState<number | null>(null);
   const { data: inventory = [] } = trpc.data.getInventory.useQuery();
-
-  if (!isAuthenticated) {
-    return <div className="page-container flex items-center justify-center min-h-screen">ログインが必要です</div>;
-  }
 
   return (
     <div className="page-container">
@@ -93,6 +87,11 @@ export default function Inventory() {
                 {item.notes && (
                   <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border">
                     {item.notes}
+                  </p>
+                )}
+                {item.updatedAt && (
+                  <p className="text-xs text-gray-400 font-light mt-3">
+                    最終更新: {new Date(item.updatedAt).toLocaleDateString("ja-JP")}
                   </p>
                 )}
               </Card>

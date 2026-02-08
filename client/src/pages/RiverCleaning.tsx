@@ -1,4 +1,3 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, Droplets, Pencil, Trash2 } from "lucide-react";
@@ -6,13 +5,8 @@ import { useLocation } from "wouter";
 import { useState } from "react";
 
 export default function RiverCleaning() {
-  const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const [editingId, setEditingId] = useState<string | null>(null);
-
-  if (!isAuthenticated) {
-    return <div className="page-container flex items-center justify-center min-h-screen">ログインが必要です</div>;
-  }
 
   return (
     <div className="page-container">

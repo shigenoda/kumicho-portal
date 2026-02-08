@@ -105,8 +105,8 @@ export const posts = pgTable("posts", {
   year: integer("year").notNull(),
   category: categoryEnum("category").notNull(),
   status: statusEnum("status").default("draft").notNull(),
-  authorId: integer("authorId").notNull(),
-  authorRole: authorRoleEnum("authorRole").notNull(),
+  authorId: integer("authorId"),
+  authorRole: authorRoleEnum("authorRole"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   publishedAt: timestamp("publishedAt"),
@@ -205,7 +205,7 @@ export const ruleVersions = pgTable("rule_versions", {
   summary: text("summary").notNull(),
   details: text("details").notNull(),
   reason: text("reason"),
-  changedBy: integer("changedBy").notNull(),
+  changedBy: integer("changedBy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -263,8 +263,9 @@ export const changelog = pgTable("changelog", {
   id: serial("id").primaryKey(),
   summary: varchar("summary", { length: 255 }).notNull(),
   date: timestamp("date").defaultNow().notNull(),
-  authorId: integer("authorId").notNull(),
-  authorRole: authorRoleEnum("authorRole").notNull(),
+  authorId: integer("authorId"),
+  authorRole: authorRoleEnum("authorRole"),
+  editorName: varchar("editorName", { length: 100 }),
   relatedEntityType: varchar("relatedEntityType", { length: 100 }).notNull(),
   relatedEntityId: integer("relatedEntityId"),
 });
@@ -322,7 +323,7 @@ export const vaultEntries = pgTable("vault_entries", {
   maskedValue: varchar("maskedValue", { length: 500 }).notNull(),
   actualValue: text("actualValue").notNull(),
   classification: classificationEnum("classification").default("confidential").notNull(),
-  createdBy: integer("createdBy").notNull(),
+  createdBy: integer("createdBy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
@@ -333,7 +334,7 @@ export type InsertVaultEntry = typeof vaultEntries.$inferInsert;
 // 監査ログ（Vault アクセス・編集・コピーを記録）
 export const auditLogs = pgTable("audit_logs", {
   id: serial("id").primaryKey(),
-  userId: integer("userId").notNull(),
+  userId: integer("userId"),
   action: varchar("action", { length: 50 }).notNull(),
   entityType: varchar("entityType", { length: 100 }).notNull(),
   entityId: integer("entityId").notNull(),
@@ -351,7 +352,7 @@ export const residentEmails = pgTable("resident_emails", {
   id: serial("id").primaryKey(),
   householdId: varchar("householdId", { length: 50 }).notNull(),
   email: varchar("email", { length: 320 }).notNull(),
-  registeredBy: integer("registeredBy").notNull(),
+  registeredBy: integer("registeredBy"),
   registeredAt: timestamp("registeredAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
@@ -365,7 +366,7 @@ export const forms = pgTable("forms", {
   id: serial("id").primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description"),
-  createdBy: integer("createdBy").notNull(),
+  createdBy: integer("createdBy"),
   dueDate: timestamp("dueDate"),
   status: statusEnum("status").default("draft").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -406,8 +407,8 @@ export type InsertFormChoice = typeof formChoices.$inferInsert;
 export const formResponses = pgTable("form_responses", {
   id: serial("id").primaryKey(),
   formId: integer("formId").notNull(),
-  userId: integer("userId").notNull(),
-  householdId: varchar("householdId", { length: 50 }).notNull(),
+  userId: integer("userId"),
+  householdId: varchar("householdId", { length: 50 }),
   submittedAt: timestamp("submittedAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });

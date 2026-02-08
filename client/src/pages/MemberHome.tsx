@@ -1,11 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Settings, LogOut, X } from "lucide-react";
-import { getLoginUrl } from "@/const";
+import { Search, Settings, X } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/_core/hooks/useAuth";
 
 
 /**
@@ -13,14 +11,14 @@ import { useAuth } from "@/_core/hooks/useAuth";
  * 「雑誌の目次」型レイアウト：左上ラベル、中央H1、下Index List、右下更新ログ
  */
 export default function MemberHome() {
-  const { user, isAuthenticated, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [, setLocation] = useLocation();
   const [showSettings, setShowSettings] = useState(false);
   const [newEmails, setNewEmails] = useState<{ [key: number]: string }>({});
   const { data: households = [] } = trpc.data.getHouseholds.useQuery();
   const { data: residentEmails = [] } = trpc.data.getResidentEmails.useQuery();
-  const { data: unansweredForms = [] } = trpc.data.getUnansweredForms.useQuery();
+  const { data: activeForms = [] } = trpc.data.getActiveForms.useQuery();
+  const { data: recentChanges = [] } = trpc.data.getChangelog.useQuery({ limit: 1 });
 
   // 現在の年度を自動判定（4月が新年度）
   const currentYear = useMemo(() => {
@@ -34,11 +32,6 @@ export default function MemberHome() {
     { year: currentYear },
     { enabled: !!currentYear }
   );
-
-  const handleLogout = async () => {
-    await logout();
-    setLocation("/");
-  };
 
   const deleteFormMutation = trpc.data.deleteForm.useMutation();
 
@@ -58,25 +51,6 @@ export default function MemberHome() {
       );
     }
   };
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center px-4">
-        <div className="max-w-md text-center">
-          <h1 className="text-4xl font-light mb-4 text-gray-900">グリーンピア</h1>
-          <p className="text-gray-600 mb-8 leading-relaxed">
-            焼津市 集合住宅の組長業務引き継ぎポータル
-          </p>
-          <Button
-            onClick={() => (window.location.href = getLoginUrl())}
-            className="w-full bg-blue-900 hover:bg-blue-800 text-white"
-          >
-            ログイン
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -102,12 +76,6 @@ export default function MemberHome() {
               className="p-2 hover:bg-white/10 rounded transition-colors"
             >
               <Settings className="w-5 h-5 text-white" />
-            </button>
-            <button
-              onClick={handleLogout}
-              className="p-2 hover:bg-white/10 rounded transition-colors"
-            >
-              <LogOut className="w-5 h-5 text-white" />
             </button>
           </div>
         </div>
@@ -147,21 +115,21 @@ export default function MemberHome() {
             <div className="flex justify-end">
               <div className="text-xs text-white/60 font-light">
                 <div>Last updated</div>
-                <div className="mt-1 text-white/70">2025年1月1日</div>
+                <div className="mt-1 text-white/70">{recentChanges[0]?.date ? new Date(recentChanges[0].date).toLocaleDateString("ja-JP") : ""}</div>
               </div>
             </div>
           </div>
         </div>
 
         {/* 未回答フォームセクション */}
-        {unansweredForms.length > 0 && (
+        {activeForms.length > 0 && (
           <div className="bg-blue-50 border-t border-blue-200 py-16">
             <div className="max-w-7xl mx-auto px-6">
               <h2 className="text-2xl font-light text-gray-900 mb-8">
                 未回答フォーム
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {unansweredForms.map((form: any) => (
+                {activeForms.map((form: any) => (
                   <div
                     key={form.id}
                     className="group bg-white border border-blue-200 rounded-lg p-6 flex items-start justify-between hover:shadow-lg transition-all duration-300"
@@ -202,7 +170,7 @@ export default function MemberHome() {
           </div>
         )}
 
-        {/* Index List（導線 01..06） */}
+        {/* Index List（導線 01..07） */}
         <div className="max-w-7xl mx-auto px-6 py-24">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
             {/* 01: 年間カレンダー */}
@@ -320,29 +288,27 @@ export default function MemberHome() {
             </button>
 
             {/* 07: フォーム作成 */}
-            {user?.role === "admin" && (
-              <button
-                onClick={() => setLocation("/form-builder")}
-                className="group cursor-pointer transition-all duration-300 text-left"
-              >
-                <div className="mb-4">
-                  <span className="text-xs text-gray-400 font-light tracking-widest">
-                    07
-                  </span>
-                </div>
-                <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
-                  フォーム作成
-                </h3>
-                <p className="text-sm text-gray-600 leading-relaxed font-light">
-                  アンケート・統計・回答管理
-                </p>
-                <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
-              </button>
-            )}
+            <button
+              onClick={() => setLocation("/form-builder")}
+              className="group cursor-pointer transition-all duration-300 text-left"
+            >
+              <div className="mb-4">
+                <span className="text-xs text-gray-400 font-light tracking-widest">
+                  07
+                </span>
+              </div>
+              <h3 className="text-xl font-light text-gray-900 mb-3 group-hover:text-blue-900 transition-colors">
+                フォーム作成
+              </h3>
+              <p className="text-sm text-gray-600 leading-relaxed font-light">
+                アンケート・統計・回答管理
+              </p>
+              <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
+            </button>
           </div>
         </div>
 
-        {/* 追加セクション：Pending / FAQ / Vault（Admin限定） */}
+        {/* 追加セクション：Pending / FAQ / Vault etc. */}
         <div className="bg-gray-50 border-t border-gray-200 py-24">
           <div className="max-w-7xl mx-auto px-6">
             <h2 className="text-2xl font-light text-gray-900 mb-12">
@@ -388,35 +354,44 @@ export default function MemberHome() {
                 </p>
               </button>
 
-              {/* Admin: Vault */}
-              {user?.role === "admin" && (
-                <button
-                  onClick={() => setLocation("/vault")}
-                  className="group cursor-pointer text-left"
-                >
-                  <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
-                    Private Vault
-                  </h3>
-                  <p className="text-sm text-gray-600 leading-relaxed font-light">
-                    秘匿情報（Admin限定）
-                  </p>
-                </button>
-              )}
+              {/* Private Vault */}
+              <button
+                onClick={() => setLocation("/vault")}
+                className="group cursor-pointer text-left"
+              >
+                <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
+                  Private Vault
+                </h3>
+                <p className="text-sm text-gray-600 leading-relaxed font-light">
+                  秘匿情報
+                </p>
+              </button>
 
-              {/* Admin: 監査ログ */}
-              {user?.role === "admin" && (
-                <button
-                  onClick={() => setLocation("/audit-logs")}
-                  className="group cursor-pointer text-left"
-                >
-                  <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
-                    監査ログ
-                  </h3>
-                  <p className="text-sm text-gray-600 leading-relaxed font-light">
-                    Vault アクセス履歴（Admin限定）
-                  </p>
-                </button>
-              )}
+              {/* 監査ログ */}
+              <button
+                onClick={() => setLocation("/audit-logs")}
+                className="group cursor-pointer text-left"
+              >
+                <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
+                  監査ログ
+                </h3>
+                <p className="text-sm text-gray-600 leading-relaxed font-light">
+                  Vault アクセス履歴
+                </p>
+              </button>
+
+              {/* 更新履歴 */}
+              <button
+                onClick={() => setLocation("/changelog")}
+                className="group cursor-pointer text-left"
+              >
+                <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
+                  更新履歴
+                </h3>
+                <p className="text-sm text-gray-600 leading-relaxed font-light">
+                  ポータルの変更・更新の記録
+                </p>
+              </button>
             </div>
           </div>
         </div>
@@ -491,32 +466,30 @@ export default function MemberHome() {
               </section>
 
               {/* 住民メールアドレス登録セクション */}
-              {user?.role === "admin" && (
-                <section>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-6">住民メールアドレス登録</h3>
-                  <div className="space-y-4">
-                    {households.map((household: any) => (
-                      <div key={household.id} className="flex items-end gap-3">
-                        <div className="flex-1">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            {household.householdId}号室
-                          </label>
-                          <input
-                            type="email"
-                            value={newEmails[household.id] || residentEmails.find((e: any) => e.householdId === household.householdId)?.email || ""}
-                            onChange={(e) => setNewEmails({ ...newEmails, [household.id]: e.target.value })}
-                            placeholder="メールアドレスを入力"
-                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-900"
-                          />
-                        </div>
+              <section>
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">住民メールアドレス登録</h3>
+                <div className="space-y-4">
+                  {households.map((household: any) => (
+                    <div key={household.id} className="flex items-end gap-3">
+                      <div className="flex-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {household.householdId}号室
+                        </label>
+                        <input
+                          type="email"
+                          value={newEmails[household.id] || residentEmails.find((e: any) => e.householdId === household.householdId)?.email || ""}
+                          onChange={(e) => setNewEmails({ ...newEmails, [household.id]: e.target.value })}
+                          placeholder="メールアドレスを入力"
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-900"
+                        />
                       </div>
-                    ))}
-                  </div>
-                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-900">
-                    <p>登録したメールアドレスに、ポータル登録完了の通知メールが送信されます。</p>
-                  </div>
-                </section>
-              )}
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-900">
+                  <p>登録したメールアドレスに、ポータル登録完了の通知メールが送信されます。</p>
+                </div>
+              </section>
 
               {/* 保存ボタン */}
               <div className="flex gap-3 pt-4 border-t border-gray-200">
