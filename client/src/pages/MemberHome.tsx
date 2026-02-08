@@ -1,9 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Settings, X, ArrowRight } from "lucide-react";
-import { useState, useMemo } from "react";
+import { Search, Settings, X, ArrowRight, BarChart3, CheckCircle, AlertCircle } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { FormStatsModal } from "@/pages/FormStats";
+import { QRCodeSVG } from "qrcode.react";
 
 
 /**
@@ -15,10 +17,22 @@ export default function MemberHome() {
   const [, setLocation] = useLocation();
   const [showSettings, setShowSettings] = useState(false);
   const [newEmails, setNewEmails] = useState<{ [key: number]: string }>({});
+  const [showStats, setShowStats] = useState(false);
+  const [selectedFormId, setSelectedFormId] = useState<number | null>(null);
   const { data: households = [] } = trpc.data.getHouseholds.useQuery();
   const { data: residentEmails = [] } = trpc.data.getResidentEmails.useQuery();
   const { data: activeForms = [] } = trpc.data.getActiveForms.useQuery();
+  const { data: allForms = [] } = trpc.data.getForms.useQuery();
   const { data: recentChanges = [] } = trpc.data.getChangelog.useQuery({ limit: 1 });
+
+  // localStorage で回答済みフォームを追跡
+  const [answeredFormIds, setAnsweredFormIds] = useState<number[]>([]);
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("answeredForms") || "[]");
+      setAnsweredFormIds(stored);
+    } catch {}
+  }, []);
 
   // 現在の年度を自動判定（4月が新年度）
   const currentYear = useMemo(() => {
@@ -270,7 +284,7 @@ export default function MemberHome() {
               )}
             </div>
 
-            {/* 右下：Last updated + 現組長 */}
+            {/* 右下：Last updated + 現組長 + QR */}
             <div className="flex justify-between items-end">
               <div className="text-xs text-white/60 font-light">
                 {currentPrimary && (
@@ -280,58 +294,138 @@ export default function MemberHome() {
                   </div>
                 )}
               </div>
-              <div className="text-xs text-white/60 font-light text-right">
-                <div>Last updated</div>
-                <div className="mt-1 text-white/70">{recentChanges[0]?.date ? new Date(recentChanges[0].date).toLocaleDateString("ja-JP") : ""}</div>
+              <div className="flex items-end gap-4">
+                <div className="text-xs text-white/60 font-light text-right">
+                  <div>Last updated</div>
+                  <div className="mt-1 text-white/70">{recentChanges[0]?.date ? new Date(recentChanges[0].date).toLocaleDateString("ja-JP") : ""}</div>
+                </div>
+                <div className="bg-white rounded-md p-1.5">
+                  <QRCodeSVG
+                    value={typeof window !== "undefined" ? window.location.origin : "https://kumicho-portal.vercel.app"}
+                    size={56}
+                    level="M"
+                  />
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* 未回答フォームセクション */}
-        {activeForms.length > 0 && (
-          <div className="bg-blue-50 border-t border-blue-200 py-16">
+        {/* フォーム ダッシュボード */}
+        {allForms.length > 0 && (
+          <div className="bg-gray-50 border-t border-gray-200 py-16">
             <div className="max-w-7xl mx-auto px-6">
-              <h2 className="text-2xl font-light text-gray-900 mb-8">
-                回答受付中のフォーム
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {activeForms.map((form: any) => (
-                  <div
-                    key={form.id}
-                    className="group bg-white border border-blue-200 rounded-lg p-6 flex items-start justify-between hover:shadow-lg transition-all duration-300"
-                  >
-                    <button
-                      onClick={() => setLocation(`/form-response/${form.id}`)}
-                      className="flex-1 text-left"
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-2xl font-light text-gray-900 flex items-center gap-3">
+                  <BarChart3 className="w-5 h-5 text-gray-400" />
+                  フォーム
+                </h2>
+                <button
+                  onClick={() => setLocation("/forms")}
+                  className="text-sm font-light text-gray-400 hover:text-gray-900 transition-colors flex items-center gap-1"
+                >
+                  管理画面
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {allForms.map((form: any) => {
+                  const isActive = form.status === "active";
+                  const isAnswered = answeredFormIds.includes(form.id);
+                  const responseCount = form.responseCount ?? 0;
+                  const totalHouseholds = form.totalHouseholds ?? 9;
+                  const responseRate = totalHouseholds > 0 ? Math.round((responseCount / totalHouseholds) * 100) : 0;
+
+                  return (
+                    <div
+                      key={form.id}
+                      className={`bg-white border rounded-lg p-6 ${
+                        isActive ? "border-blue-200" : "border-gray-200"
+                      }`}
                     >
-                      <h3 className="text-lg font-light text-gray-900 mb-2 group-hover:text-blue-900 transition-colors">
-                        {form.title}
-                      </h3>
-                      {form.description && (
-                        <p className="text-sm text-gray-600 mb-4 font-light">
-                          {form.description}
-                        </p>
-                      )}
-                      {form.dueDate && (
-                        <div className="text-xs text-gray-500">
-                          期限: {new Date(form.dueDate).toLocaleDateString('ja-JP')}
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="text-lg font-light text-gray-900">
+                              {form.title}
+                            </h3>
+                            {isActive && (
+                              <span className="text-xs font-light text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
+                                受付中
+                              </span>
+                            )}
+                            {isAnswered && (
+                              <span className="text-xs font-light text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded flex items-center gap-1">
+                                <CheckCircle className="w-3 h-3" />
+                                回答済み
+                              </span>
+                            )}
+                          </div>
+                          {form.description && (
+                            <p className="text-sm text-gray-500 font-light mb-3">
+                              {form.description}
+                            </p>
+                          )}
+
+                          {/* 回答率プログレスバー */}
+                          <div className="mb-2">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-light text-gray-500">
+                                {responseCount}/{totalHouseholds} 世帯回答済み
+                              </span>
+                              <span className="text-xs font-light text-gray-400">
+                                {responseRate}%
+                              </span>
+                            </div>
+                            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-blue-900 rounded-full transition-all duration-500"
+                                style={{ width: `${responseRate}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          {form.dueDate && (
+                            <div className="text-xs font-light text-gray-400">
+                              期限: {new Date(form.dueDate).toLocaleDateString("ja-JP")}
+                            </div>
+                          )}
                         </div>
-                      )}
-                      <div className="mt-4 h-0.5 w-0 bg-blue-900 group-hover:w-8 transition-all duration-300" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteUnansweredForm(form.id);
-                      }}
-                      className="ml-4 text-red-500 hover:text-red-700 text-sm font-light transition-colors flex-shrink-0"
-                      title="削除"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
+
+                        {/* アクションボタン */}
+                        <div className="flex flex-col gap-2 flex-shrink-0">
+                          {isActive && !isAnswered && (
+                            <button
+                              onClick={() => setLocation(`/form-response/${form.id}`)}
+                              className="px-4 py-2 text-sm font-light text-white bg-gray-900 rounded hover:bg-gray-800 transition-colors"
+                            >
+                              回答する
+                            </button>
+                          )}
+                          {isActive && isAnswered && (
+                            <button
+                              onClick={() => setLocation(`/form-response/${form.id}`)}
+                              className="px-4 py-2 text-sm font-light text-gray-600 border border-gray-200 rounded hover:bg-gray-50 transition-colors"
+                            >
+                              代理入力
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              setSelectedFormId(form.id);
+                              setShowStats(true);
+                            }}
+                            className="px-4 py-2 text-sm font-light text-gray-500 border border-gray-200 rounded hover:bg-gray-50 transition-colors flex items-center gap-1 justify-center"
+                          >
+                            <BarChart3 className="w-3.5 h-3.5" />
+                            統計
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -713,6 +807,17 @@ export default function MemberHome() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* フォーム統計モーダル */}
+      {showStats && selectedFormId && (
+        <FormStatsModal
+          formId={selectedFormId}
+          onClose={() => {
+            setShowStats(false);
+            setSelectedFormId(null);
+          }}
+        />
       )}
     </div>
   );

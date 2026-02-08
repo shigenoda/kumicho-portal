@@ -117,7 +117,8 @@ export const appRouter = router({
       const eventData = [
         { title: "河川清掃（第1回）", date: new Date("2025-04-20T08:00:00"), category: "清掃", checklist: [{ id: "1", text: "手袋準備", completed: false }, { id: "2", text: "参加者確認", completed: false }], notes: "黒石川周辺。出不足金対象活動。", attachments: [] as Array<{url:string,name:string}> },
         { title: "町内会報告書提出", date: new Date("2025-05-02T00:00:00"), category: "締切", checklist: [{ id: "1", text: "報告書作成", completed: false }], notes: "町内会への年間報告書", attachments: [] as Array<{url:string,name:string}> },
-        { title: "総会・組長会", date: new Date("2025-05-26T19:00:00"), category: "会議", checklist: [{ id: "1", text: "議案書準備", completed: false }, { id: "2", text: "出欠確認", completed: false }], notes: "総会後に組長会。年度初回。大住公会堂にて。", attachments: [] as Array<{url:string,name:string}> },
+        { title: "総会・組長会", date: new Date("2025-04-26T19:00:00"), category: "会議", checklist: [{ id: "1", text: "議案書準備", completed: false }, { id: "2", text: "出欠確認", completed: false }], notes: "総会後に組長会。年度初回。大住公会堂にて。", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長会", date: new Date("2025-05-26T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
         { title: "組長会", date: new Date("2025-06-26T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
         { title: "世帯家族調査配布・回収", date: new Date("2025-06-15T00:00:00"), category: "行事", checklist: [{ id: "1", text: "調査用紙配布", completed: false }, { id: "2", text: "回収", completed: false }], notes: "各世帯への調査用紙の配布と回収", attachments: [] as Array<{url:string,name:string}> },
         { title: "河川清掃（第2回）", date: new Date("2025-07-06T08:00:00"), category: "清掃", checklist: [{ id: "1", text: "手袋準備", completed: false }], notes: "黒石川周辺", attachments: [] as Array<{url:string,name:string}> },
@@ -281,7 +282,7 @@ export const appRouter = router({
         { title: "河川堤防草刈りの対応", body: "黒石川堤防の草刈りについて、地主がいる土地のため直接の作業は不可。地主が業者を手配して対応完了。マンション住民の作業は不要と確認。", tags: ["河川清掃", "解決済み"] as string[], year: 2025, category: "decision" as const, status: "published" as const, isHypothesis: false, relatedLinks: [] as string[], publishedAt: new Date("2025-09-25") },
         { title: "組長免除制度の検討（進行中）", body: "夜勤従事者や小さな子供がいる家庭から組長免除の要望あり。管理会社（平和ハウジング）からは相反する見解が出ており、住民アンケートを実施して意見を集約中。2026年3月までに結論を出す予定。", tags: ["組長制度", "進行中"] as string[], year: 2025, category: "pending" as const, status: "published" as const, isHypothesis: true, relatedLinks: [] as string[], publishedAt: new Date("2025-11-01") },
         { title: "町内会長への統合提案書を提出", body: "令和7年11月9日、大泉町内会八町内会会長（中山裕二様）宛てに「組長業務改善に関する統合提案書」を提出。\n\n提案内容：\n1. 組長選出ルールの確定（運用細則の策定報告）\n2. 河川清掃の安全配慮と参加免除基準\n3. 河川草刈り作業の責任所在確認\n4. 周知事項の改善（町内会費徴収の明確化、清掃範囲の可視化）\n\n12月中に方向性の回答を依頼。最終確定は令和8年3月末。", tags: ["町内会", "提案書", "組長制度"] as string[], year: 2025, category: "decision" as const, status: "published" as const, isHypothesis: false, relatedLinks: [] as string[], publishedAt: new Date("2025-11-09") },
-        { title: "管理会社へ特定入居者対応を相談", body: "特定の入居者から組長免除の全否定や「組長をしないなら退去すべき」という趣旨の強い意見が複数回文書で示されたため、管理会社（平和ハウジング）へ公式な説明・指導を依頼。\n組長業務のローテーション位置づけ、免除の考え方、退去云々は正式ルールではないことの3点について説明を要請。回答待ち。\n※該当号室は秘匿（秘匿メモ参照）", tags: ["管理会社", "住民対応", "進行中"] as string[], year: 2025, category: "trouble" as const, status: "published" as const, isHypothesis: false, relatedLinks: [] as string[], publishedAt: new Date("2026-01-15") },
+        { title: "管理会社への確認依頼", body: "組長業務の運用に関して管理会社（平和ハウジング）へ確認を依頼。\n組長業務の位置づけ、免除の考え方、運用ルールの整理について説明を要請。回答待ち。", tags: ["管理会社", "進行中"] as string[], year: 2025, category: "pending" as const, status: "published" as const, isHypothesis: false, relatedLinks: [] as string[], publishedAt: new Date("2026-01-15") },
         { title: "住民アンケートを配布", body: "2026年2月4日、全9世帯に組長運用に関するアンケートを配布。\n\n主な質問内容:\n・組長業務の負担感\n・組長会や河川清掃への参加可否\n・今後の運用方向性（住民持ち回り/オーナー担当/折衷案）\n・引き継ぎ方法の改善\n\n背景として、町内会長からのオーナー側運用への示唆、他マンション実例（21組等）、管理会社の不関与スタンスを共有。\n提出期限: 2026年2月28日。回答を集約し、オーナーへの申し入れ材料とする予定。", tags: ["アンケート", "組長制度", "住民調査"] as string[], year: 2025, category: "decision" as const, status: "published" as const, isHypothesis: false, relatedLinks: [] as string[], publishedAt: new Date("2026-02-04") },
       ];
       for (const p of postsData) {
@@ -644,12 +645,12 @@ export const appRouter = router({
           );
         const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
 
-        // A免除: 入居12ヶ月未満
-        const now = new Date();
-        const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, now.getDate());
+        // A免除: 対象年度4月1日時点で入居12ヶ月未満
+        const fiscalYearStart = new Date(input.year, 3, 1); // 4月1日
+        const twelveMonthsBefore = new Date(input.year - 1, 3, 1); // 前年4月1日
         const lessThanYearHouseholds = new Set(
           allHouseholds
-            .filter((h) => h.moveInDate && h.moveInDate > twelveMonthsAgo)
+            .filter((h) => h.moveInDate && h.moveInDate > twelveMonthsBefore)
             .map((h) => h.householdId)
         );
 
@@ -1447,12 +1448,12 @@ export const appRouter = router({
           );
         const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
 
-        // A免除: 入居12ヶ月未満
-        const now = new Date();
-        const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, now.getDate());
+        // A免除: 対象年度4月1日時点で入居12ヶ月未満
+        const fiscalYearStart = new Date(input.year, 3, 1); // 4月1日
+        const twelveMonthsBefore = new Date(input.year - 1, 3, 1); // 前年4月1日
         const lessThanYearHouseholds = new Set(
           allHouseholds
-            .filter((h) => h.moveInDate && h.moveInDate > twelveMonthsAgo)
+            .filter((h) => h.moveInDate && h.moveInDate > twelveMonthsBefore)
             .map((h) => h.householdId)
         );
 
@@ -1528,12 +1529,12 @@ export const appRouter = router({
           );
         const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
 
-        // A免除: 入居12ヶ月未満
-        const now = new Date();
-        const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, now.getDate());
+        // A免除: 対象年度4月1日時点で入居12ヶ月未満
+        const fiscalYearStart = new Date(input.year, 3, 1); // 4月1日
+        const twelveMonthsBefore = new Date(input.year - 1, 3, 1); // 前年4月1日
         const lessThanYearHouseholds = new Set(
           allHouseholds
-            .filter((h) => h.moveInDate && h.moveInDate > twelveMonthsAgo)
+            .filter((h) => h.moveInDate && h.moveInDate > twelveMonthsBefore)
             .map((h) => h.householdId)
         );
 

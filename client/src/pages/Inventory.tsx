@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 
 const CONDITIONS = ["良好", "使用可", "要修理", "廃棄予定"] as const;
 
@@ -450,6 +450,124 @@ export default function Inventory() {
   );
 }
 
+/** 画像をリサイズ・圧縮してbase64データURLに変換 */
+function compressImage(file: File, maxWidth = 800, quality = 0.7): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { reject(new Error("Canvas not supported")); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function PhotoUpload({
+  photo,
+  onPhotoChange,
+}: {
+  photo: string;
+  onPhotoChange: (photo: string) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
+
+  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsCompressing(true);
+    try {
+      const dataUrl = await compressImage(file);
+      onPhotoChange(dataUrl);
+    } catch (err) {
+      console.error("Image compression failed:", err);
+    } finally {
+      setIsCompressing(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }, [onPhotoChange]);
+
+  return (
+    <div>
+      <label className="text-sm font-light text-gray-600 mb-1 block">
+        <span className="inline-flex items-center gap-1">
+          <Camera className="w-3.5 h-3.5" />
+          写真
+        </span>
+      </label>
+      {photo ? (
+        <div className="relative">
+          <img
+            src={photo}
+            alt="プレビュー"
+            className="w-full h-40 object-cover rounded-md border border-gray-200"
+          />
+          <div className="absolute top-2 right-2 flex gap-1">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="p-1.5 bg-white/90 rounded-full shadow-sm hover:bg-white transition-colors"
+              title="写真を変更"
+            >
+              <Camera className="w-3.5 h-3.5 text-gray-600" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onPhotoChange("")}
+              className="p-1.5 bg-white/90 rounded-full shadow-sm hover:bg-white transition-colors"
+              title="写真を削除"
+            >
+              <X className="w-3.5 h-3.5 text-gray-600" />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isCompressing}
+          className="w-full h-28 border-2 border-dashed border-gray-200 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-gray-300 hover:bg-gray-50/50 transition-colors"
+        >
+          {isCompressing ? (
+            <span className="text-sm font-light text-gray-400">圧縮中...</span>
+          ) : (
+            <>
+              <Camera className="w-6 h-6 text-gray-300" />
+              <span className="text-sm font-light text-gray-400">
+                タップして撮影・選択
+              </span>
+            </>
+          )}
+        </button>
+      )}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+    </div>
+  );
+}
+
 function ItemForm({
   formData,
   setFormData,
@@ -482,29 +600,11 @@ function ItemForm({
         />
       </div>
 
-      {/* Photo URL */}
-      <div>
-        <label className="text-sm font-light text-gray-600 mb-1 block">
-          <span className="inline-flex items-center gap-1">
-            <Camera className="w-3.5 h-3.5" />
-            写真URL
-          </span>
-        </label>
-        <Input
-          value={formData.photo}
-          onChange={(e) => setFormData({ ...formData, photo: e.target.value })}
-          placeholder="https://..."
-          className="font-light"
-        />
-        {formData.photo && (
-          <img
-            src={formData.photo}
-            alt="プレビュー"
-            className="mt-2 w-full h-32 object-cover rounded-md border border-gray-200"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
-        )}
-      </div>
+      {/* Photo Upload */}
+      <PhotoUpload
+        photo={formData.photo}
+        onPhotoChange={(photo) => setFormData({ ...formData, photo })}
+      />
 
       {/* Quantity + Location row */}
       <div className="grid grid-cols-2 gap-3">

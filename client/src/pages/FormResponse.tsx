@@ -31,6 +31,14 @@ export default function FormResponse() {
     onSuccess: () => {
       setSubmittedHousehold(selectedHousehold);
       setSubmitted(true);
+      // localStorage に回答済みフォームを記録
+      try {
+        const answered = JSON.parse(localStorage.getItem("answeredForms") || "[]");
+        if (!answered.includes(form?.id)) {
+          answered.push(form?.id);
+          localStorage.setItem("answeredForms", JSON.stringify(answered));
+        }
+      } catch {}
     },
     onError: (error: any) => {
       console.error("Failed to submit form:", error);

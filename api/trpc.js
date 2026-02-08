@@ -282,7 +282,7 @@ var riverCleaningRuns = pgTable("river_cleaning_runs", {
 var inventory = pgTable("inventory", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
-  photo: varchar("photo", { length: 500 }),
+  photo: text("photo"),
   qty: integer("qty").default(0).notNull(),
   location: varchar("location", { length: 255 }).notNull(),
   condition: varchar("condition", { length: 100 }),
@@ -618,7 +618,8 @@ var appRouter = router({
       const eventData = [
         { title: "\u6CB3\u5DDD\u6E05\u6383\uFF08\u7B2C1\u56DE\uFF09", date: /* @__PURE__ */ new Date("2025-04-20T08:00:00"), category: "\u6E05\u6383", checklist: [{ id: "1", text: "\u624B\u888B\u6E96\u5099", completed: false }, { id: "2", text: "\u53C2\u52A0\u8005\u78BA\u8A8D", completed: false }], notes: "\u9ED2\u77F3\u5DDD\u5468\u8FBA\u3002\u51FA\u4E0D\u8DB3\u91D1\u5BFE\u8C61\u6D3B\u52D5\u3002", attachments: [] },
         { title: "\u753A\u5185\u4F1A\u5831\u544A\u66F8\u63D0\u51FA", date: /* @__PURE__ */ new Date("2025-05-02T00:00:00"), category: "\u7DE0\u5207", checklist: [{ id: "1", text: "\u5831\u544A\u66F8\u4F5C\u6210", completed: false }], notes: "\u753A\u5185\u4F1A\u3078\u306E\u5E74\u9593\u5831\u544A\u66F8", attachments: [] },
-        { title: "\u7DCF\u4F1A\u30FB\u7D44\u9577\u4F1A", date: /* @__PURE__ */ new Date("2025-05-26T19:00:00"), category: "\u4F1A\u8B70", checklist: [{ id: "1", text: "\u8B70\u6848\u66F8\u6E96\u5099", completed: false }, { id: "2", text: "\u51FA\u6B20\u78BA\u8A8D", completed: false }], notes: "\u7DCF\u4F1A\u5F8C\u306B\u7D44\u9577\u4F1A\u3002\u5E74\u5EA6\u521D\u56DE\u3002\u5927\u4F4F\u516C\u4F1A\u5802\u306B\u3066\u3002", attachments: [] },
+        { title: "\u7DCF\u4F1A\u30FB\u7D44\u9577\u4F1A", date: /* @__PURE__ */ new Date("2025-04-26T19:00:00"), category: "\u4F1A\u8B70", checklist: [{ id: "1", text: "\u8B70\u6848\u66F8\u6E96\u5099", completed: false }, { id: "2", text: "\u51FA\u6B20\u78BA\u8A8D", completed: false }], notes: "\u7DCF\u4F1A\u5F8C\u306B\u7D44\u9577\u4F1A\u3002\u5E74\u5EA6\u521D\u56DE\u3002\u5927\u4F4F\u516C\u4F1A\u5802\u306B\u3066\u3002", attachments: [] },
+        { title: "\u7D44\u9577\u4F1A", date: /* @__PURE__ */ new Date("2025-05-26T19:00:00"), category: "\u4F1A\u8B70", checklist: [], notes: "\u5927\u4F4F\u516C\u4F1A\u5802\u306B\u3066", attachments: [] },
         { title: "\u7D44\u9577\u4F1A", date: /* @__PURE__ */ new Date("2025-06-26T19:00:00"), category: "\u4F1A\u8B70", checklist: [], notes: "\u5927\u4F4F\u516C\u4F1A\u5802\u306B\u3066", attachments: [] },
         { title: "\u4E16\u5E2F\u5BB6\u65CF\u8ABF\u67FB\u914D\u5E03\u30FB\u56DE\u53CE", date: /* @__PURE__ */ new Date("2025-06-15T00:00:00"), category: "\u884C\u4E8B", checklist: [{ id: "1", text: "\u8ABF\u67FB\u7528\u7D19\u914D\u5E03", completed: false }, { id: "2", text: "\u56DE\u53CE", completed: false }], notes: "\u5404\u4E16\u5E2F\u3078\u306E\u8ABF\u67FB\u7528\u7D19\u306E\u914D\u5E03\u3068\u56DE\u53CE", attachments: [] },
         { title: "\u6CB3\u5DDD\u6E05\u6383\uFF08\u7B2C2\u56DE\uFF09", date: /* @__PURE__ */ new Date("2025-07-06T08:00:00"), category: "\u6E05\u6383", checklist: [{ id: "1", text: "\u624B\u888B\u6E96\u5099", completed: false }], notes: "\u9ED2\u77F3\u5DDD\u5468\u8FBA", attachments: [] },
@@ -760,7 +761,7 @@ var appRouter = router({
         { title: "\u6CB3\u5DDD\u5824\u9632\u8349\u5208\u308A\u306E\u5BFE\u5FDC", body: "\u9ED2\u77F3\u5DDD\u5824\u9632\u306E\u8349\u5208\u308A\u306B\u3064\u3044\u3066\u3001\u5730\u4E3B\u304C\u3044\u308B\u571F\u5730\u306E\u305F\u3081\u76F4\u63A5\u306E\u4F5C\u696D\u306F\u4E0D\u53EF\u3002\u5730\u4E3B\u304C\u696D\u8005\u3092\u624B\u914D\u3057\u3066\u5BFE\u5FDC\u5B8C\u4E86\u3002\u30DE\u30F3\u30B7\u30E7\u30F3\u4F4F\u6C11\u306E\u4F5C\u696D\u306F\u4E0D\u8981\u3068\u78BA\u8A8D\u3002", tags: ["\u6CB3\u5DDD\u6E05\u6383", "\u89E3\u6C7A\u6E08\u307F"], year: 2025, category: "decision", status: "published", isHypothesis: false, relatedLinks: [], publishedAt: /* @__PURE__ */ new Date("2025-09-25") },
         { title: "\u7D44\u9577\u514D\u9664\u5236\u5EA6\u306E\u691C\u8A0E\uFF08\u9032\u884C\u4E2D\uFF09", body: "\u591C\u52E4\u5F93\u4E8B\u8005\u3084\u5C0F\u3055\u306A\u5B50\u4F9B\u304C\u3044\u308B\u5BB6\u5EAD\u304B\u3089\u7D44\u9577\u514D\u9664\u306E\u8981\u671B\u3042\u308A\u3002\u7BA1\u7406\u4F1A\u793E\uFF08\u5E73\u548C\u30CF\u30A6\u30B8\u30F3\u30B0\uFF09\u304B\u3089\u306F\u76F8\u53CD\u3059\u308B\u898B\u89E3\u304C\u51FA\u3066\u304A\u308A\u3001\u4F4F\u6C11\u30A2\u30F3\u30B1\u30FC\u30C8\u3092\u5B9F\u65BD\u3057\u3066\u610F\u898B\u3092\u96C6\u7D04\u4E2D\u30022026\u5E743\u6708\u307E\u3067\u306B\u7D50\u8AD6\u3092\u51FA\u3059\u4E88\u5B9A\u3002", tags: ["\u7D44\u9577\u5236\u5EA6", "\u9032\u884C\u4E2D"], year: 2025, category: "pending", status: "published", isHypothesis: true, relatedLinks: [], publishedAt: /* @__PURE__ */ new Date("2025-11-01") },
         { title: "\u753A\u5185\u4F1A\u9577\u3078\u306E\u7D71\u5408\u63D0\u6848\u66F8\u3092\u63D0\u51FA", body: "\u4EE4\u548C7\u5E7411\u67089\u65E5\u3001\u5927\u6CC9\u753A\u5185\u4F1A\u516B\u753A\u5185\u4F1A\u4F1A\u9577\uFF08\u4E2D\u5C71\u88D5\u4E8C\u69D8\uFF09\u5B9B\u3066\u306B\u300C\u7D44\u9577\u696D\u52D9\u6539\u5584\u306B\u95A2\u3059\u308B\u7D71\u5408\u63D0\u6848\u66F8\u300D\u3092\u63D0\u51FA\u3002\n\n\u63D0\u6848\u5185\u5BB9\uFF1A\n1. \u7D44\u9577\u9078\u51FA\u30EB\u30FC\u30EB\u306E\u78BA\u5B9A\uFF08\u904B\u7528\u7D30\u5247\u306E\u7B56\u5B9A\u5831\u544A\uFF09\n2. \u6CB3\u5DDD\u6E05\u6383\u306E\u5B89\u5168\u914D\u616E\u3068\u53C2\u52A0\u514D\u9664\u57FA\u6E96\n3. \u6CB3\u5DDD\u8349\u5208\u308A\u4F5C\u696D\u306E\u8CAC\u4EFB\u6240\u5728\u78BA\u8A8D\n4. \u5468\u77E5\u4E8B\u9805\u306E\u6539\u5584\uFF08\u753A\u5185\u4F1A\u8CBB\u5FB4\u53CE\u306E\u660E\u78BA\u5316\u3001\u6E05\u6383\u7BC4\u56F2\u306E\u53EF\u8996\u5316\uFF09\n\n12\u6708\u4E2D\u306B\u65B9\u5411\u6027\u306E\u56DE\u7B54\u3092\u4F9D\u983C\u3002\u6700\u7D42\u78BA\u5B9A\u306F\u4EE4\u548C8\u5E743\u6708\u672B\u3002", tags: ["\u753A\u5185\u4F1A", "\u63D0\u6848\u66F8", "\u7D44\u9577\u5236\u5EA6"], year: 2025, category: "decision", status: "published", isHypothesis: false, relatedLinks: [], publishedAt: /* @__PURE__ */ new Date("2025-11-09") },
-        { title: "\u7BA1\u7406\u4F1A\u793E\u3078\u7279\u5B9A\u5165\u5C45\u8005\u5BFE\u5FDC\u3092\u76F8\u8AC7", body: "\u7279\u5B9A\u306E\u5165\u5C45\u8005\u304B\u3089\u7D44\u9577\u514D\u9664\u306E\u5168\u5426\u5B9A\u3084\u300C\u7D44\u9577\u3092\u3057\u306A\u3044\u306A\u3089\u9000\u53BB\u3059\u3079\u304D\u300D\u3068\u3044\u3046\u8DA3\u65E8\u306E\u5F37\u3044\u610F\u898B\u304C\u8907\u6570\u56DE\u6587\u66F8\u3067\u793A\u3055\u308C\u305F\u305F\u3081\u3001\u7BA1\u7406\u4F1A\u793E\uFF08\u5E73\u548C\u30CF\u30A6\u30B8\u30F3\u30B0\uFF09\u3078\u516C\u5F0F\u306A\u8AAC\u660E\u30FB\u6307\u5C0E\u3092\u4F9D\u983C\u3002\n\u7D44\u9577\u696D\u52D9\u306E\u30ED\u30FC\u30C6\u30FC\u30B7\u30E7\u30F3\u4F4D\u7F6E\u3065\u3051\u3001\u514D\u9664\u306E\u8003\u3048\u65B9\u3001\u9000\u53BB\u4E91\u3005\u306F\u6B63\u5F0F\u30EB\u30FC\u30EB\u3067\u306F\u306A\u3044\u3053\u3068\u306E3\u70B9\u306B\u3064\u3044\u3066\u8AAC\u660E\u3092\u8981\u8ACB\u3002\u56DE\u7B54\u5F85\u3061\u3002\n\u203B\u8A72\u5F53\u53F7\u5BA4\u306F\u79D8\u533F\uFF08\u79D8\u533F\u30E1\u30E2\u53C2\u7167\uFF09", tags: ["\u7BA1\u7406\u4F1A\u793E", "\u4F4F\u6C11\u5BFE\u5FDC", "\u9032\u884C\u4E2D"], year: 2025, category: "trouble", status: "published", isHypothesis: false, relatedLinks: [], publishedAt: /* @__PURE__ */ new Date("2026-01-15") },
+        { title: "\u7BA1\u7406\u4F1A\u793E\u3078\u306E\u78BA\u8A8D\u4F9D\u983C", body: "\u7D44\u9577\u696D\u52D9\u306E\u904B\u7528\u306B\u95A2\u3057\u3066\u7BA1\u7406\u4F1A\u793E\uFF08\u5E73\u548C\u30CF\u30A6\u30B8\u30F3\u30B0\uFF09\u3078\u78BA\u8A8D\u3092\u4F9D\u983C\u3002\n\u7D44\u9577\u696D\u52D9\u306E\u4F4D\u7F6E\u3065\u3051\u3001\u514D\u9664\u306E\u8003\u3048\u65B9\u3001\u904B\u7528\u30EB\u30FC\u30EB\u306E\u6574\u7406\u306B\u3064\u3044\u3066\u8AAC\u660E\u3092\u8981\u8ACB\u3002\u56DE\u7B54\u5F85\u3061\u3002", tags: ["\u7BA1\u7406\u4F1A\u793E", "\u9032\u884C\u4E2D"], year: 2025, category: "pending", status: "published", isHypothesis: false, relatedLinks: [], publishedAt: /* @__PURE__ */ new Date("2026-01-15") },
         { title: "\u4F4F\u6C11\u30A2\u30F3\u30B1\u30FC\u30C8\u3092\u914D\u5E03", body: "2026\u5E742\u67084\u65E5\u3001\u51689\u4E16\u5E2F\u306B\u7D44\u9577\u904B\u7528\u306B\u95A2\u3059\u308B\u30A2\u30F3\u30B1\u30FC\u30C8\u3092\u914D\u5E03\u3002\n\n\u4E3B\u306A\u8CEA\u554F\u5185\u5BB9:\n\u30FB\u7D44\u9577\u696D\u52D9\u306E\u8CA0\u62C5\u611F\n\u30FB\u7D44\u9577\u4F1A\u3084\u6CB3\u5DDD\u6E05\u6383\u3078\u306E\u53C2\u52A0\u53EF\u5426\n\u30FB\u4ECA\u5F8C\u306E\u904B\u7528\u65B9\u5411\u6027\uFF08\u4F4F\u6C11\u6301\u3061\u56DE\u308A/\u30AA\u30FC\u30CA\u30FC\u62C5\u5F53/\u6298\u8877\u6848\uFF09\n\u30FB\u5F15\u304D\u7D99\u304E\u65B9\u6CD5\u306E\u6539\u5584\n\n\u80CC\u666F\u3068\u3057\u3066\u3001\u753A\u5185\u4F1A\u9577\u304B\u3089\u306E\u30AA\u30FC\u30CA\u30FC\u5074\u904B\u7528\u3078\u306E\u793A\u5506\u3001\u4ED6\u30DE\u30F3\u30B7\u30E7\u30F3\u5B9F\u4F8B\uFF0821\u7D44\u7B49\uFF09\u3001\u7BA1\u7406\u4F1A\u793E\u306E\u4E0D\u95A2\u4E0E\u30B9\u30BF\u30F3\u30B9\u3092\u5171\u6709\u3002\n\u63D0\u51FA\u671F\u9650: 2026\u5E742\u670828\u65E5\u3002\u56DE\u7B54\u3092\u96C6\u7D04\u3057\u3001\u30AA\u30FC\u30CA\u30FC\u3078\u306E\u7533\u3057\u5165\u308C\u6750\u6599\u3068\u3059\u308B\u4E88\u5B9A\u3002", tags: ["\u30A2\u30F3\u30B1\u30FC\u30C8", "\u7D44\u9577\u5236\u5EA6", "\u4F4F\u6C11\u8ABF\u67FB"], year: 2025, category: "decision", status: "published", isHypothesis: false, relatedLinks: [], publishedAt: /* @__PURE__ */ new Date("2026-02-04") }
       ];
       for (const p of postsData) {
@@ -1042,10 +1043,10 @@ var appRouter = router({
         )
       );
       const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
-      const now = /* @__PURE__ */ new Date();
-      const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, now.getDate());
+      const fiscalYearStart = new Date(input.year, 3, 1);
+      const twelveMonthsBefore = new Date(input.year - 1, 3, 1);
       const lessThanYearHouseholds = new Set(
-        allHouseholds.filter((h) => h.moveInDate && h.moveInDate > twelveMonthsAgo).map((h) => h.householdId)
+        allHouseholds.filter((h) => h.moveInDate && h.moveInDate > twelveMonthsBefore).map((h) => h.householdId)
       );
       const candidates = allHouseholds.filter((h) => {
         return !exemptedHouseholds.has(h.householdId) && !lessThanYearHouseholds.has(h.householdId) && !recentLeaderHouseholds.has(h.householdId);
@@ -1642,10 +1643,10 @@ var appRouter = router({
         )
       );
       const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
-      const now = /* @__PURE__ */ new Date();
-      const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, now.getDate());
+      const fiscalYearStart = new Date(input.year, 3, 1);
+      const twelveMonthsBefore = new Date(input.year - 1, 3, 1);
       const lessThanYearHouseholds = new Set(
-        allHouseholds.filter((h) => h.moveInDate && h.moveInDate > twelveMonthsAgo).map((h) => h.householdId)
+        allHouseholds.filter((h) => h.moveInDate && h.moveInDate > twelveMonthsBefore).map((h) => h.householdId)
       );
       const candidates = allHouseholds.filter((h) => {
         return !exemptedHouseholds.has(h.householdId) && !lessThanYearHouseholds.has(h.householdId) && !recentLeaderHouseholds.has(h.householdId);
@@ -1690,10 +1691,10 @@ var appRouter = router({
         )
       );
       const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
-      const now = /* @__PURE__ */ new Date();
-      const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, now.getDate());
+      const fiscalYearStart = new Date(input.year, 3, 1);
+      const twelveMonthsBefore = new Date(input.year - 1, 3, 1);
       const lessThanYearHouseholds = new Set(
-        allHouseholds.filter((h) => h.moveInDate && h.moveInDate > twelveMonthsAgo).map((h) => h.householdId)
+        allHouseholds.filter((h) => h.moveInDate && h.moveInDate > twelveMonthsBefore).map((h) => h.householdId)
       );
       const householdsWithReasons = allHouseholds.map((h) => {
         const reasons = [];
