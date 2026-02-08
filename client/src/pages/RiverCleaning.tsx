@@ -7,7 +7,6 @@ import {
   Plus,
   Pencil,
   Trash2,
-  ChevronDown,
   Users,
   CalendarDays,
   AlertTriangle,
@@ -25,11 +24,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsibleContent,
-} from "@/components/ui/collapsible";
+import { EditableSections } from "@/components/EditableSection";
 
 interface RunFormData {
   date: string;
@@ -73,13 +68,6 @@ export default function RiverCleaning() {
       utils.data.getRiverCleaningRuns.invalidate();
     },
   });
-
-  // ── SOP accordion state ──
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
-
-  const toggleSection = (key: string) => {
-    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
 
   // ── Add dialog state ──
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -224,95 +212,70 @@ export default function RiverCleaning() {
     </div>
   );
 
-  // ── SOP sections data ──
-  const sopSections = [
-    {
-      key: "policy",
-      icon: <Info className="w-4 h-4 text-gray-400" />,
-      title: "2026年度 方針変更",
-      items: [
-        "出不足金（でぶそくきん）制度を廃止",
-        "小さなお子さんのいる家庭は参加免除",
-        "参加は任意だが、可能な限り協力をお願いする運営へ移行",
-      ],
-    },
-    {
-      key: "timeline",
-      icon: <CalendarDays className="w-4 h-4 text-gray-400" />,
-      title: "準備タイムライン",
-      items: [
-        "T-14日: 組長会で日程確定、回覧作成開始",
-        "T-7日: 回覧配布（参加確認）",
-        "T-2日: 手袋・ゴミ袋を購入（100均、約500円）",
-        "当日 7:50: 組長倉庫から道具を出す",
-        "当日 8:00: グリーンピア玄関前に集合",
-        "当日 8:00-9:00: 清掃作業（黒石川周辺）",
-        "当日 9:00: 片付け・道具を倉庫に戻す",
-      ],
-    },
-    {
-      key: "equipment",
-      icon: <ClipboardList className="w-4 h-4 text-gray-400" />,
-      title: "必要な道具",
-      items: [
-        "平スコップ x2（倉庫）",
-        "剣先スコップ x2（倉庫）",
-        "鎌 x2（倉庫）",
-        "三本爪（レーキ）x1（倉庫）",
-        "三角ホー x2（倉庫）",
-        "使い捨て手袋（組長が毎回購入）",
-        "ゴミ袋（組長が毎回購入）",
-        "各自: 長靴・帽子・飲み物",
-      ],
-    },
-    {
-      key: "safety",
-      icon: <Shield className="w-4 h-4 text-gray-400" />,
-      title: "安全確認事項",
-      items: [
-        "雨天・増水時は中止（前日に判断し回覧で通知）",
-        "長靴の着用必須（川辺の作業あり）",
-        "夏季は帽子・水分補給を徹底（熱中症対策）",
-        "単独行動禁止、声かけ合って作業する",
-        "体調不良時は無理せず即時報告",
-        "刃物（鎌・ホー）の取り扱いに注意",
-      ],
-    },
-    {
-      key: "procedure",
-      icon: <Footprints className="w-4 h-4 text-gray-400" />,
-      title: "当日の流れ",
-      items: [
-        "1. 集合（グリーンピア玄関前）- 出欠確認",
-        "2. 道具配布・エリア分担の説明",
-        "3. 作業開始（黒石川沿い、約1時間）",
-        "4. 集合・点呼・ゴミまとめ",
-        "5. 道具の洗浄・倉庫に返却",
-        "6. 組長が記録を作成（このポータルに入力）",
-      ],
-    },
-    {
-      key: "after",
-      icon: <CheckCircle2 className="w-4 h-4 text-gray-400" />,
-      title: "清掃後の作業",
-      items: [
-        "道具を洗って乾かし、倉庫に収納",
-        "参加者数・問題点をポータルに記録",
-        "次回の改善点があればメモ",
-        "使い捨て手袋の残数を確認、次回分の購入計画",
-      ],
-    },
-    {
-      key: "notes",
-      icon: <AlertTriangle className="w-4 h-4 text-gray-400" />,
-      title: "組長メモ（非公開情報）",
-      items: [
-        "倉庫の鍵: 組長が管理（引き継ぎ時に渡す）",
-        "水道蛇口: エントランス横にあり（道具洗浄用）",
-        "ゴミ袋・手袋の購入費: 1回約500円（古紙回収収入から充当）",
-        "ISY隣接ビル周辺は清掃範囲外（2025年度に確定済み）",
-      ],
-    },
+  // ── SOP sections: icons and default data for EditableSections ──
+  const sectionIcons: Record<string, React.ReactNode> = {
+    policy: <Info className="w-4 h-4 text-gray-400" />,
+    timeline: <CalendarDays className="w-4 h-4 text-gray-400" />,
+    equipment: <ClipboardList className="w-4 h-4 text-gray-400" />,
+    safety: <Shield className="w-4 h-4 text-gray-400" />,
+    procedure: <Footprints className="w-4 h-4 text-gray-400" />,
+    after: <CheckCircle2 className="w-4 h-4 text-gray-400" />,
+    notes: <AlertTriangle className="w-4 h-4 text-gray-400" />,
+  };
+
+  const defaultSopSections = [
+    { sectionKey: "policy", title: "2026年度 方針変更", sortOrder: 0, items: [
+      "出不足金（でぶそくきん）制度を廃止",
+      "小さなお子さんのいる家庭は参加免除",
+      "参加は任意だが、可能な限り協力をお願いする運営へ移行",
+    ]},
+    { sectionKey: "timeline", title: "準備タイムライン", sortOrder: 1, items: [
+      "T-14日: 組長会で日程確定、回覧作成開始",
+      "T-7日: 回覧配布（参加確認）",
+      "T-2日: 手袋・ゴミ袋を購入（100均、約500円）",
+      "当日 7:50: 組長倉庫から道具を出す",
+      "当日 8:00: グリーンピア玄関前に集合",
+      "当日 8:00-9:00: 清掃作業（黒石川周辺）",
+      "当日 9:00: 片付け・道具を倉庫に戻す",
+    ]},
+    { sectionKey: "equipment", title: "必要な道具", sortOrder: 2, items: [
+      "平スコップ x2（倉庫）",
+      "剣先スコップ x2（倉庫）",
+      "鎌 x2（倉庫）",
+      "三本爪（レーキ）x1（倉庫）",
+      "三角ホー x2（倉庫）",
+      "使い捨て手袋（組長が毎回購入）",
+      "ゴミ袋（組長が毎回購入）",
+      "各自: 長靴・帽子・飲み物",
+    ]},
+    { sectionKey: "safety", title: "安全確認事項", sortOrder: 3, items: [
+      "雨天・増水時は中止（前日に判断し回覧で通知）",
+      "長靴の着用必須（川辺の作業あり）",
+      "夏季は帽子・水分補給を徹底（熱中症対策）",
+      "単独行動禁止、声かけ合って作業する",
+      "体調不良時は無理せず即時報告",
+      "刃物（鎌・ホー）の取り扱いに注意",
+    ]},
+    { sectionKey: "procedure", title: "当日の流れ", sortOrder: 4, items: [
+      "1. 集合（グリーンピア玄関前）- 出欠確認",
+      "2. 道具配布・エリア分担の説明",
+      "3. 作業開始（黒石川沿い、約1時間）",
+      "4. 集合・点呼・ゴミまとめ",
+      "5. 道具の洗浄・倉庫に返却",
+      "6. 組長が記録を作成（このポータルに入力）",
+    ]},
+    { sectionKey: "after", title: "清掃後の作業", sortOrder: 5, items: [
+      "道具を洗って乾かし、倉庫に収納",
+      "参加者数・問題点をポータルに記録",
+      "次回の改善点があればメモ",
+      "使い捨て手袋の残数を確認、次回分の購入計画",
+    ]},
+    { sectionKey: "notes", title: "組長メモ（非公開情報）", sortOrder: 6, items: [
+      "倉庫の鍵: 組長が管理（引き継ぎ時に渡す）",
+      "水道蛇口: エントランス横にあり（道具洗浄用）",
+      "ゴミ袋・手袋の購入費: 1回約500円（古紙回収収入から充当）",
+      "ISY隣接ビル周辺は清掃範囲外（2025年度に確定済み）",
+    ]},
   ];
 
   return (
@@ -347,46 +310,11 @@ export default function RiverCleaning() {
           <h2 className="text-lg font-light text-gray-900 tracking-wide mb-6">
             作業手順ガイド
           </h2>
-          <div className="space-y-0 divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden">
-            {sopSections.map((section) => (
-              <Collapsible
-                key={section.key}
-                open={!!openSections[section.key]}
-                onOpenChange={() => toggleSection(section.key)}
-              >
-                <CollapsibleTrigger className="flex items-center justify-between w-full px-5 py-4 text-left hover:bg-gray-50/50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    {section.icon}
-                    <span className="text-sm font-light text-gray-900">
-                      {section.title}
-                    </span>
-                  </div>
-                  <ChevronDown
-                    className={`w-4 h-4 text-gray-300 transition-transform ${
-                      openSections[section.key] ? "rotate-180" : ""
-                    }`}
-                  />
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="px-5 pb-4 pl-12">
-                    <ul className="space-y-2">
-                      {section.items.map((item, i) => (
-                        <li
-                          key={i}
-                          className="text-sm font-light text-gray-500 flex items-start gap-2"
-                        >
-                          <span className="text-gray-300 mt-0.5 flex-shrink-0">
-                            &mdash;
-                          </span>
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            ))}
-          </div>
+          <EditableSections
+            pageKey="river_cleaning"
+            defaultSections={defaultSopSections}
+            sectionIcons={sectionIcons}
+          />
         </section>
 
         {/* ══════════════════════════════════════════════

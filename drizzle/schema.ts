@@ -428,3 +428,17 @@ export const formResponseItems = pgTable("form_response_items", {
 
 export type FormResponseItem = typeof formResponseItems.$inferSelect;
 export type InsertFormResponseItem = typeof formResponseItems.$inferInsert;
+
+// ページ編集可能コンテンツ（SOP等の静的セクション管理）
+export const pageContent = pgTable("page_content", {
+  id: serial("id").primaryKey(),
+  pageKey: varchar("pageKey", { length: 100 }).notNull(),
+  sectionKey: varchar("sectionKey", { length: 100 }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  items: jsonb("items").$type<string[]>().notNull(),
+  sortOrder: integer("sortOrder").default(0).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+export type PageContent = typeof pageContent.$inferSelect;
+export type InsertPageContent = typeof pageContent.$inferInsert;

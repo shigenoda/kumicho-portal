@@ -41,20 +41,37 @@ export default function MemberHome() {
 
   // 現年度の担当・次年度の候補を抽出
   const currentPrimary = useMemo(() => {
-    if (!currentLeader || !Array.isArray(currentLeader)) return null;
-    return currentLeader.find((h: any) => h.status === "担当");
+    if (!currentLeader) return null;
+    const data = currentLeader as any;
+    if (data.schedule?.householdId) {
+      return { householdId: data.schedule.householdId };
+    }
+    // Fallback: first candidate with isCandidate=true
+    if (data.households) {
+      const candidate = data.households.find((h: any) => h.isCandidate);
+      return candidate ? { householdId: candidate.householdId } : null;
+    }
+    return null;
   }, [currentLeader]);
 
   const nextPrimary = useMemo(() => {
-    if (!nextLeader || !Array.isArray(nextLeader)) return null;
-    return nextLeader.find((h: any) => h.status === "担当");
+    if (!nextLeader) return null;
+    const data = nextLeader as any;
+    if (data.schedule?.householdId) {
+      return { householdId: data.schedule.householdId };
+    }
+    if (data.households) {
+      const candidate = data.households.find((h: any) => h.isCandidate);
+      return candidate ? { householdId: candidate.householdId } : null;
+    }
+    return null;
   }, [nextLeader]);
 
   // 次年度のスケジュール情報
-  const { data: nextSchedules = [] } = trpc.memberTop.getLeaderSchedule.useQuery(
-    { year: nextYear }
-  );
-  const nextSchedule = nextSchedules.find((s: any) => s.year === nextYear);
+  const nextSchedule = useMemo(() => {
+    if (!nextLeader) return null;
+    return (nextLeader as any).schedule ?? null;
+  }, [nextLeader]);
 
   const deleteFormMutation = trpc.data.deleteForm.useMutation();
 

@@ -415,9 +415,16 @@ export default function PendingQueue() {
 
                     {/* Footer: date + actions */}
                     <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
-                      <time className="text-xs text-gray-400 font-light">
-                        {formatDate(item.createdAt)}
-                      </time>
+                      <div className="flex flex-col gap-0.5">
+                        <time className="text-xs text-gray-400 font-light">
+                          {formatDate(item.createdAt)}
+                        </time>
+                        {item.updatedAt && item.updatedAt !== item.createdAt && (
+                          <span className="text-xs text-gray-300 font-light">
+                            最終更新: {new Date(item.updatedAt).toLocaleDateString("ja-JP")}
+                          </span>
+                        )}
+                      </div>
 
                       <div className="flex items-center gap-2">
                         {/* Quick status actions (only show for non-resolved/non-transferred) */}

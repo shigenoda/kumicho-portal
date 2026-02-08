@@ -460,6 +460,15 @@ var formResponseItems = pgTable("form_response_items", {
   textAnswer: text("textAnswer"),
   createdAt: timestamp("createdAt").defaultNow().notNull()
 });
+var pageContent = pgTable("page_content", {
+  id: serial("id").primaryKey(),
+  pageKey: varchar("pageKey", { length: 100 }).notNull(),
+  sectionKey: varchar("sectionKey", { length: 100 }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  items: jsonb("items").$type().notNull(),
+  sortOrder: integer("sortOrder").default(0).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull()
+});
 
 // server/db.ts
 var _db = null;
@@ -577,6 +586,7 @@ var appRouter = router({
         await db.delete(secretNotes);
         await db.delete(vaultEntries);
         await db.delete(riverCleaningRuns);
+        await db.delete(pageContent);
         await db.delete(posts);
         await db.delete(pendingQueue);
         await db.delete(handoverBagItems);
@@ -898,6 +908,70 @@ var appRouter = router({
         { questionId: cq2.id, choiceText: "\u5BB6\u5EAD\u306E\u4E8B\u60C5", orderIndex: 3 },
         { questionId: cq2.id, choiceText: "\u305D\u306E\u4ED6", orderIndex: 4 }
       ]);
+      const riverCleaningSections = [
+        { sectionKey: "policy", title: "2026\u5E74\u5EA6 \u65B9\u91DD\u5909\u66F4", sortOrder: 0, items: [
+          "\u51FA\u4E0D\u8DB3\u91D1\uFF08\u3067\u3076\u305D\u304F\u304D\u3093\uFF09\u5236\u5EA6\u3092\u5EC3\u6B62",
+          "\u5C0F\u3055\u306A\u304A\u5B50\u3055\u3093\u306E\u3044\u308B\u5BB6\u5EAD\u306F\u53C2\u52A0\u514D\u9664",
+          "\u53C2\u52A0\u306F\u4EFB\u610F\u3060\u304C\u3001\u53EF\u80FD\u306A\u9650\u308A\u5354\u529B\u3092\u304A\u9858\u3044\u3059\u308B\u904B\u55B6\u3078\u79FB\u884C"
+        ] },
+        { sectionKey: "timeline", title: "\u6E96\u5099\u30BF\u30A4\u30E0\u30E9\u30A4\u30F3", sortOrder: 1, items: [
+          "T-14\u65E5: \u7D44\u9577\u4F1A\u3067\u65E5\u7A0B\u78BA\u5B9A\u3001\u56DE\u89A7\u4F5C\u6210\u958B\u59CB",
+          "T-7\u65E5: \u56DE\u89A7\u914D\u5E03\uFF08\u53C2\u52A0\u78BA\u8A8D\uFF09",
+          "T-2\u65E5: \u624B\u888B\u30FB\u30B4\u30DF\u888B\u3092\u8CFC\u5165\uFF08100\u5747\u3001\u7D04500\u5186\uFF09",
+          "\u5F53\u65E5 7:50: \u7D44\u9577\u5009\u5EAB\u304B\u3089\u9053\u5177\u3092\u51FA\u3059",
+          "\u5F53\u65E5 8:00: \u30B0\u30EA\u30FC\u30F3\u30D4\u30A2\u7384\u95A2\u524D\u306B\u96C6\u5408",
+          "\u5F53\u65E5 8:00-9:00: \u6E05\u6383\u4F5C\u696D\uFF08\u9ED2\u77F3\u5DDD\u5468\u8FBA\uFF09",
+          "\u5F53\u65E5 9:00: \u7247\u4ED8\u3051\u30FB\u9053\u5177\u3092\u5009\u5EAB\u306B\u623B\u3059"
+        ] },
+        { sectionKey: "equipment", title: "\u5FC5\u8981\u306A\u9053\u5177", sortOrder: 2, items: [
+          "\u5E73\u30B9\u30B3\u30C3\u30D7 x2\uFF08\u5009\u5EAB\uFF09",
+          "\u5263\u5148\u30B9\u30B3\u30C3\u30D7 x2\uFF08\u5009\u5EAB\uFF09",
+          "\u938C x2\uFF08\u5009\u5EAB\uFF09",
+          "\u4E09\u672C\u722A\uFF08\u30EC\u30FC\u30AD\uFF09x1\uFF08\u5009\u5EAB\uFF09",
+          "\u4E09\u89D2\u30DB\u30FC x2\uFF08\u5009\u5EAB\uFF09",
+          "\u4F7F\u3044\u6368\u3066\u624B\u888B\uFF08\u7D44\u9577\u304C\u6BCE\u56DE\u8CFC\u5165\uFF09",
+          "\u30B4\u30DF\u888B\uFF08\u7D44\u9577\u304C\u6BCE\u56DE\u8CFC\u5165\uFF09",
+          "\u5404\u81EA: \u9577\u9774\u30FB\u5E3D\u5B50\u30FB\u98F2\u307F\u7269"
+        ] },
+        { sectionKey: "safety", title: "\u5B89\u5168\u78BA\u8A8D\u4E8B\u9805", sortOrder: 3, items: [
+          "\u96E8\u5929\u30FB\u5897\u6C34\u6642\u306F\u4E2D\u6B62\uFF08\u524D\u65E5\u306B\u5224\u65AD\u3057\u56DE\u89A7\u3067\u901A\u77E5\uFF09",
+          "\u9577\u9774\u306E\u7740\u7528\u5FC5\u9808\uFF08\u5DDD\u8FBA\u306E\u4F5C\u696D\u3042\u308A\uFF09",
+          "\u590F\u5B63\u306F\u5E3D\u5B50\u30FB\u6C34\u5206\u88DC\u7D66\u3092\u5FB9\u5E95\uFF08\u71B1\u4E2D\u75C7\u5BFE\u7B56\uFF09",
+          "\u5358\u72EC\u884C\u52D5\u7981\u6B62\u3001\u58F0\u304B\u3051\u5408\u3063\u3066\u4F5C\u696D\u3059\u308B",
+          "\u4F53\u8ABF\u4E0D\u826F\u6642\u306F\u7121\u7406\u305B\u305A\u5373\u6642\u5831\u544A",
+          "\u5203\u7269\uFF08\u938C\u30FB\u30DB\u30FC\uFF09\u306E\u53D6\u308A\u6271\u3044\u306B\u6CE8\u610F"
+        ] },
+        { sectionKey: "procedure", title: "\u5F53\u65E5\u306E\u6D41\u308C", sortOrder: 4, items: [
+          "1. \u96C6\u5408\uFF08\u30B0\u30EA\u30FC\u30F3\u30D4\u30A2\u7384\u95A2\u524D\uFF09- \u51FA\u6B20\u78BA\u8A8D",
+          "2. \u9053\u5177\u914D\u5E03\u30FB\u30A8\u30EA\u30A2\u5206\u62C5\u306E\u8AAC\u660E",
+          "3. \u4F5C\u696D\u958B\u59CB\uFF08\u9ED2\u77F3\u5DDD\u6CBF\u3044\u3001\u7D041\u6642\u9593\uFF09",
+          "4. \u96C6\u5408\u30FB\u70B9\u547C\u30FB\u30B4\u30DF\u307E\u3068\u3081",
+          "5. \u9053\u5177\u306E\u6D17\u6D44\u30FB\u5009\u5EAB\u306B\u8FD4\u5374",
+          "6. \u7D44\u9577\u304C\u8A18\u9332\u3092\u4F5C\u6210\uFF08\u3053\u306E\u30DD\u30FC\u30BF\u30EB\u306B\u5165\u529B\uFF09"
+        ] },
+        { sectionKey: "after", title: "\u6E05\u6383\u5F8C\u306E\u4F5C\u696D", sortOrder: 5, items: [
+          "\u9053\u5177\u3092\u6D17\u3063\u3066\u4E7E\u304B\u3057\u3001\u5009\u5EAB\u306B\u53CE\u7D0D",
+          "\u53C2\u52A0\u8005\u6570\u30FB\u554F\u984C\u70B9\u3092\u30DD\u30FC\u30BF\u30EB\u306B\u8A18\u9332",
+          "\u6B21\u56DE\u306E\u6539\u5584\u70B9\u304C\u3042\u308C\u3070\u30E1\u30E2",
+          "\u4F7F\u3044\u6368\u3066\u624B\u888B\u306E\u6B8B\u6570\u3092\u78BA\u8A8D\u3001\u6B21\u56DE\u5206\u306E\u8CFC\u5165\u8A08\u753B"
+        ] },
+        { sectionKey: "notes", title: "\u7D44\u9577\u30E1\u30E2\uFF08\u975E\u516C\u958B\u60C5\u5831\uFF09", sortOrder: 6, items: [
+          "\u5009\u5EAB\u306E\u9375: \u7D44\u9577\u304C\u7BA1\u7406\uFF08\u5F15\u304D\u7D99\u304E\u6642\u306B\u6E21\u3059\uFF09",
+          "\u6C34\u9053\u86C7\u53E3: \u30A8\u30F3\u30C8\u30E9\u30F3\u30B9\u6A2A\u306B\u3042\u308A\uFF08\u9053\u5177\u6D17\u6D44\u7528\uFF09",
+          "\u30B4\u30DF\u888B\u30FB\u624B\u888B\u306E\u8CFC\u5165\u8CBB: 1\u56DE\u7D04500\u5186\uFF08\u53E4\u7D19\u56DE\u53CE\u53CE\u5165\u304B\u3089\u5145\u5F53\uFF09",
+          "ISY\u96A3\u63A5\u30D3\u30EB\u5468\u8FBA\u306F\u6E05\u6383\u7BC4\u56F2\u5916\uFF082025\u5E74\u5EA6\u306B\u78BA\u5B9A\u6E08\u307F\uFF09"
+        ] }
+      ];
+      for (const section of riverCleaningSections) {
+        await db.insert(pageContent).values({
+          pageKey: "river_cleaning",
+          sectionKey: section.sectionKey,
+          title: section.title,
+          items: section.items,
+          sortOrder: section.sortOrder,
+          updatedAt: /* @__PURE__ */ new Date()
+        });
+      }
       await db.insert(changelog).values({
         summary: "\u30B0\u30EA\u30FC\u30F3\u30D4\u30A2\u713C\u6D25\u30DD\u30FC\u30BF\u30EB\u521D\u671F\u30C7\u30FC\u30BF\u6295\u5165\u5B8C\u4E86",
         date: /* @__PURE__ */ new Date(),
@@ -1938,6 +2012,126 @@ var appRouter = router({
         console.error("Form deletion error:", error);
         throw new Error("Failed to delete form");
       }
+    }),
+    // ── ページコンテンツ管理 ──
+    getPageContent: publicProcedure.input(z2.object({ pageKey: z2.string() })).query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      return db.select().from(pageContent).where(eq2(pageContent.pageKey, input.pageKey)).orderBy(asc(pageContent.sortOrder));
+    }),
+    upsertPageContent: publicProcedure.input(
+      z2.object({
+        pageKey: z2.string(),
+        sectionKey: z2.string(),
+        title: z2.string(),
+        items: z2.array(z2.string()),
+        sortOrder: z2.number().optional()
+      })
+    ).mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const existing = await db.select().from(pageContent).where(
+        and(
+          eq2(pageContent.pageKey, input.pageKey),
+          eq2(pageContent.sectionKey, input.sectionKey)
+        )
+      );
+      if (existing.length > 0) {
+        await db.update(pageContent).set({
+          title: input.title,
+          items: input.items,
+          sortOrder: input.sortOrder ?? existing[0].sortOrder,
+          updatedAt: /* @__PURE__ */ new Date()
+        }).where(eq2(pageContent.id, existing[0].id));
+        await logChange(
+          `\u30DA\u30FC\u30B8\u30B3\u30F3\u30C6\u30F3\u30C4\u300C${input.title}\u300D\u3092\u66F4\u65B0 (${input.pageKey}/${input.sectionKey})`,
+          "pageContent",
+          existing[0].id
+        );
+        return { success: true, id: existing[0].id };
+      } else {
+        const [row] = await db.insert(pageContent).values({
+          pageKey: input.pageKey,
+          sectionKey: input.sectionKey,
+          title: input.title,
+          items: input.items,
+          sortOrder: input.sortOrder ?? 0,
+          updatedAt: /* @__PURE__ */ new Date()
+        }).returning();
+        await logChange(
+          `\u30DA\u30FC\u30B8\u30B3\u30F3\u30C6\u30F3\u30C4\u300C${input.title}\u300D\u3092\u4F5C\u6210 (${input.pageKey}/${input.sectionKey})`,
+          "pageContent",
+          row.id
+        );
+        return { success: true, id: row.id };
+      }
+    }),
+    updatePageContentItem: publicProcedure.input(
+      z2.object({
+        id: z2.number(),
+        title: z2.string().optional(),
+        items: z2.array(z2.string()).optional()
+      })
+    ).mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const updateData = { updatedAt: /* @__PURE__ */ new Date() };
+      if (input.title !== void 0) updateData.title = input.title;
+      if (input.items !== void 0) updateData.items = input.items;
+      await db.update(pageContent).set(updateData).where(eq2(pageContent.id, input.id));
+      await logChange(
+        `\u30DA\u30FC\u30B8\u30B3\u30F3\u30C6\u30F3\u30C4 (ID: ${input.id}) \u3092\u66F4\u65B0`,
+        "pageContent",
+        input.id
+      );
+      return { success: true };
+    }),
+    deletePageContent: publicProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      await db.delete(pageContent).where(eq2(pageContent.id, input.id));
+      await logChange(
+        `\u30DA\u30FC\u30B8\u30B3\u30F3\u30C6\u30F3\u30C4 (ID: ${input.id}) \u3092\u524A\u9664`,
+        "pageContent",
+        input.id
+      );
+      return { success: true };
+    }),
+    // ページコンテンツの一括初期化（デフォルトデータ投入）
+    initPageContent: publicProcedure.input(
+      z2.object({
+        pageKey: z2.string(),
+        sections: z2.array(
+          z2.object({
+            sectionKey: z2.string(),
+            title: z2.string(),
+            items: z2.array(z2.string()),
+            sortOrder: z2.number()
+          })
+        )
+      })
+    ).mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const existing = await db.select().from(pageContent).where(eq2(pageContent.pageKey, input.pageKey));
+      if (existing.length > 0) {
+        return { success: true, skipped: true };
+      }
+      for (const section of input.sections) {
+        await db.insert(pageContent).values({
+          pageKey: input.pageKey,
+          sectionKey: section.sectionKey,
+          title: section.title,
+          items: section.items,
+          sortOrder: section.sortOrder,
+          updatedAt: /* @__PURE__ */ new Date()
+        });
+      }
+      await logChange(
+        `\u30DA\u30FC\u30B8\u30B3\u30F3\u30C6\u30F3\u30C4\u300C${input.pageKey}\u300D\u3092\u521D\u671F\u5316 (${input.sections.length}\u30BB\u30AF\u30B7\u30E7\u30F3)`,
+        "pageContent"
+      );
+      return { success: true, skipped: false };
     })
   }),
   // 投稿管理 API

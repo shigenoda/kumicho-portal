@@ -30,6 +30,7 @@ import {
   vaultEntries,
   auditLogs,
   riverCleaningRuns,
+  pageContent,
 } from "../drizzle/schema";
 
 // 変更ログをDBに記録するヘルパー
@@ -80,6 +81,7 @@ export const appRouter = router({
         await db.delete(secretNotes);
         await db.delete(vaultEntries);
         await db.delete(riverCleaningRuns);
+        await db.delete(pageContent);
         await db.delete(posts);
         await db.delete(pendingQueue);
         await db.delete(handoverBagItems);
@@ -451,6 +453,72 @@ export const appRouter = router({
         { questionId: cq2.id, choiceText: "家庭の事情", orderIndex: 3 },
         { questionId: cq2.id, choiceText: "その他", orderIndex: 4 },
       ]);
+
+      // ── ページコンテンツ（河川清掃SOP）──
+      const riverCleaningSections = [
+        { sectionKey: "policy", title: "2026年度 方針変更", sortOrder: 0, items: [
+          "出不足金（でぶそくきん）制度を廃止",
+          "小さなお子さんのいる家庭は参加免除",
+          "参加は任意だが、可能な限り協力をお願いする運営へ移行",
+        ]},
+        { sectionKey: "timeline", title: "準備タイムライン", sortOrder: 1, items: [
+          "T-14日: 組長会で日程確定、回覧作成開始",
+          "T-7日: 回覧配布（参加確認）",
+          "T-2日: 手袋・ゴミ袋を購入（100均、約500円）",
+          "当日 7:50: 組長倉庫から道具を出す",
+          "当日 8:00: グリーンピア玄関前に集合",
+          "当日 8:00-9:00: 清掃作業（黒石川周辺）",
+          "当日 9:00: 片付け・道具を倉庫に戻す",
+        ]},
+        { sectionKey: "equipment", title: "必要な道具", sortOrder: 2, items: [
+          "平スコップ x2（倉庫）",
+          "剣先スコップ x2（倉庫）",
+          "鎌 x2（倉庫）",
+          "三本爪（レーキ）x1（倉庫）",
+          "三角ホー x2（倉庫）",
+          "使い捨て手袋（組長が毎回購入）",
+          "ゴミ袋（組長が毎回購入）",
+          "各自: 長靴・帽子・飲み物",
+        ]},
+        { sectionKey: "safety", title: "安全確認事項", sortOrder: 3, items: [
+          "雨天・増水時は中止（前日に判断し回覧で通知）",
+          "長靴の着用必須（川辺の作業あり）",
+          "夏季は帽子・水分補給を徹底（熱中症対策）",
+          "単独行動禁止、声かけ合って作業する",
+          "体調不良時は無理せず即時報告",
+          "刃物（鎌・ホー）の取り扱いに注意",
+        ]},
+        { sectionKey: "procedure", title: "当日の流れ", sortOrder: 4, items: [
+          "1. 集合（グリーンピア玄関前）- 出欠確認",
+          "2. 道具配布・エリア分担の説明",
+          "3. 作業開始（黒石川沿い、約1時間）",
+          "4. 集合・点呼・ゴミまとめ",
+          "5. 道具の洗浄・倉庫に返却",
+          "6. 組長が記録を作成（このポータルに入力）",
+        ]},
+        { sectionKey: "after", title: "清掃後の作業", sortOrder: 5, items: [
+          "道具を洗って乾かし、倉庫に収納",
+          "参加者数・問題点をポータルに記録",
+          "次回の改善点があればメモ",
+          "使い捨て手袋の残数を確認、次回分の購入計画",
+        ]},
+        { sectionKey: "notes", title: "組長メモ（非公開情報）", sortOrder: 6, items: [
+          "倉庫の鍵: 組長が管理（引き継ぎ時に渡す）",
+          "水道蛇口: エントランス横にあり（道具洗浄用）",
+          "ゴミ袋・手袋の購入費: 1回約500円（古紙回収収入から充当）",
+          "ISY隣接ビル周辺は清掃範囲外（2025年度に確定済み）",
+        ]},
+      ];
+      for (const section of riverCleaningSections) {
+        await db.insert(pageContent).values({
+          pageKey: "river_cleaning",
+          sectionKey: section.sectionKey,
+          title: section.title,
+          items: section.items,
+          sortOrder: section.sortOrder,
+          updatedAt: new Date(),
+        });
+      }
 
       // 初回ログ
       await db.insert(changelog).values({
@@ -1911,6 +1979,172 @@ export const appRouter = router({
           console.error("Form deletion error:", error);
           throw new Error("Failed to delete form");
         }
+      }),
+
+    // ── ページコンテンツ管理 ──
+    getPageContent: publicProcedure
+      .input(z.object({ pageKey: z.string() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        return db
+          .select()
+          .from(pageContent)
+          .where(eq(pageContent.pageKey, input.pageKey))
+          .orderBy(asc(pageContent.sortOrder));
+      }),
+
+    upsertPageContent: publicProcedure
+      .input(
+        z.object({
+          pageKey: z.string(),
+          sectionKey: z.string(),
+          title: z.string(),
+          items: z.array(z.string()),
+          sortOrder: z.number().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const existing = await db
+          .select()
+          .from(pageContent)
+          .where(
+            and(
+              eq(pageContent.pageKey, input.pageKey),
+              eq(pageContent.sectionKey, input.sectionKey)
+            )
+          );
+
+        if (existing.length > 0) {
+          await db
+            .update(pageContent)
+            .set({
+              title: input.title,
+              items: input.items,
+              sortOrder: input.sortOrder ?? existing[0].sortOrder,
+              updatedAt: new Date(),
+            })
+            .where(eq(pageContent.id, existing[0].id));
+
+          await logChange(
+            `ページコンテンツ「${input.title}」を更新 (${input.pageKey}/${input.sectionKey})`,
+            "pageContent",
+            existing[0].id
+          );
+          return { success: true, id: existing[0].id };
+        } else {
+          const [row] = await db
+            .insert(pageContent)
+            .values({
+              pageKey: input.pageKey,
+              sectionKey: input.sectionKey,
+              title: input.title,
+              items: input.items,
+              sortOrder: input.sortOrder ?? 0,
+              updatedAt: new Date(),
+            })
+            .returning();
+
+          await logChange(
+            `ページコンテンツ「${input.title}」を作成 (${input.pageKey}/${input.sectionKey})`,
+            "pageContent",
+            row.id
+          );
+          return { success: true, id: row.id };
+        }
+      }),
+
+    updatePageContentItem: publicProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          title: z.string().optional(),
+          items: z.array(z.string()).optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const updateData: Record<string, any> = { updatedAt: new Date() };
+        if (input.title !== undefined) updateData.title = input.title;
+        if (input.items !== undefined) updateData.items = input.items;
+
+        await db
+          .update(pageContent)
+          .set(updateData)
+          .where(eq(pageContent.id, input.id));
+
+        await logChange(
+          `ページコンテンツ (ID: ${input.id}) を更新`,
+          "pageContent",
+          input.id
+        );
+        return { success: true };
+      }),
+
+    deletePageContent: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(pageContent).where(eq(pageContent.id, input.id));
+        await logChange(
+          `ページコンテンツ (ID: ${input.id}) を削除`,
+          "pageContent",
+          input.id
+        );
+        return { success: true };
+      }),
+
+    // ページコンテンツの一括初期化（デフォルトデータ投入）
+    initPageContent: publicProcedure
+      .input(
+        z.object({
+          pageKey: z.string(),
+          sections: z.array(
+            z.object({
+              sectionKey: z.string(),
+              title: z.string(),
+              items: z.array(z.string()),
+              sortOrder: z.number(),
+            })
+          ),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        // Only init if page has no content yet
+        const existing = await db
+          .select()
+          .from(pageContent)
+          .where(eq(pageContent.pageKey, input.pageKey));
+
+        if (existing.length > 0) {
+          return { success: true, skipped: true };
+        }
+
+        for (const section of input.sections) {
+          await db.insert(pageContent).values({
+            pageKey: input.pageKey,
+            sectionKey: section.sectionKey,
+            title: section.title,
+            items: section.items,
+            sortOrder: section.sortOrder,
+            updatedAt: new Date(),
+          });
+        }
+
+        await logChange(
+          `ページコンテンツ「${input.pageKey}」を初期化 (${input.sections.length}セクション)`,
+          "pageContent"
+        );
+        return { success: true, skipped: false };
       }),
   }),
 
