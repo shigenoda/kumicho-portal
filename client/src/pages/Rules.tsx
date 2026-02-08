@@ -1,4 +1,3 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, Scale, AlertCircle, Pencil, Trash2 } from "lucide-react";
@@ -7,16 +6,11 @@ import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 
 export default function Rules() {
-  const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const [selectedYear, setSelectedYear] = useState(2026);
   const [editingId, setEditingId] = useState<number | null>(null);
   const { data: rules = [] } = trpc.data.getRules.useQuery();
   const { data: rotationData } = trpc.data.getRotationWithReasons.useQuery({ year: selectedYear });
-
-  if (!isAuthenticated) {
-    return <div className="page-container flex items-center justify-center min-h-screen">ログインが必要です</div>;
-  }
 
   const decidedRules = rules.filter((r) => r.status === "decided");
   const pendingRules = rules.filter((r) => r.status === "pending");
@@ -95,6 +89,11 @@ export default function Rules() {
                       </ul>
                     </div>
                   )}
+                  {rule.updatedAt && (
+                    <p className="text-xs text-gray-400 font-light mt-3">
+                      最終更新: {new Date(rule.updatedAt).toLocaleDateString("ja-JP")}
+                    </p>
+                  )}
                 </Card>
               ))}
             </div>
@@ -123,6 +122,11 @@ export default function Rules() {
                   <div className="bg-muted p-4 rounded text-sm text-muted-foreground whitespace-pre-wrap">
                     {rule.details}
                   </div>
+                  {rule.updatedAt && (
+                    <p className="text-xs text-gray-400 font-light mt-3">
+                      最終更新: {new Date(rule.updatedAt).toLocaleDateString("ja-JP")}
+                    </p>
+                  )}
                 </Card>
               ))}
             </div>

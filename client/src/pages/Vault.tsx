@@ -1,40 +1,17 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Copy, Eye, EyeOff, Lock } from "lucide-react";
+import { AlertCircle, Copy, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 
 /**
- * Private Vault ページ - Admin限定秘匿情報管理
+ * Private Vault ページ - 秘匿情報管理
  * マスキング表示がデフォルト、チェックボックスで一時表示
  * 監査ログに記録
  */
 export default function Vault() {
-  const { user } = useAuth();
   const [, setLocation] = useLocation();
   const [revealed, setRevealed] = useState<Record<number, boolean>>({});
   const [copied, setCopied] = useState<Record<number, boolean>>({});
-
-  // Admin限定チェック
-  if (user?.role !== "admin") {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center px-4">
-        <div className="max-w-md text-center">
-          <Lock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h1 className="text-2xl font-light text-gray-900 mb-2">アクセス拒否</h1>
-          <p className="text-gray-600 mb-6">
-            Private Vault は Admin のみアクセス可能です
-          </p>
-          <Button
-            onClick={() => setLocation("/")}
-            className="w-full bg-blue-900 hover:bg-blue-800 text-white"
-          >
-            トップに戻る
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   // サンプルデータ
   const vaultEntries = [

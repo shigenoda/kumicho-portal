@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Edit2, Trash2, Eye, Download, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/_core/hooks/useAuth";
 import { FormStatsModal } from "./FormStats";
 
 /**
@@ -12,7 +11,6 @@ import { FormStatsModal } from "./FormStats";
  * 汎用フォーム作成・編集・削除・回答結果管理
  */
 export default function Forms() {
-  const { user } = useAuth();
   const [, setLocation] = useLocation();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingFormId, setEditingFormId] = useState<number | null>(null);
@@ -41,18 +39,6 @@ export default function Forms() {
       alert("フォーム削除に失敗しました");
     }
   };
-
-  // Admin以外はアクセス不可
-  if (user?.role !== "admin") {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center px-4">
-        <div className="max-w-md text-center">
-          <h1 className="text-2xl font-light mb-4 text-gray-900">アクセス権限がありません</h1>
-          <p className="text-gray-600">このページはAdmin限定です。</p>
-        </div>
-      </div>
-    );
-  }
 
   const handleCreateForm = async () => {
     if (!formTitle.trim()) {

@@ -12,7 +12,6 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
 
 interface Question {
@@ -28,7 +27,6 @@ interface Question {
  * 質問・選択肢の追加・編集・削除、ドラッグ&ドロップで順序変更
  */
 export default function FormBuilder() {
-  const { user } = useAuth();
   const [, navigate] = useLocation();
 
   const [formTitle, setFormTitle] = useState("");
@@ -41,20 +39,6 @@ export default function FormBuilder() {
 
   const createFormMutation = trpc.data.createForm.useMutation();
   const utils = trpc.useUtils();
-
-  // Admin以外はアクセス不可
-  if (user?.role !== "admin") {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center px-4">
-        <div className="max-w-md text-center">
-          <h1 className="text-2xl font-light mb-4 text-gray-900">
-            アクセス権限がありません
-          </h1>
-          <p className="text-gray-600">このページはAdmin限定です。</p>
-        </div>
-      </div>
-    );
-  }
 
   const addQuestion = () => {
     const newQuestion: Question = {

@@ -1,16 +1,10 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, Settings } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function AdminDashboard() {
-  const { isAuthenticated, user } = useAuth();
   const [, setLocation] = useLocation();
-
-  if (!isAuthenticated || user?.role !== "admin") {
-    return <div className="page-container flex items-center justify-center min-h-screen">Admin アクセスが必要です</div>;
-  }
 
   return (
     <div className="page-container">

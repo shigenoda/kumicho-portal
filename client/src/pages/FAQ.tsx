@@ -4,7 +4,6 @@ import { ArrowLeft, HelpCircle, Pencil, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
-import { useAuth } from "@/_core/hooks/useAuth";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +15,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 export default function FAQ() {
-  const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const { data: faqData = [], refetch } = trpc.data.getFAQ.useQuery();
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -26,14 +24,6 @@ export default function FAQ() {
 
   const updateFAQMutation = trpc.data.updateFAQ.useMutation();
   const deleteFAQMutation = trpc.data.deleteFAQ.useMutation();
-
-  if (!isAuthenticated) {
-    return (
-      <div className="page-container flex items-center justify-center min-h-screen">
-        ログインが必要です
-      </div>
-    );
-  }
 
   const handleEditClick = (item: any) => {
     setEditingId(item.id);
@@ -154,6 +144,11 @@ export default function FAQ() {
                     <div className="text-muted-foreground whitespace-pre-wrap mb-4">
                       {item.answer}
                     </div>
+                    {item.updatedAt && (
+                      <p className="text-xs text-gray-400 font-light mb-3">
+                        最終更新: {new Date(item.updatedAt).toLocaleDateString("ja-JP")}
+                      </p>
+                    )}
                     {(item.relatedRuleIds?.length > 0 ||
                       item.relatedPostIds?.length > 0) && (
                       <div className="pt-4 border-t border-border">

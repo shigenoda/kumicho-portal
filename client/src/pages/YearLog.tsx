@@ -1,4 +1,3 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, BookOpen, Pencil, Trash2 } from "lucide-react";
@@ -7,14 +6,9 @@ import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 
 export default function YearLog() {
-  const { isAuthenticated, user } = useAuth();
   const [, setLocation] = useLocation();
   const [editingId, setEditingId] = useState<number | null>(null);
   const { data: posts = [] } = trpc.data.getPosts.useQuery({ year: new Date().getFullYear() });
-
-  if (!isAuthenticated) {
-    return <div className="page-container flex items-center justify-center min-h-screen">ログインが必要です</div>;
-  }
 
   const getCategoryBadgeColor = (category: string) => {
     const colors: Record<string, string> = {
@@ -66,14 +60,9 @@ export default function YearLog() {
 
       {/* Main Content */}
       <main className="container py-8">
-        {user?.role === "editor" && (
-          <Card className="p-4 mb-6 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-            <p className="text-sm text-blue-900 dark:text-blue-100 mb-3">
-              📝 投稿は下書きで保存され、Admin の承認後に公開されます。
-            </p>
-            <Button className="bg-blue-600 hover:bg-blue-700">新規投稿</Button>
-          </Card>
-        )}
+        <Card className="p-4 mb-6 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+          <Button className="bg-blue-600 hover:bg-blue-700">新規投稿</Button>
+        </Card>
 
         {posts.length > 0 ? (
           <div className="space-y-4">

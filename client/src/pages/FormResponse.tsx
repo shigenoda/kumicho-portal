@@ -1,4 +1,3 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, CheckCircle } from "lucide-react";
 import { useLocation, useParams } from "wouter";
@@ -10,7 +9,6 @@ import { useState, useMemo } from "react";
  * ユーザーがフォームに回答し、提出できます
  */
 export default function FormResponse() {
-  const { user, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const { formId } = useParams<{ formId: string }>();
   const [answers, setAnswers] = useState<{ [key: number]: number | string | number[] }>({});
@@ -18,7 +16,7 @@ export default function FormResponse() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // フォーム詳細を取得
-  const { data: forms = [] } = trpc.data.getUnansweredForms.useQuery();
+  const { data: forms = [] } = trpc.data.getActiveForms.useQuery();
   const form = useMemo(() => {
     return forms.find((f: any) => f.id === parseInt(formId || "0"));
   }, [forms, formId]);
@@ -38,7 +36,7 @@ export default function FormResponse() {
   });
 
   const handleSubmit = async () => {
-    if (!form || !user) return;
+    if (!form) return;
 
     // バリデーション：すべての必須質問に回答したか確認
     const unansweredQuestions = form.questions.filter(
@@ -61,19 +59,6 @@ export default function FormResponse() {
     });
     setIsSubmitting(false);
   };
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600 mb-4">ログインが必要です</p>
-          <Button onClick={() => setLocation("/")} className="bg-blue-900">
-            ホームに戻る
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   if (!form) {
     return (
