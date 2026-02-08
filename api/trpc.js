@@ -713,6 +713,20 @@ var appRouter = router({
       for (const s of scheduleData) {
         await db.insert(leaderSchedule).values(s);
       }
+      await db.insert(exemptionRequests).values({
+        householdId: "103",
+        year: 2026,
+        reason: "\u5C31\u4EFB\u56F0\u96E3\uFF08\u80B2\u5150\u4E2D\u306E\u305F\u3081\uFF09",
+        status: "approved",
+        approvedAt: /* @__PURE__ */ new Date("2025-12-01")
+      });
+      await db.insert(exemptionRequests).values({
+        householdId: "202",
+        year: 2026,
+        reason: "\u5C31\u4EFB\u56F0\u96E3\uFF08\u591C\u52E4\u5F93\u4E8B\u306E\u305F\u3081\uFF09",
+        status: "approved",
+        approvedAt: /* @__PURE__ */ new Date("2025-12-01")
+      });
       await db.insert(leaderRotationLogic).values({
         version: 1,
         logic: {
@@ -1012,9 +1026,15 @@ var appRouter = router({
       const logic = logicRecords[0]?.logic;
       if (!logic) throw new Error("No rotation logic defined");
       const allHouseholds = await db.select().from(households);
-      const prevYear = input.year - 1;
-      const prevScheduleArray = await db.select().from(leaderSchedule).where(eq2(leaderSchedule.year, prevYear)).limit(1);
-      const prevSchedule = prevScheduleArray[0];
+      const recentLeaderSchedules = await db.select().from(leaderSchedule).where(
+        and(
+          gte(leaderSchedule.year, input.year - 2),
+          lte(leaderSchedule.year, input.year - 1)
+        )
+      );
+      const recentLeaderHouseholds = new Set(
+        recentLeaderSchedules.filter((s) => s.status === "confirmed").map((s) => s.primaryHouseholdId)
+      );
       const exemptions = await db.select().from(exemptionRequests).where(
         and(
           eq2(exemptionRequests.year, input.year),
@@ -1022,12 +1042,14 @@ var appRouter = router({
         )
       );
       const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
-      const candidates = allHouseholds.filter((h) => !exemptedHouseholds.has(h.householdId)).sort((a, b) => {
-        const aYearsSinceLast = prevSchedule ? prevSchedule.primaryHouseholdId === a.householdId ? 1 : 999 : 999;
-        const bYearsSinceLast = prevSchedule ? prevSchedule.primaryHouseholdId === b.householdId ? 1 : 999 : 999;
-        if (aYearsSinceLast !== bYearsSinceLast) {
-          return bYearsSinceLast - aYearsSinceLast;
-        }
+      const now = /* @__PURE__ */ new Date();
+      const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, now.getDate());
+      const lessThanYearHouseholds = new Set(
+        allHouseholds.filter((h) => h.moveInDate && h.moveInDate > twelveMonthsAgo).map((h) => h.householdId)
+      );
+      const candidates = allHouseholds.filter((h) => {
+        return !exemptedHouseholds.has(h.householdId) && !lessThanYearHouseholds.has(h.householdId) && !recentLeaderHouseholds.has(h.householdId);
+      }).sort((a, b) => {
         if (a.moveInDate && b.moveInDate) {
           return a.moveInDate.getTime() - b.moveInDate.getTime();
         }
@@ -1604,9 +1626,15 @@ var appRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       const allHouseholds = await db.select().from(households);
-      const prevYear = input.year - 1;
-      const prevScheduleArray = await db.select().from(leaderSchedule).where(eq2(leaderSchedule.year, prevYear)).limit(1);
-      const prevSchedule = prevScheduleArray[0];
+      const recentLeaderSchedules = await db.select().from(leaderSchedule).where(
+        and(
+          gte(leaderSchedule.year, input.year - 2),
+          lte(leaderSchedule.year, input.year - 1)
+        )
+      );
+      const recentLeaderHouseholds = new Set(
+        recentLeaderSchedules.filter((s) => s.status === "confirmed").map((s) => s.primaryHouseholdId)
+      );
       const exemptions = await db.select().from(exemptionRequests).where(
         and(
           eq2(exemptionRequests.year, input.year),
@@ -1619,17 +1647,9 @@ var appRouter = router({
       const lessThanYearHouseholds = new Set(
         allHouseholds.filter((h) => h.moveInDate && h.moveInDate > twelveMonthsAgo).map((h) => h.householdId)
       );
-      const recentLeaderHouseholds = new Set(
-        allHouseholds.filter((h) => (h.leaderHistoryCount || 0) > 0).map((h) => h.householdId)
-      );
       const candidates = allHouseholds.filter((h) => {
         return !exemptedHouseholds.has(h.householdId) && !lessThanYearHouseholds.has(h.householdId) && !recentLeaderHouseholds.has(h.householdId);
       }).sort((a, b) => {
-        const aYearsSinceLast = prevSchedule ? prevSchedule.primaryHouseholdId === a.householdId ? 1 : 999 : 999;
-        const bYearsSinceLast = prevSchedule ? prevSchedule.primaryHouseholdId === b.householdId ? 1 : 999 : 999;
-        if (aYearsSinceLast !== bYearsSinceLast) {
-          return bYearsSinceLast - aYearsSinceLast;
-        }
         if (a.moveInDate && b.moveInDate) {
           return a.moveInDate.getTime() - b.moveInDate.getTime();
         }
@@ -1652,11 +1672,17 @@ var appRouter = router({
     }),
     getRotationWithReasons: publicProcedure.input(z2.object({ year: z2.number() })).query(async ({ input }) => {
       const db = await getDb();
-      if (!db) return [];
+      if (!db) return { year: input.year, households: [], schedule: null };
       const allHouseholds = await db.select().from(households);
-      const prevYear = input.year - 1;
-      const prevScheduleArray = await db.select().from(leaderSchedule).where(eq2(leaderSchedule.year, prevYear)).limit(1);
-      const prevSchedule = prevScheduleArray[0];
+      const recentLeaderSchedules = await db.select().from(leaderSchedule).where(
+        and(
+          gte(leaderSchedule.year, input.year - 2),
+          lte(leaderSchedule.year, input.year - 1)
+        )
+      );
+      const recentLeaderHouseholds = new Set(
+        recentLeaderSchedules.filter((s) => s.status === "confirmed").map((s) => s.primaryHouseholdId)
+      );
       const exemptions = await db.select().from(exemptionRequests).where(
         and(
           eq2(exemptionRequests.year, input.year),
@@ -1668,9 +1694,6 @@ var appRouter = router({
       const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, now.getDate());
       const lessThanYearHouseholds = new Set(
         allHouseholds.filter((h) => h.moveInDate && h.moveInDate > twelveMonthsAgo).map((h) => h.householdId)
-      );
-      const recentLeaderHouseholds = new Set(
-        allHouseholds.filter((h) => (h.leaderHistoryCount || 0) > 0).map((h) => h.householdId)
       );
       const householdsWithReasons = allHouseholds.map((h) => {
         const reasons = [];
@@ -1786,7 +1809,20 @@ var appRouter = router({
     getForms: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) return [];
-      return await db.select().from(forms).orderBy(desc2(forms.createdAt));
+      const allForms = await db.select().from(forms).orderBy(desc2(forms.createdAt));
+      const allHouseholds = await db.select().from(households);
+      const totalHouseholds = allHouseholds.length;
+      const formsWithStats = await Promise.all(
+        allForms.map(async (form) => {
+          const responses = await db.select().from(formResponses).where(eq2(formResponses.formId, form.id));
+          return {
+            ...form,
+            responseCount: responses.length,
+            totalHouseholds
+          };
+        })
+      );
+      return formsWithStats;
     }),
     // 認証不要：アクティブなフォーム一覧を返す
     getActiveForms: publicProcedure.query(async () => {

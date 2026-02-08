@@ -225,6 +225,24 @@ export const appRouter = router({
         await db.insert(leaderSchedule).values(s);
       }
 
+      // 免除申請（2026年度）
+      // 103号室: C免除（就任困難 - 育児）
+      await db.insert(exemptionRequests).values({
+        householdId: "103",
+        year: 2026,
+        reason: "就任困難（育児中のため）",
+        status: "approved",
+        approvedAt: new Date("2025-12-01"),
+      });
+      // 202号室: C免除（就任困難 - 夜勤）
+      await db.insert(exemptionRequests).values({
+        householdId: "202",
+        year: 2026,
+        reason: "就任困難（夜勤従事のため）",
+        status: "approved",
+        approvedAt: new Date("2025-12-01"),
+      });
+
       // ローテーションロジック
       await db.insert(leaderRotationLogic).values({
         version: 1,
@@ -598,14 +616,23 @@ export const appRouter = router({
 
         const allHouseholds = await db.select().from(households);
 
-        const prevYear = input.year - 1;
-        const prevScheduleArray = await db
+        // B免除: 直近2年以内に組長を務めた世帯
+        const recentLeaderSchedules = await db
           .select()
           .from(leaderSchedule)
-          .where(eq(leaderSchedule.year, prevYear))
-          .limit(1);
-        const prevSchedule = prevScheduleArray[0];
+          .where(
+            and(
+              gte(leaderSchedule.year, input.year - 2),
+              lte(leaderSchedule.year, input.year - 1)
+            )
+          );
+        const recentLeaderHouseholds = new Set(
+          recentLeaderSchedules
+            .filter((s) => s.status === "confirmed")
+            .map((s) => s.primaryHouseholdId)
+        );
 
+        // C免除
         const exemptions = await db
           .select()
           .from(exemptionRequests)
@@ -615,27 +642,27 @@ export const appRouter = router({
               eq(exemptionRequests.status, "approved")
             )
           );
-
         const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
 
+        // A免除: 入居12ヶ月未満
+        const now = new Date();
+        const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, now.getDate());
+        const lessThanYearHouseholds = new Set(
+          allHouseholds
+            .filter((h) => h.moveInDate && h.moveInDate > twelveMonthsAgo)
+            .map((h) => h.householdId)
+        );
+
         const candidates = allHouseholds
-          .filter((h) => !exemptedHouseholds.has(h.householdId))
+          .filter((h) => {
+            return !exemptedHouseholds.has(h.householdId) &&
+                   !lessThanYearHouseholds.has(h.householdId) &&
+                   !recentLeaderHouseholds.has(h.householdId);
+          })
           .sort((a, b) => {
-            const aYearsSinceLast = prevSchedule
-              ? prevSchedule.primaryHouseholdId === a.householdId ? 1 : 999
-              : 999;
-            const bYearsSinceLast = prevSchedule
-              ? prevSchedule.primaryHouseholdId === b.householdId ? 1 : 999
-              : 999;
-
-            if (aYearsSinceLast !== bYearsSinceLast) {
-              return bYearsSinceLast - aYearsSinceLast;
-            }
-
             if (a.moveInDate && b.moveInDate) {
               return a.moveInDate.getTime() - b.moveInDate.getTime();
             }
-
             return a.householdId.localeCompare(b.householdId);
           });
 
@@ -1391,14 +1418,24 @@ export const appRouter = router({
         if (!db) throw new Error("Database not available");
 
         const allHouseholds = await db.select().from(households);
-        const prevYear = input.year - 1;
-        const prevScheduleArray = await db
+
+        // B免除: 直近2年以内に組長を務めた世帯（leaderScheduleから判定）
+        const recentLeaderSchedules = await db
           .select()
           .from(leaderSchedule)
-          .where(eq(leaderSchedule.year, prevYear))
-          .limit(1);
-        const prevSchedule = prevScheduleArray[0];
+          .where(
+            and(
+              gte(leaderSchedule.year, input.year - 2),
+              lte(leaderSchedule.year, input.year - 1)
+            )
+          );
+        const recentLeaderHouseholds = new Set(
+          recentLeaderSchedules
+            .filter((s) => s.status === "confirmed")
+            .map((s) => s.primaryHouseholdId)
+        );
 
+        // C免除: exemptionRequests テーブルから
         const exemptions = await db
           .select()
           .from(exemptionRequests)
@@ -1408,19 +1445,14 @@ export const appRouter = router({
               eq(exemptionRequests.status, "approved")
             )
           );
-
         const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
+
+        // A免除: 入居12ヶ月未満
         const now = new Date();
         const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, now.getDate());
         const lessThanYearHouseholds = new Set(
           allHouseholds
             .filter((h) => h.moveInDate && h.moveInDate > twelveMonthsAgo)
-            .map((h) => h.householdId)
-        );
-
-        const recentLeaderHouseholds = new Set(
-          allHouseholds
-            .filter((h) => (h.leaderHistoryCount || 0) > 0)
             .map((h) => h.householdId)
         );
 
@@ -1431,21 +1463,10 @@ export const appRouter = router({
                    !recentLeaderHouseholds.has(h.householdId);
           })
           .sort((a, b) => {
-            const aYearsSinceLast = prevSchedule
-              ? prevSchedule.primaryHouseholdId === a.householdId ? 1 : 999
-              : 999;
-            const bYearsSinceLast = prevSchedule
-              ? prevSchedule.primaryHouseholdId === b.householdId ? 1 : 999
-              : 999;
-
-            if (aYearsSinceLast !== bYearsSinceLast) {
-              return bYearsSinceLast - aYearsSinceLast;
-            }
-
+            // 入居が古い順（基本方針）
             if (a.moveInDate && b.moveInDate) {
               return a.moveInDate.getTime() - b.moveInDate.getTime();
             }
-
             return a.householdId.localeCompare(b.householdId);
           });
 
@@ -1475,18 +1496,27 @@ export const appRouter = router({
       .input(z.object({ year: z.number() }))
       .query(async ({ input }) => {
         const db = await getDb();
-        if (!db) return [];
+        if (!db) return { year: input.year, households: [], schedule: null };
 
         const allHouseholds = await db.select().from(households);
 
-        const prevYear = input.year - 1;
-        const prevScheduleArray = await db
+        // B免除: 直近2年以内に組長を務めた世帯（leaderScheduleから判定）
+        const recentLeaderSchedules = await db
           .select()
           .from(leaderSchedule)
-          .where(eq(leaderSchedule.year, prevYear))
-          .limit(1);
-        const prevSchedule = prevScheduleArray[0];
+          .where(
+            and(
+              gte(leaderSchedule.year, input.year - 2),
+              lte(leaderSchedule.year, input.year - 1)
+            )
+          );
+        const recentLeaderHouseholds = new Set(
+          recentLeaderSchedules
+            .filter((s) => s.status === "confirmed")
+            .map((s) => s.primaryHouseholdId)
+        );
 
+        // C免除: exemptionRequests テーブルから
         const exemptions = await db
           .select()
           .from(exemptionRequests)
@@ -1496,20 +1526,14 @@ export const appRouter = router({
               eq(exemptionRequests.status, "approved")
             )
           );
-
         const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
 
+        // A免除: 入居12ヶ月未満
         const now = new Date();
         const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, now.getDate());
         const lessThanYearHouseholds = new Set(
           allHouseholds
             .filter((h) => h.moveInDate && h.moveInDate > twelveMonthsAgo)
-            .map((h) => h.householdId)
-        );
-
-        const recentLeaderHouseholds = new Set(
-          allHouseholds
-            .filter((h) => (h.leaderHistoryCount || 0) > 0)
             .map((h) => h.householdId)
         );
 
@@ -1656,7 +1680,24 @@ export const appRouter = router({
     getForms: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) return [];
-      return await db.select().from(forms).orderBy(desc(forms.createdAt));
+      const allForms = await db.select().from(forms).orderBy(desc(forms.createdAt));
+      const allHouseholds = await db.select().from(households);
+      const totalHouseholds = allHouseholds.length;
+
+      const formsWithStats = await Promise.all(
+        allForms.map(async (form) => {
+          const responses = await db
+            .select()
+            .from(formResponses)
+            .where(eq(formResponses.formId, form.id));
+          return {
+            ...form,
+            responseCount: responses.length,
+            totalHouseholds,
+          };
+        })
+      );
+      return formsWithStats;
     }),
 
     // 認証不要：アクティブなフォーム一覧を返す
