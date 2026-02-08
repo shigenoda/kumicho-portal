@@ -270,6 +270,158 @@ export const appRouter = router({
         await db.insert(secretNotes).values(s);
       }
 
+      // フォーム（住民アンケート）
+      const [surveyForm] = await db.insert(forms).values({
+        title: "組長運用に関するアンケート",
+        description: "組長選出方法・町内会対応の運用ルール・役割分担の方向性についてのアンケートです。2026年2月4日配布。",
+        dueDate: new Date("2026-02-28"),
+        status: "active" as const,
+      }).returning();
+
+      // Q1: 組長経験
+      const [q1] = await db.insert(formQuestions).values({
+        formId: surveyForm.id,
+        questionText: "組長経験について",
+        questionType: "single_choice" as const,
+        required: true,
+        orderIndex: 1,
+      }).returning();
+      await db.insert(formChoices).values([
+        { questionId: q1.id, choiceText: "ない（未経験）", orderIndex: 1 },
+        { questionId: q1.id, choiceText: "ある（経験あり）", orderIndex: 2 },
+        { questionId: q1.id, choiceText: "わからない", orderIndex: 3 },
+      ]);
+
+      // Q2: 負担感
+      const [q2] = await db.insert(formQuestions).values({
+        formId: surveyForm.id,
+        questionText: "組長業務の負担感（イメージでも可）",
+        questionType: "single_choice" as const,
+        required: true,
+        orderIndex: 2,
+      }).returning();
+      await db.insert(formChoices).values([
+        { questionId: q2.id, choiceText: "かなり重い", orderIndex: 1 },
+        { questionId: q2.id, choiceText: "重い", orderIndex: 2 },
+        { questionId: q2.id, choiceText: "ふつう", orderIndex: 3 },
+        { questionId: q2.id, choiceText: "軽い", orderIndex: 4 },
+        { questionId: q2.id, choiceText: "わからない", orderIndex: 5 },
+      ]);
+
+      // Q3: 組長会参加
+      const [q3] = await db.insert(formQuestions).values({
+        formId: surveyForm.id,
+        questionText: "組長会（毎月26日19:00〜）への参加の難しさ",
+        questionType: "single_choice" as const,
+        required: true,
+        orderIndex: 3,
+      }).returning();
+      await db.insert(formChoices).values([
+        { questionId: q3.id, choiceText: "参加できる", orderIndex: 1 },
+        { questionId: q3.id, choiceText: "条件により参加できる", orderIndex: 2 },
+        { questionId: q3.id, choiceText: "参加が難しい", orderIndex: 3 },
+        { questionId: q3.id, choiceText: "わからない", orderIndex: 4 },
+      ]);
+
+      // Q4: 河川清掃参加
+      const [q4] = await db.insert(formQuestions).values({
+        formId: surveyForm.id,
+        questionText: "河川清掃（土曜/日曜 朝8:00〜9:00）への参加の難しさ",
+        questionType: "single_choice" as const,
+        required: true,
+        orderIndex: 4,
+      }).returning();
+      await db.insert(formChoices).values([
+        { questionId: q4.id, choiceText: "参加できる", orderIndex: 1 },
+        { questionId: q4.id, choiceText: "条件により参加できる", orderIndex: 2 },
+        { questionId: q4.id, choiceText: "参加が難しい", orderIndex: 3 },
+        { questionId: q4.id, choiceText: "わからない", orderIndex: 4 },
+      ]);
+
+      // Q5: 負担が大きい業務（複数選択）
+      const [q5] = await db.insert(formQuestions).values({
+        formId: surveyForm.id,
+        questionText: "組長業務のうち「負担が大きい」と感じるもの（複数選択可）",
+        questionType: "multiple_choice" as const,
+        required: false,
+        orderIndex: 5,
+      }).returning();
+      await db.insert(formChoices).values([
+        { questionId: q5.id, choiceText: "町内会・管理会社との連絡調整", orderIndex: 1 },
+        { questionId: q5.id, choiceText: "住民への周知（配布物作成、各戸投函等）", orderIndex: 2 },
+        { questionId: q5.id, choiceText: "住民意見の整理（問い合わせ対応、調整等）", orderIndex: 3 },
+        { questionId: q5.id, choiceText: "次年度組長の選出・引き継ぎ対応", orderIndex: 4 },
+        { questionId: q5.id, choiceText: "組長会への参加（夜間の固定日時）", orderIndex: 5 },
+        { questionId: q5.id, choiceText: "河川清掃等の町内行事対応（早朝帯）", orderIndex: 6 },
+        { questionId: q5.id, choiceText: "上記すべて", orderIndex: 7 },
+      ]);
+
+      // Q6: 今後の運用方向性
+      const [q6] = await db.insert(formQuestions).values({
+        formId: surveyForm.id,
+        questionText: "今後の運用の方向性について、最も近いものを1つ選んでください",
+        questionType: "single_choice" as const,
+        required: true,
+        orderIndex: 6,
+      }).returning();
+      await db.insert(formChoices).values([
+        { questionId: q6.id, choiceText: "A：住民の持ち回りを基本に、外部・内部対応とも住民側で対応", orderIndex: 1 },
+        { questionId: q6.id, choiceText: "B：オーナー側が外部・内部対応とも担う（外部委託含む）", orderIndex: 2 },
+        { questionId: q6.id, choiceText: "C：折衷案（外部対応と内部対応を住民・オーナーで分担）", orderIndex: 3 },
+        { questionId: q6.id, choiceText: "D：わからない／判断材料が足りない", orderIndex: 4 },
+      ]);
+
+      // Q7: 引き継ぎ改善
+      const [q7] = await db.insert(formQuestions).values({
+        formId: surveyForm.id,
+        questionText: "引き継ぎの改善（手順の見える化）について",
+        questionType: "single_choice" as const,
+        required: true,
+        orderIndex: 7,
+      }).returning();
+      await db.insert(formChoices).values([
+        { questionId: q7.id, choiceText: "紙＋Webの併用がよい", orderIndex: 1 },
+        { questionId: q7.id, choiceText: "Web中心がよい", orderIndex: 2 },
+        { questionId: q7.id, choiceText: "紙中心がよい", orderIndex: 3 },
+        { questionId: q7.id, choiceText: "わからない", orderIndex: 4 },
+      ]);
+
+      // Q8 is free-text, skip for now (schema only supports choice-based questions)
+
+      // 河川清掃出欠確認フォーム（テンプレート的に作成）
+      const [cleaningForm] = await db.insert(forms).values({
+        title: "河川清掃 出欠確認",
+        description: "次回の河川清掃への参加可否を確認します。",
+        status: "draft" as const,
+      }).returning();
+
+      const [cq1] = await db.insert(formQuestions).values({
+        formId: cleaningForm.id,
+        questionText: "次回の河川清掃に参加できますか？",
+        questionType: "single_choice" as const,
+        required: true,
+        orderIndex: 1,
+      }).returning();
+      await db.insert(formChoices).values([
+        { questionId: cq1.id, choiceText: "参加する", orderIndex: 1 },
+        { questionId: cq1.id, choiceText: "参加できない", orderIndex: 2 },
+        { questionId: cq1.id, choiceText: "未定", orderIndex: 3 },
+      ]);
+
+      const [cq2] = await db.insert(formQuestions).values({
+        formId: cleaningForm.id,
+        questionText: "参加できない場合、理由を教えてください",
+        questionType: "single_choice" as const,
+        required: false,
+        orderIndex: 2,
+      }).returning();
+      await db.insert(formChoices).values([
+        { questionId: cq2.id, choiceText: "仕事", orderIndex: 1 },
+        { questionId: cq2.id, choiceText: "体調不良", orderIndex: 2 },
+        { questionId: cq2.id, choiceText: "家庭の事情", orderIndex: 3 },
+        { questionId: cq2.id, choiceText: "その他", orderIndex: 4 },
+      ]);
+
       // 初回ログ
       await db.insert(changelog).values({
         summary: "グリーンピア焼津ポータル初期データ投入完了",
