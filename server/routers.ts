@@ -219,32 +219,41 @@ export const appRouter = router({
       const scheduleData = [
         { year: 2025, primaryHouseholdId: "102", backupHouseholdId: "103", status: "confirmed" as const, reason: "2025年度確定（現任）" },
         { year: 2026, primaryHouseholdId: "203", backupHouseholdId: "301", status: "confirmed" as const, reason: "102:免除B（直近組長）、103/202:免除C（就任困難）、101/201/302:免除A（入居12ヶ月未満）→繰上げで203" },
-        { year: 2027, primaryHouseholdId: "302", backupHouseholdId: "101", status: "draft" as const, reason: "自動計算: 0回組で入居が古い順。102:免除B、203:免除B、103/202:免除C想定" },
-        { year: 2028, primaryHouseholdId: "101", backupHouseholdId: "201", status: "draft" as const, reason: "自動計算: 0回組で入居が古い順。102:免除B期限切れで復帰候補" },
-        { year: 2029, primaryHouseholdId: "203", backupHouseholdId: "303", status: "draft" as const, reason: "自動計算: 302/101:免除B、103/202:免除C想定。残りで入居古い順→203" },
-        { year: 2030, primaryHouseholdId: "303", backupHouseholdId: "301", status: "draft" as const, reason: "自動計算: 101/203:免除B、103/202:免除C想定。残りで入居古い順→303" },
+        { year: 2027, primaryHouseholdId: "303", backupHouseholdId: "301", status: "draft" as const, reason: "自動計算: 102/203:免除B、103/202:免除C。入居古い順→303" },
+        { year: 2028, primaryHouseholdId: "301", backupHouseholdId: "102", status: "draft" as const, reason: "自動計算: 203/303:免除B、103/202:免除C。入居古い順→301" },
+        { year: 2029, primaryHouseholdId: "203", backupHouseholdId: "102", status: "draft" as const, reason: "自動計算: 303/301:免除B、103/202:免除C。入居古い順→203" },
+        { year: 2030, primaryHouseholdId: "303", backupHouseholdId: "102", status: "draft" as const, reason: "自動計算: 301/203:免除B、103/202:免除C。入居古い順→303" },
+        { year: 2031, primaryHouseholdId: "301", backupHouseholdId: "102", status: "draft" as const, reason: "自動計算: 203/303:免除B、103/202:免除C。入居古い順→301" },
+        { year: 2032, primaryHouseholdId: "203", backupHouseholdId: "102", status: "draft" as const, reason: "自動計算: 303/301:免除B、103/202:免除C。入居古い順→203" },
+        { year: 2033, primaryHouseholdId: "303", backupHouseholdId: "102", status: "draft" as const, reason: "自動計算: 301/203:免除B、103/202:免除C。入居古い順→303" },
+        { year: 2034, primaryHouseholdId: "301", backupHouseholdId: "102", status: "draft" as const, reason: "自動計算: 203/303:免除B、103/202:免除C。入居古い順→301" },
       ];
       for (const s of scheduleData) {
         await db.insert(leaderSchedule).values(s);
       }
 
-      // 免除申請（2026年度）
-      // 103号室: C免除（就任困難 - 育児）
-      await db.insert(exemptionRequests).values({
-        householdId: "103",
-        year: 2026,
-        reason: "就任困難（育児中のため）",
-        status: "approved",
-        approvedAt: new Date("2025-12-01"),
-      });
-      // 202号室: C免除（就任困難 - 夜勤）
-      await db.insert(exemptionRequests).values({
-        householdId: "202",
-        year: 2026,
-        reason: "就任困難（夜勤従事のため）",
-        status: "approved",
-        approvedAt: new Date("2025-12-01"),
-      });
+      // 免除申請（C免除: 就任困難）
+      // 103号室と202号室を2026〜2034年度まで登録
+      const exemptionSeedData = [];
+      for (let y = 2026; y <= 2034; y++) {
+        exemptionSeedData.push({
+          householdId: "103",
+          year: y,
+          reason: "就任困難（育児中のため）",
+          status: "approved" as const,
+          approvedAt: new Date(`${y - 1}-12-01`),
+        });
+        exemptionSeedData.push({
+          householdId: "202",
+          year: y,
+          reason: "就任困難（夜勤従事のため）",
+          status: "approved" as const,
+          approvedAt: new Date(`${y - 1}-12-01`),
+        });
+      }
+      for (const ex of exemptionSeedData) {
+        await db.insert(exemptionRequests).values(ex);
+      }
 
       // ローテーションロジック
       await db.insert(leaderRotationLogic).values({
@@ -1503,9 +1512,9 @@ export const appRouter = router({
           );
         const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
 
-        // A免除: 対象年度4月1日時点で入居12ヶ月未満
-        const fiscalYearStart = new Date(input.year, 3, 1); // 4月1日
-        const twelveMonthsBefore = new Date(input.year - 1, 3, 1); // 前年4月1日
+        // A免除: 選定時点（前年11月）で入居12ヶ月未満
+        // 例: 2026年度 → 2025年11月に選定 → 2024年11月以降の入居者が免除
+        const twelveMonthsBefore = new Date(input.year - 2, 10, 1);
         const lessThanYearHouseholds = new Set(
           allHouseholds
             .filter((h) => h.moveInDate && h.moveInDate > twelveMonthsBefore)
@@ -1625,6 +1634,98 @@ export const appRouter = router({
           households: householdsWithReasons,
           schedule: schedule[0] || null,
         };
+      }),
+
+    // 免除申請 CRUD
+    getExemptions: publicProcedure
+      .input(z.object({ year: z.number().optional() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        if (input.year) {
+          return await db.select().from(exemptionRequests)
+            .where(eq(exemptionRequests.year, input.year))
+            .orderBy(exemptionRequests.householdId);
+        }
+        return await db.select().from(exemptionRequests)
+          .orderBy(desc(exemptionRequests.year), exemptionRequests.householdId);
+      }),
+
+    createExemption: publicProcedure
+      .input(z.object({
+        householdId: z.string().min(1),
+        year: z.number(),
+        reason: z.string().min(1),
+        status: z.enum(["pending", "approved", "rejected"]).default("pending"),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [entry] = await db.insert(exemptionRequests).values({
+          householdId: input.householdId,
+          year: input.year,
+          reason: input.reason,
+          status: input.status,
+          approvedAt: input.status === "approved" ? new Date() : null,
+        }).returning();
+        await logChange(`${input.householdId}号室の${input.year}年度免除申請を登録`, "exemptionRequests", entry.id);
+        return entry;
+      }),
+
+    updateExemption: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        reason: z.string().optional(),
+        status: z.enum(["pending", "approved", "rejected"]).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const updateData: any = { updatedAt: new Date() };
+        if (input.reason !== undefined) updateData.reason = input.reason;
+        if (input.status !== undefined) {
+          updateData.status = input.status;
+          if (input.status === "approved") updateData.approvedAt = new Date();
+        }
+        await db.update(exemptionRequests).set(updateData).where(eq(exemptionRequests.id, input.id));
+        await logChange(`免除申請 (ID: ${input.id}) を更新`, "exemptionRequests", input.id);
+        return { success: true };
+      }),
+
+    deleteExemption: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(exemptionRequests).where(eq(exemptionRequests.id, input.id));
+        await logChange(`免除申請 (ID: ${input.id}) を削除`, "exemptionRequests", input.id);
+        return { success: true };
+      }),
+
+    // 免除の一括コピー（翌年度へ継続）
+    copyExemptionsToNextYear: publicProcedure
+      .input(z.object({ fromYear: z.number(), toYear: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        // 既に対象年度に免除がある場合はスキップ
+        const existing = await db.select().from(exemptionRequests)
+          .where(eq(exemptionRequests.year, input.toYear));
+        if (existing.length > 0) {
+          throw new Error(`${input.toYear}年度にはすでに免除申請が登録されています`);
+        }
+        const source = await db.select().from(exemptionRequests)
+          .where(and(eq(exemptionRequests.year, input.fromYear), eq(exemptionRequests.status, "approved")));
+        for (const ex of source) {
+          await db.insert(exemptionRequests).values({
+            householdId: ex.householdId,
+            year: input.toYear,
+            reason: ex.reason,
+            status: "pending",
+          });
+        }
+        await logChange(`${input.fromYear}→${input.toYear}年度に免除${source.length}件をコピー`, "exemptionRequests");
+        return { success: true, count: source.length };
       }),
 
     getResidentEmails: publicProcedure.query(async () => {

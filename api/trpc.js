@@ -708,28 +708,38 @@ var appRouter = router({
       const scheduleData = [
         { year: 2025, primaryHouseholdId: "102", backupHouseholdId: "103", status: "confirmed", reason: "2025\u5E74\u5EA6\u78BA\u5B9A\uFF08\u73FE\u4EFB\uFF09" },
         { year: 2026, primaryHouseholdId: "203", backupHouseholdId: "301", status: "confirmed", reason: "102:\u514D\u9664B\uFF08\u76F4\u8FD1\u7D44\u9577\uFF09\u3001103/202:\u514D\u9664C\uFF08\u5C31\u4EFB\u56F0\u96E3\uFF09\u3001101/201/302:\u514D\u9664A\uFF08\u5165\u5C4512\u30F6\u6708\u672A\u6E80\uFF09\u2192\u7E70\u4E0A\u3052\u3067203" },
-        { year: 2027, primaryHouseholdId: "302", backupHouseholdId: "101", status: "draft", reason: "\u81EA\u52D5\u8A08\u7B97: 0\u56DE\u7D44\u3067\u5165\u5C45\u304C\u53E4\u3044\u9806\u3002102:\u514D\u9664B\u3001203:\u514D\u9664B\u3001103/202:\u514D\u9664C\u60F3\u5B9A" },
-        { year: 2028, primaryHouseholdId: "101", backupHouseholdId: "201", status: "draft", reason: "\u81EA\u52D5\u8A08\u7B97: 0\u56DE\u7D44\u3067\u5165\u5C45\u304C\u53E4\u3044\u9806\u3002102:\u514D\u9664B\u671F\u9650\u5207\u308C\u3067\u5FA9\u5E30\u5019\u88DC" },
-        { year: 2029, primaryHouseholdId: "203", backupHouseholdId: "303", status: "draft", reason: "\u81EA\u52D5\u8A08\u7B97: 302/101:\u514D\u9664B\u3001103/202:\u514D\u9664C\u60F3\u5B9A\u3002\u6B8B\u308A\u3067\u5165\u5C45\u53E4\u3044\u9806\u2192203" },
-        { year: 2030, primaryHouseholdId: "303", backupHouseholdId: "301", status: "draft", reason: "\u81EA\u52D5\u8A08\u7B97: 101/203:\u514D\u9664B\u3001103/202:\u514D\u9664C\u60F3\u5B9A\u3002\u6B8B\u308A\u3067\u5165\u5C45\u53E4\u3044\u9806\u2192303" }
+        { year: 2027, primaryHouseholdId: "303", backupHouseholdId: "301", status: "draft", reason: "\u81EA\u52D5\u8A08\u7B97: 102/203:\u514D\u9664B\u3001103/202:\u514D\u9664C\u3002\u5165\u5C45\u53E4\u3044\u9806\u2192303" },
+        { year: 2028, primaryHouseholdId: "301", backupHouseholdId: "102", status: "draft", reason: "\u81EA\u52D5\u8A08\u7B97: 203/303:\u514D\u9664B\u3001103/202:\u514D\u9664C\u3002\u5165\u5C45\u53E4\u3044\u9806\u2192301" },
+        { year: 2029, primaryHouseholdId: "203", backupHouseholdId: "102", status: "draft", reason: "\u81EA\u52D5\u8A08\u7B97: 303/301:\u514D\u9664B\u3001103/202:\u514D\u9664C\u3002\u5165\u5C45\u53E4\u3044\u9806\u2192203" },
+        { year: 2030, primaryHouseholdId: "303", backupHouseholdId: "102", status: "draft", reason: "\u81EA\u52D5\u8A08\u7B97: 301/203:\u514D\u9664B\u3001103/202:\u514D\u9664C\u3002\u5165\u5C45\u53E4\u3044\u9806\u2192303" },
+        { year: 2031, primaryHouseholdId: "301", backupHouseholdId: "102", status: "draft", reason: "\u81EA\u52D5\u8A08\u7B97: 203/303:\u514D\u9664B\u3001103/202:\u514D\u9664C\u3002\u5165\u5C45\u53E4\u3044\u9806\u2192301" },
+        { year: 2032, primaryHouseholdId: "203", backupHouseholdId: "102", status: "draft", reason: "\u81EA\u52D5\u8A08\u7B97: 303/301:\u514D\u9664B\u3001103/202:\u514D\u9664C\u3002\u5165\u5C45\u53E4\u3044\u9806\u2192203" },
+        { year: 2033, primaryHouseholdId: "303", backupHouseholdId: "102", status: "draft", reason: "\u81EA\u52D5\u8A08\u7B97: 301/203:\u514D\u9664B\u3001103/202:\u514D\u9664C\u3002\u5165\u5C45\u53E4\u3044\u9806\u2192303" },
+        { year: 2034, primaryHouseholdId: "301", backupHouseholdId: "102", status: "draft", reason: "\u81EA\u52D5\u8A08\u7B97: 203/303:\u514D\u9664B\u3001103/202:\u514D\u9664C\u3002\u5165\u5C45\u53E4\u3044\u9806\u2192301" }
       ];
       for (const s of scheduleData) {
         await db.insert(leaderSchedule).values(s);
       }
-      await db.insert(exemptionRequests).values({
-        householdId: "103",
-        year: 2026,
-        reason: "\u5C31\u4EFB\u56F0\u96E3\uFF08\u80B2\u5150\u4E2D\u306E\u305F\u3081\uFF09",
-        status: "approved",
-        approvedAt: /* @__PURE__ */ new Date("2025-12-01")
-      });
-      await db.insert(exemptionRequests).values({
-        householdId: "202",
-        year: 2026,
-        reason: "\u5C31\u4EFB\u56F0\u96E3\uFF08\u591C\u52E4\u5F93\u4E8B\u306E\u305F\u3081\uFF09",
-        status: "approved",
-        approvedAt: /* @__PURE__ */ new Date("2025-12-01")
-      });
+      const exemptionSeedData = [];
+      for (let y = 2026; y <= 2034; y++) {
+        exemptionSeedData.push({
+          householdId: "103",
+          year: y,
+          reason: "\u5C31\u4EFB\u56F0\u96E3\uFF08\u80B2\u5150\u4E2D\u306E\u305F\u3081\uFF09",
+          status: "approved",
+          approvedAt: /* @__PURE__ */ new Date(`${y - 1}-12-01`)
+        });
+        exemptionSeedData.push({
+          householdId: "202",
+          year: y,
+          reason: "\u5C31\u4EFB\u56F0\u96E3\uFF08\u591C\u52E4\u5F93\u4E8B\u306E\u305F\u3081\uFF09",
+          status: "approved",
+          approvedAt: /* @__PURE__ */ new Date(`${y - 1}-12-01`)
+        });
+      }
+      for (const ex of exemptionSeedData) {
+        await db.insert(exemptionRequests).values(ex);
+      }
       await db.insert(leaderRotationLogic).values({
         version: 1,
         logic: {
@@ -1682,8 +1692,7 @@ var appRouter = router({
         )
       );
       const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
-      const fiscalYearStart = new Date(input.year, 3, 1);
-      const twelveMonthsBefore = new Date(input.year - 1, 3, 1);
+      const twelveMonthsBefore = new Date(input.year - 2, 10, 1);
       const lessThanYearHouseholds = new Set(
         allHouseholds.filter((h) => h.moveInDate && h.moveInDate > twelveMonthsBefore).map((h) => h.householdId)
       );
@@ -1759,6 +1768,77 @@ var appRouter = router({
         households: householdsWithReasons,
         schedule: schedule[0] || null
       };
+    }),
+    // 免除申請 CRUD
+    getExemptions: publicProcedure.input(z2.object({ year: z2.number().optional() })).query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      if (input.year) {
+        return await db.select().from(exemptionRequests).where(eq2(exemptionRequests.year, input.year)).orderBy(exemptionRequests.householdId);
+      }
+      return await db.select().from(exemptionRequests).orderBy(desc2(exemptionRequests.year), exemptionRequests.householdId);
+    }),
+    createExemption: publicProcedure.input(z2.object({
+      householdId: z2.string().min(1),
+      year: z2.number(),
+      reason: z2.string().min(1),
+      status: z2.enum(["pending", "approved", "rejected"]).default("pending")
+    })).mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const [entry] = await db.insert(exemptionRequests).values({
+        householdId: input.householdId,
+        year: input.year,
+        reason: input.reason,
+        status: input.status,
+        approvedAt: input.status === "approved" ? /* @__PURE__ */ new Date() : null
+      }).returning();
+      await logChange(`${input.householdId}\u53F7\u5BA4\u306E${input.year}\u5E74\u5EA6\u514D\u9664\u7533\u8ACB\u3092\u767B\u9332`, "exemptionRequests", entry.id);
+      return entry;
+    }),
+    updateExemption: publicProcedure.input(z2.object({
+      id: z2.number(),
+      reason: z2.string().optional(),
+      status: z2.enum(["pending", "approved", "rejected"]).optional()
+    })).mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const updateData = { updatedAt: /* @__PURE__ */ new Date() };
+      if (input.reason !== void 0) updateData.reason = input.reason;
+      if (input.status !== void 0) {
+        updateData.status = input.status;
+        if (input.status === "approved") updateData.approvedAt = /* @__PURE__ */ new Date();
+      }
+      await db.update(exemptionRequests).set(updateData).where(eq2(exemptionRequests.id, input.id));
+      await logChange(`\u514D\u9664\u7533\u8ACB (ID: ${input.id}) \u3092\u66F4\u65B0`, "exemptionRequests", input.id);
+      return { success: true };
+    }),
+    deleteExemption: publicProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      await db.delete(exemptionRequests).where(eq2(exemptionRequests.id, input.id));
+      await logChange(`\u514D\u9664\u7533\u8ACB (ID: ${input.id}) \u3092\u524A\u9664`, "exemptionRequests", input.id);
+      return { success: true };
+    }),
+    // 免除の一括コピー（翌年度へ継続）
+    copyExemptionsToNextYear: publicProcedure.input(z2.object({ fromYear: z2.number(), toYear: z2.number() })).mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const existing = await db.select().from(exemptionRequests).where(eq2(exemptionRequests.year, input.toYear));
+      if (existing.length > 0) {
+        throw new Error(`${input.toYear}\u5E74\u5EA6\u306B\u306F\u3059\u3067\u306B\u514D\u9664\u7533\u8ACB\u304C\u767B\u9332\u3055\u308C\u3066\u3044\u307E\u3059`);
+      }
+      const source = await db.select().from(exemptionRequests).where(and(eq2(exemptionRequests.year, input.fromYear), eq2(exemptionRequests.status, "approved")));
+      for (const ex of source) {
+        await db.insert(exemptionRequests).values({
+          householdId: ex.householdId,
+          year: input.toYear,
+          reason: ex.reason,
+          status: "pending"
+        });
+      }
+      await logChange(`${input.fromYear}\u2192${input.toYear}\u5E74\u5EA6\u306B\u514D\u9664${source.length}\u4EF6\u3092\u30B3\u30D4\u30FC`, "exemptionRequests");
+      return { success: true, count: source.length };
     }),
     getResidentEmails: publicProcedure.query(async () => {
       const db = await getDb();

@@ -10,6 +10,11 @@ import {
   FlaskConical,
   LinkIcon,
   X,
+  ShieldCheck,
+  ShieldX,
+  Copy,
+  Check,
+  Clock,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -88,10 +93,16 @@ export default function Rules() {
   const [formData, setFormData] = useState<RuleFormData>(emptyFormData);
   const [newLink, setNewLink] = useState("");
 
+  // Exemption dialog state
+  const [showExemptionDialog, setShowExemptionDialog] = useState(false);
+  const [exemptionForm, setExemptionForm] = useState({ householdId: "", reason: "", status: "approved" as "pending" | "approved" | "rejected" });
+
   // tRPC queries and mutations
   const utils = trpc.useUtils();
   const { data: rules = [] } = trpc.data.getRules.useQuery();
   const { data: rotationData } = trpc.data.getRotationWithReasons.useQuery({ year: selectedYear });
+  const { data: exemptions = [] } = trpc.data.getExemptions.useQuery({ year: selectedYear });
+  const { data: households = [] } = trpc.data.getHouseholds.useQuery();
 
   const createMutation = trpc.data.createRule.useMutation({
     onSuccess: () => {
@@ -114,6 +125,39 @@ export default function Rules() {
   const deleteMutation = trpc.data.deleteRule.useMutation({
     onSuccess: () => {
       utils.data.getRules.invalidate();
+    },
+  });
+
+  const createExemptionMutation = trpc.data.createExemption.useMutation({
+    onSuccess: () => {
+      utils.data.getExemptions.invalidate();
+      utils.data.getRotationWithReasons.invalidate();
+      setShowExemptionDialog(false);
+      setExemptionForm({ householdId: "", reason: "", status: "approved" });
+    },
+  });
+
+  const updateExemptionMutation = trpc.data.updateExemption.useMutation({
+    onSuccess: () => {
+      utils.data.getExemptions.invalidate();
+      utils.data.getRotationWithReasons.invalidate();
+    },
+  });
+
+  const deleteExemptionMutation = trpc.data.deleteExemption.useMutation({
+    onSuccess: () => {
+      utils.data.getExemptions.invalidate();
+      utils.data.getRotationWithReasons.invalidate();
+    },
+  });
+
+  const copyExemptionsMutation = trpc.data.copyExemptionsToNextYear.useMutation({
+    onSuccess: (data) => {
+      utils.data.getExemptions.invalidate();
+      alert(`${data.count}件の免除を次年度にコピーしました（ステータス: 保留）`);
+    },
+    onError: (err) => {
+      alert(err.message);
     },
   });
 
@@ -583,6 +627,125 @@ export default function Rules() {
                   <p className="text-xs font-light text-gray-400">育児・健康・介護等。年1回(11-12月)に継続確認。</p>
                 </div>
               </div>
+
+              {/* Exemption Management */}
+              <div className="pt-6 border-t border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-gray-900">
+                      {selectedYear}年度 免除申請（C区分）
+                    </h3>
+                    <p className="text-xs font-light text-gray-500 mt-0.5">
+                      就任困難申告の管理。年1回（11〜12月）に継続確認。
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-xs"
+                      onClick={() => {
+                        if (confirm(`${selectedYear}年度の承認済み免除を${selectedYear + 1}年度にコピーしますか？（ステータスは保留になります）`)) {
+                          copyExemptionsMutation.mutate({ fromYear: selectedYear, toYear: selectedYear + 1 });
+                        }
+                      }}
+                      disabled={copyExemptionsMutation.isPending}
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      次年度へコピー
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="gap-1.5 text-xs"
+                      onClick={() => {
+                        setExemptionForm({ householdId: "", reason: "", status: "approved" });
+                        setShowExemptionDialog(true);
+                      }}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      免除追加
+                    </Button>
+                  </div>
+                </div>
+
+                {exemptions.length > 0 ? (
+                  <div className="space-y-2">
+                    {exemptions.map((ex: any) => (
+                      <Card key={ex.id} className="bg-white border border-gray-100 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="text-lg font-semibold text-gray-900 flex-shrink-0">
+                              {ex.householdId}号室
+                            </span>
+                            <div className="min-w-0">
+                              <p className="text-sm text-gray-600 font-light truncate">{ex.reason}</p>
+                              {ex.approvedAt && (
+                                <p className="text-xs text-gray-400 font-light mt-0.5">
+                                  承認日: {new Date(ex.approvedAt).toLocaleDateString("ja-JP")}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            {/* Status badge */}
+                            {ex.status === "approved" ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded font-medium">
+                                <Check className="w-3 h-3" />
+                                承認
+                              </span>
+                            ) : ex.status === "pending" ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded font-medium">
+                                <Clock className="w-3 h-3" />
+                                保留
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded font-medium">
+                                <X className="w-3 h-3" />
+                                却下
+                              </span>
+                            )}
+                            {/* Approve/reject buttons */}
+                            {ex.status !== "approved" && (
+                              <button
+                                onClick={() => updateExemptionMutation.mutate({ id: ex.id, status: "approved" })}
+                                className="p-1.5 hover:bg-green-50 rounded transition-colors text-gray-400 hover:text-green-600"
+                                title="承認"
+                              >
+                                <ShieldCheck className="w-4 h-4" />
+                              </button>
+                            )}
+                            {ex.status !== "rejected" && (
+                              <button
+                                onClick={() => updateExemptionMutation.mutate({ id: ex.id, status: "rejected" })}
+                                className="p-1.5 hover:bg-red-50 rounded transition-colors text-gray-400 hover:text-red-600"
+                                title="却下"
+                              >
+                                <ShieldX className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => {
+                                if (confirm("この免除申請を削除しますか？")) {
+                                  deleteExemptionMutation.mutate({ id: ex.id });
+                                }
+                              }}
+                              className="p-1.5 hover:bg-gray-50 rounded transition-colors text-gray-400 hover:text-red-600"
+                              title="削除"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <Card className="bg-white border border-gray-100 p-6 text-center">
+                    <ShieldCheck className="w-6 h-6 text-gray-300 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500 font-light">{selectedYear}年度の免除申請はありません</p>
+                  </Card>
+                )}
+              </div>
             </div>
           )}
         </section>
@@ -643,6 +806,85 @@ export default function Rules() {
               }
             >
               {updateMutation.isPending ? "保存中..." : "保存"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Exemption Dialog */}
+      <Dialog open={showExemptionDialog} onOpenChange={setShowExemptionDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-gray-900">{selectedYear}年度 免除申請追加</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-1">号室</label>
+              <Select
+                value={exemptionForm.householdId}
+                onValueChange={(val) => setExemptionForm((prev) => ({ ...prev, householdId: val }))}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="号室を選択" />
+                </SelectTrigger>
+                <SelectContent>
+                  {households
+                    .sort((a: any, b: any) => a.householdId.localeCompare(b.householdId))
+                    .map((h: any) => (
+                      <SelectItem key={h.householdId} value={h.householdId}>
+                        {h.householdId}号室
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-1">免除理由</label>
+              <Textarea
+                value={exemptionForm.reason}
+                onChange={(e) => setExemptionForm((prev) => ({ ...prev, reason: e.target.value }))}
+                placeholder="例: 就任困難（育児中のため）"
+                rows={3}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-1">ステータス</label>
+              <Select
+                value={exemptionForm.status}
+                onValueChange={(val) => setExemptionForm((prev) => ({ ...prev, status: val as any }))}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="approved">承認</SelectItem>
+                  <SelectItem value="pending">保留</SelectItem>
+                  <SelectItem value="rejected">却下</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowExemptionDialog(false)}>
+              キャンセル
+            </Button>
+            <Button
+              onClick={() => {
+                if (!exemptionForm.householdId || !exemptionForm.reason.trim()) return;
+                createExemptionMutation.mutate({
+                  householdId: exemptionForm.householdId,
+                  year: selectedYear,
+                  reason: exemptionForm.reason,
+                  status: exemptionForm.status,
+                });
+              }}
+              disabled={
+                createExemptionMutation.isPending ||
+                !exemptionForm.householdId ||
+                !exemptionForm.reason.trim()
+              }
+            >
+              {createExemptionMutation.isPending ? "追加中..." : "追加"}
             </Button>
           </DialogFooter>
         </DialogContent>
