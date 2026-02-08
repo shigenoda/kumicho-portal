@@ -28,6 +28,8 @@ import {
   Wrench,
   Tag,
   CalendarCheck,
+  Camera,
+  ClipboardCheck,
   X,
 } from "lucide-react";
 import { useLocation } from "wouter";
@@ -47,6 +49,7 @@ const conditionColor: Record<ConditionType, string> = {
 
 interface ItemFormData {
   name: string;
+  photo: string;
   qty: number;
   location: string;
   condition: string;
@@ -56,6 +59,7 @@ interface ItemFormData {
 
 const emptyForm: ItemFormData = {
   name: "",
+  photo: "",
   qty: 1,
   location: "",
   condition: "",
@@ -108,6 +112,7 @@ export default function Inventory() {
   function openEditDialog(item: any) {
     setFormData({
       name: item.name ?? "",
+      photo: item.photo ?? "",
       qty: item.qty ?? 1,
       location: item.location ?? "",
       condition: item.condition ?? "",
@@ -141,6 +146,7 @@ export default function Inventory() {
     if (!formData.name.trim() || !formData.location.trim()) return;
     createMutation.mutate({
       name: formData.name.trim(),
+      photo: formData.photo.trim() || undefined,
       qty: formData.qty,
       location: formData.location.trim(),
       condition: formData.condition || undefined,
@@ -154,6 +160,7 @@ export default function Inventory() {
     updateMutation.mutate({
       id: editingItem.id,
       name: formData.name.trim(),
+      photo: formData.photo.trim() || undefined,
       qty: formData.qty,
       location: formData.location.trim(),
       condition: formData.condition || undefined,
@@ -166,6 +173,13 @@ export default function Inventory() {
     if (confirm("この備品を削除しますか？")) {
       deleteMutation.mutate({ id });
     }
+  }
+
+  function handleStockCheck(id: number) {
+    updateMutation.mutate({
+      id,
+      lastCheckedAt: new Date().toISOString(),
+    });
   }
 
   function formatDate(date: string | Date | null | undefined): string {
@@ -285,9 +299,21 @@ export default function Inventory() {
                 {item.lastCheckedAt && (
                   <div className="flex items-center gap-1.5 text-sm text-gray-500 font-light mb-2">
                     <CalendarCheck className="w-3.5 h-3.5 text-gray-400" />
-                    最終棚卸: {formatDate(item.lastCheckedAt)}
+                    最終棚卸し: {formatDate(item.lastCheckedAt)}
                   </div>
                 )}
+
+                {/* Stock check button */}
+                <div className="mb-2">
+                  <button
+                    onClick={() => handleStockCheck(item.id)}
+                    disabled={updateMutation.isPending}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-light text-gray-600 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 hover:text-gray-800 transition-colors disabled:opacity-50"
+                  >
+                    <ClipboardCheck className="w-3.5 h-3.5" />
+                    棚卸し完了
+                  </button>
+                </div>
 
                 {/* Tags */}
                 {item.tags && item.tags.length > 0 && (
@@ -454,6 +480,30 @@ function ItemForm({
           placeholder="例: 折りたたみテーブル"
           className="font-light"
         />
+      </div>
+
+      {/* Photo URL */}
+      <div>
+        <label className="text-sm font-light text-gray-600 mb-1 block">
+          <span className="inline-flex items-center gap-1">
+            <Camera className="w-3.5 h-3.5" />
+            写真URL
+          </span>
+        </label>
+        <Input
+          value={formData.photo}
+          onChange={(e) => setFormData({ ...formData, photo: e.target.value })}
+          placeholder="https://..."
+          className="font-light"
+        />
+        {formData.photo && (
+          <img
+            src={formData.photo}
+            alt="プレビュー"
+            className="mt-2 w-full h-32 object-cover rounded-md border border-gray-200"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+        )}
       </div>
 
       {/* Quantity + Location row */}

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Edit2, Trash2, Eye, Download, X, ArrowLeft } from "lucide-react";
+import { Plus, Edit2, Trash2, BarChart3, Download, X, ArrowLeft } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { FormStatsModal } from "./FormStats";
 
@@ -178,8 +178,8 @@ export default function Forms() {
                           setShowStats(true);
                         }}
                       >
-                        <Eye className="w-4 h-4" />
-                        結果
+                        <BarChart3 className="w-4 h-4" />
+                        統計
                       </Button>
                       <Button
                         variant="outline"

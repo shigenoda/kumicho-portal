@@ -208,6 +208,38 @@ export const appRouter = router({
         await db.insert(posts).values(p);
       }
 
+      // 河川清掃実施ログ
+      const riverCleaningData = [
+        { date: new Date("2025-06-08"), participantsCount: 18, issues: "護岸付近にゴミ集積あり", whatWorked: "班分けして効率的に清掃できた", whatToImprove: "長靴のサイズが不足。次回は事前に確認", attachments: [] as Array<{url:string,name:string}>, linkedInventoryIds: [] as number[] },
+        { date: new Date("2025-12-14"), participantsCount: 15, issues: "落ち葉が多く排水溝が詰まっていた", whatWorked: "高圧洗浄機が活躍", whatToImprove: "寒さ対策として温かい飲み物の準備", attachments: [] as Array<{url:string,name:string}>, linkedInventoryIds: [] as number[] },
+        { date: new Date("2026-01-12"), participantsCount: 12, issues: null, whatWorked: "前回の改善点を反映し、スムーズに進行", whatToImprove: null, attachments: [] as Array<{url:string,name:string}>, linkedInventoryIds: [] as number[] },
+      ];
+      for (const r of riverCleaningData) {
+        await db.insert(riverCleaningRuns).values(r);
+      }
+
+      // Private Vault エントリ
+      const vaultData = [
+        { category: "銀行", key: "管理費口座 暗証番号", maskedValue: "****", actualValue: "5927", classification: "confidential" as const },
+        { category: "銀行", key: "管理費口座 口座番号", maskedValue: "○○銀行 ****321", actualValue: "普通 1234321 焼津支店", classification: "confidential" as const },
+        { category: "管理", key: "集会室Wi-Fiパスワード", maskedValue: "G****zu", actualValue: "Greenpia2024yaizu", classification: "internal" as const },
+        { category: "管理", key: "管理室セキュリティコード", maskedValue: "****", actualValue: "8012", classification: "confidential" as const },
+        { category: "業者", key: "管理会社 担当者直通", maskedValue: "054-***-****", actualValue: "054-628-3100 山田さん", classification: "internal" as const },
+        { category: "ポータル", key: "Vercel管理画面", maskedValue: "admin@***.com", actualValue: "admin@greenpia-yaizu.jp / Gp2024!portal", classification: "confidential" as const },
+      ];
+      for (const v of vaultData) {
+        await db.insert(vaultEntries).values(v);
+      }
+
+      // 秘匿メモ
+      const secretNotesData = [
+        { title: "103号室の騒音問題メモ", body: "2025年11月から夜間の音楽騒音の苦情あり。12月に直接訪問し改善依頼。1月以降は収束。念のため経過観察中。" },
+        { title: "管理会社契約更新メモ", body: "現契約: 2027年3月末まで。更新交渉は2026年12月頃に開始予定。他社見積もりも取ること。現行月額48,000円。" },
+      ];
+      for (const s of secretNotesData) {
+        await db.insert(secretNotes).values(s);
+      }
+
       // 初回ログ
       await db.insert(changelog).values({
         summary: "グリーンピア焼津ポータル初期データ投入完了",
@@ -790,6 +822,7 @@ export const appRouter = router({
         date: z.string(),
         category: z.string().min(1),
         notes: z.string().optional(),
+        checklist: z.array(z.object({ id: z.string(), text: z.string(), completed: z.boolean() })).optional(),
       }))
       .mutation(async ({ input }) => {
         const db = await getDb();
@@ -798,7 +831,7 @@ export const appRouter = router({
           title: input.title,
           date: new Date(input.date),
           category: input.category,
-          checklist: [],
+          checklist: input.checklist || [],
           notes: input.notes || null,
           attachments: [],
         }).returning();
@@ -846,6 +879,7 @@ export const appRouter = router({
         qty: z.number().default(0),
         location: z.string().min(1),
         condition: z.string().optional(),
+        photo: z.string().optional(),
         notes: z.string().optional(),
         tags: z.array(z.string()).default([]),
       }))
@@ -857,6 +891,7 @@ export const appRouter = router({
           qty: input.qty,
           location: input.location,
           condition: input.condition || null,
+          photo: input.photo || null,
           notes: input.notes || null,
           tags: input.tags,
         }).returning();
@@ -871,6 +906,7 @@ export const appRouter = router({
         qty: z.number().optional(),
         location: z.string().optional(),
         condition: z.string().optional(),
+        photo: z.string().optional(),
         notes: z.string().optional(),
         tags: z.array(z.string()).optional(),
         lastCheckedAt: z.string().optional(),
@@ -883,6 +919,7 @@ export const appRouter = router({
         if (input.qty !== undefined) updateData.qty = input.qty;
         if (input.location !== undefined) updateData.location = input.location;
         if (input.condition !== undefined) updateData.condition = input.condition;
+        if (input.photo !== undefined) updateData.photo = input.photo;
         if (input.notes !== undefined) updateData.notes = input.notes;
         if (input.tags !== undefined) updateData.tags = input.tags;
         if (input.lastCheckedAt !== undefined) updateData.lastCheckedAt = new Date(input.lastCheckedAt);
