@@ -55,61 +55,103 @@ export const appRouter = router({
 
   // シードデータ投入（初回のみ）
   seed: router({
-    run: publicProcedure.mutation(async () => {
+    run: publicProcedure
+      .input(z.object({ force: z.boolean().optional() }).optional())
+      .mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      // 既にデータがある場合はスキップ
+      const force = input?.force ?? false;
+
+      // 既にデータがある場合
       const existingHouseholds = await db.select().from(households);
-      if (existingHouseholds.length > 0) {
-        return { success: true, message: "データは既に投入済みです", skipped: true };
+      if (existingHouseholds.length > 0 && !force) {
+        return { success: true, message: "データは既に投入済みです。force: true で再投入できます。", skipped: true };
       }
 
-      // 住戸 (101-110号室)
+      // force モードの場合は既存データを削除（依存関係の順序で削除）
+      if (force && existingHouseholds.length > 0) {
+        await db.delete(formResponseItems);
+        await db.delete(formResponses);
+        await db.delete(formChoices);
+        await db.delete(formQuestions);
+        await db.delete(forms);
+        await db.delete(changelog);
+        await db.delete(secretNotes);
+        await db.delete(vaultEntries);
+        await db.delete(riverCleaningRuns);
+        await db.delete(posts);
+        await db.delete(pendingQueue);
+        await db.delete(handoverBagItems);
+        await db.delete(leaderRotationLogic);
+        await db.delete(leaderSchedule);
+        await db.delete(exemptionRequests);
+        await db.delete(ruleVersions);
+        await db.delete(rules);
+        await db.delete(templates);
+        await db.delete(faq);
+        await db.delete(inventory);
+        await db.delete(events);
+        await db.delete(households);
+      }
+
+      // 住戸 (9戸: 3階×3戸)
       const householdData = [
-        { householdId: "101", moveInDate: new Date("2018-04-01"), leaderHistoryCount: 2 },
-        { householdId: "102", moveInDate: new Date("2020-03-15"), leaderHistoryCount: 1 },
-        { householdId: "103", moveInDate: new Date("2015-09-01"), leaderHistoryCount: 3 },
-        { householdId: "104", moveInDate: new Date("2022-06-01"), leaderHistoryCount: 0 },
-        { householdId: "105", moveInDate: new Date("2019-11-01"), leaderHistoryCount: 1 },
-        { householdId: "106", moveInDate: new Date("2017-04-01"), leaderHistoryCount: 2 },
-        { householdId: "107", moveInDate: new Date("2021-01-15"), leaderHistoryCount: 0 },
-        { householdId: "108", moveInDate: new Date("2016-07-01"), leaderHistoryCount: 3 },
-        { householdId: "109", moveInDate: new Date("2023-04-01"), leaderHistoryCount: 0 },
-        { householdId: "110", moveInDate: new Date("2014-04-01"), leaderHistoryCount: 4 },
+        { householdId: "101", moveInDate: new Date("2025-09-01"), leaderHistoryCount: 0 },
+        { householdId: "102", moveInDate: new Date("2024-10-01"), leaderHistoryCount: 1 },
+        { householdId: "103", moveInDate: new Date("2023-03-01"), leaderHistoryCount: 0 },
+        { householdId: "201", moveInDate: new Date("2025-10-01"), leaderHistoryCount: 0 },
+        { householdId: "202", moveInDate: new Date("2024-02-01"), leaderHistoryCount: 0 },
+        { householdId: "203", moveInDate: new Date("2018-03-01"), leaderHistoryCount: 1 },
+        { householdId: "301", moveInDate: new Date("2022-04-01"), leaderHistoryCount: 1 },
+        { householdId: "302", moveInDate: new Date("2025-03-01"), leaderHistoryCount: 0 },
+        { householdId: "303", moveInDate: new Date("2020-08-01"), leaderHistoryCount: 1 },
       ];
       for (const h of householdData) {
         await db.insert(households).values(h).onConflictDoNothing();
       }
 
-      // 年間カレンダー（行事）
+      // 年間カレンダー（2025年度: 2025年4月〜2026年3月）
       const eventData = [
-        { title: "定例総会", date: new Date("2026-04-20T10:00:00"), category: "会議", checklist: [{ id: "1", text: "議案書配布", completed: false }, { id: "2", text: "出欠確認", completed: false }], notes: "集会室にて開催", attachments: [] as Array<{url:string,name:string}> },
-        { title: "春の一斉清掃", date: new Date("2026-04-13T08:00:00"), category: "清掃", checklist: [{ id: "1", text: "清掃用具準備", completed: false }], notes: "雨天時は翌週に延期", attachments: [] as Array<{url:string,name:string}> },
-        { title: "河川清掃", date: new Date("2026-06-08T07:00:00"), category: "清掃", checklist: [{ id: "1", text: "安全確認", completed: false }], notes: "市の河川清掃に参加", attachments: [] as Array<{url:string,name:string}> },
-        { title: "夏祭り", date: new Date("2026-08-16T16:00:00"), category: "行事", checklist: [{ id: "1", text: "テント設営", completed: false }, { id: "2", text: "食材買出し", completed: false }], notes: "駐車場にて開催", attachments: [] as Array<{url:string,name:string}> },
-        { title: "秋の一斉清掃", date: new Date("2026-10-12T08:00:00"), category: "清掃", checklist: [{ id: "1", text: "落ち葉清掃", completed: false }], notes: "排水溝も確認", attachments: [] as Array<{url:string,name:string}> },
-        { title: "防災訓練", date: new Date("2026-11-09T09:00:00"), category: "行事", checklist: [{ id: "1", text: "消火器点検", completed: false }, { id: "2", text: "避難経路確認", completed: false }], notes: "消防署との合同訓練", attachments: [] as Array<{url:string,name:string}> },
-        { title: "年末大掃除", date: new Date("2026-12-21T08:00:00"), category: "清掃", checklist: [{ id: "1", text: "共用部清掃", completed: false }], notes: "共用部の大掃除", attachments: [] as Array<{url:string,name:string}> },
-        { title: "3月定例会議", date: new Date("2026-03-15T19:00:00"), category: "会議", checklist: [{ id: "1", text: "年度末報告", completed: false }], notes: "年度末の総括", attachments: [] as Array<{url:string,name:string}> },
+        { title: "河川清掃（第1回）", date: new Date("2025-04-20T08:00:00"), category: "清掃", checklist: [{ id: "1", text: "手袋準備", completed: false }, { id: "2", text: "参加者確認", completed: false }], notes: "黒石川周辺。出不足金対象活動。", attachments: [] as Array<{url:string,name:string}> },
+        { title: "町内会報告書提出", date: new Date("2025-05-02T00:00:00"), category: "締切", checklist: [{ id: "1", text: "報告書作成", completed: false }], notes: "町内会への年間報告書", attachments: [] as Array<{url:string,name:string}> },
+        { title: "総会・組長会", date: new Date("2025-05-26T19:00:00"), category: "会議", checklist: [{ id: "1", text: "議案書準備", completed: false }, { id: "2", text: "出欠確認", completed: false }], notes: "総会後に組長会。年度初回。大住公会堂にて。", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長会", date: new Date("2025-06-26T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
+        { title: "世帯家族調査配布・回収", date: new Date("2025-06-15T00:00:00"), category: "行事", checklist: [{ id: "1", text: "調査用紙配布", completed: false }, { id: "2", text: "回収", completed: false }], notes: "各世帯への調査用紙の配布と回収", attachments: [] as Array<{url:string,name:string}> },
+        { title: "河川清掃（第2回）", date: new Date("2025-07-06T08:00:00"), category: "清掃", checklist: [{ id: "1", text: "手袋準備", completed: false }], notes: "黒石川周辺", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長会", date: new Date("2025-07-26T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
+        { title: "防災訓練 第1回", date: new Date("2025-08-24T17:00:00"), category: "行事", checklist: [{ id: "1", text: "訓練内容確認", completed: false }], notes: "夕方実施。近隣住民も参加。", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長会", date: new Date("2025-08-26T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
+        { title: "黒石川堤防草刈り", date: new Date("2025-09-21T00:00:00"), category: "行事", checklist: [], notes: "マンション住民は参加不要。地主対応。", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長会", date: new Date("2025-09-26T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
+        { title: "防災訓練 第2回", date: new Date("2025-10-05T09:00:00"), category: "行事", checklist: [{ id: "1", text: "訓練内容確認", completed: false }], notes: "午前中実施。", attachments: [] as Array<{url:string,name:string}> },
+        { title: "赤い羽根募金", date: new Date("2025-10-15T00:00:00"), category: "行事", checklist: [{ id: "1", text: "各世帯から集金", completed: false }], notes: "各世帯から募金を集める", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長会", date: new Date("2025-10-26T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
+        { title: "次年度組長選定プロセス開始", date: new Date("2025-11-01T00:00:00"), category: "行事", checklist: [{ id: "1", text: "候補者リスト作成", completed: false }, { id: "2", text: "候補者へ打診", completed: false }], notes: "候補者の選定と打診", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長会", date: new Date("2025-11-26T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長確定・組長会に報告", date: new Date("2025-12-01T00:00:00"), category: "行事", checklist: [{ id: "1", text: "次年度組長確定", completed: false }], notes: "次年度の203号室に確定", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長会", date: new Date("2025-12-26T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
+        { title: "引き継ぎ準備", date: new Date("2026-01-15T00:00:00"), category: "行事", checklist: [{ id: "1", text: "ポータルサイト更新", completed: false }, { id: "2", text: "資料整理", completed: false }], notes: "ポータルサイト更新、資料整理", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長会", date: new Date("2026-01-26T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長会", date: new Date("2026-02-26T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
+        { title: "防災訓練 第3回", date: new Date("2026-03-15T00:00:00"), category: "行事", checklist: [], notes: "予定。まだ未実施。", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長会", date: new Date("2026-03-26T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
       ];
       for (const e of eventData) {
         await db.insert(events).values(e);
       }
 
-      // 備品台帳
+      // 備品台帳（組長倉庫：階段下の物置）
       const inventoryData = [
-        { name: "折りたたみテーブル", qty: 5, location: "集会室倉庫", condition: "良好", notes: "年1回点検", tags: ["集会室", "行事用"] },
-        { name: "パイプ椅子", qty: 30, location: "集会室倉庫", condition: "良好", notes: "2024年に10脚新調", tags: ["集会室"] },
-        { name: "掃除機（業務用）", qty: 1, location: "管理室", condition: "良好", notes: "フィルター定期交換", tags: ["清掃"] },
-        { name: "高圧洗浄機", qty: 1, location: "駐車場倉庫", condition: "使用可", notes: "使用後は水抜き", tags: ["清掃"] },
-        { name: "脚立（2m）", qty: 2, location: "管理室", condition: "良好", notes: null, tags: ["工具"] },
-        { name: "消火器", qty: 8, location: "各階廊下", condition: "良好", notes: "有効期限2028年", tags: ["防災"] },
-        { name: "AED", qty: 1, location: "エントランス", condition: "良好", notes: "バッテリー2027年6月", tags: ["防災", "医療"] },
-        { name: "草刈り機", qty: 1, location: "駐車場倉庫", condition: "使用可", notes: "混合燃料使用", tags: ["外構"] },
-        { name: "トランシーバー", qty: 4, location: "管理室", condition: "良好", notes: "防災訓練・行事で使用", tags: ["防災", "行事用"] },
-        { name: "救急箱", qty: 2, location: "管理室・集会室", condition: "良好", notes: "半年ごとに補充", tags: ["医療"] },
-        { name: "ゴミ袋（45L）", qty: 200, location: "管理室", condition: "良好", notes: "100枚以下で発注", tags: ["清掃", "消耗品"] },
+        { name: "平スコップ", qty: 2, location: "組長倉庫（階段下）", condition: "使用可", notes: null, tags: ["清掃", "河川清掃"] },
+        { name: "剣先スコップ", qty: 2, location: "組長倉庫（階段下）", condition: "使用可", notes: null, tags: ["清掃", "河川清掃"] },
+        { name: "土嚢袋", qty: 30, location: "組長倉庫（階段下）", condition: "良好", notes: "年1回配布あり", tags: ["防災"] },
+        { name: "町内会旗", qty: 3, location: "組長倉庫（階段下）", condition: "未使用", notes: "使用実績なし", tags: ["行事"] },
+        { name: "使い捨て手袋", qty: 1, location: "組長倉庫（階段下）", condition: "良好", notes: "河川清掃用。毎年100均で購入（500円程度）", tags: ["清掃", "消耗品"] },
+        { name: "ヘルメット", qty: 2, location: "組長倉庫（階段下）", condition: "使用可", notes: null, tags: ["防災"] },
+        { name: "鎌", qty: 2, location: "組長倉庫（階段下）", condition: "使用可", notes: null, tags: ["清掃"] },
+        { name: "三本爪（レーキ）", qty: 1, location: "組長倉庫（階段下）", condition: "使用可", notes: null, tags: ["清掃"] },
+        { name: "三角ホー", qty: 2, location: "組長倉庫（階段下）", condition: "使用可", notes: null, tags: ["清掃"] },
       ];
       for (const i of inventoryData) {
         await db.insert(inventory).values(i);
@@ -117,13 +159,13 @@ export const appRouter = router({
 
       // FAQ
       const faqData = [
-        { question: "ゴミ出しのルールは？", answer: "燃えるゴミ:月・木、資源ゴミ:火、プラスチック:水。朝8時までにゴミ置き場へ。粗大ゴミは市に事前予約。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
-        { question: "駐車場の契約はどうすればいいですか？", answer: "組長に連絡してください。空き区画がある場合、月額5,000円で契約可能です。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
-        { question: "騒音トラブルがある場合は？", answer: "まず当事者間で話し合いを。解決が難しい場合は組長にご相談ください。夜10時以降の生活音にはご配慮を。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
-        { question: "共用施設の利用方法は？", answer: "集会室は予約制。組長に1週間前までに申請。利用後は清掃をお願いします。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
-        { question: "管理費の支払い方法は？", answer: "口座振替（毎月27日引落し）。振替口座変更は組長まで届出書を提出。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
-        { question: "ペットの飼育は可能ですか？", answer: "小型犬・猫は1匹まで可。飼育届の提出必要。共用部はリード必須。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
-        { question: "退去時の手続きは？", answer: "退去1ヶ月前までに組長へ届出。鍵の返却、駐車場・メール登録の解除を行います。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "河川清掃に参加できない場合は？", answer: "2025年度までは出不足金（1回につき定額）が発生しました。2026年度からは出不足金制度は廃止されています。小さなお子さんのいる家庭は免除対象です。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "組長倉庫はどこですか？", answer: "エントランス横の階段下、駐輪場付近にあります。約1畳、腰の高さの物置です。鍵は組長が管理しています。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "組長の選び方は？", answer: "入居順・経験回数をベースにローテーションで決定します。免除申請がある場合は組長会で審議されます。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "管理会社はどこですか？", answer: "平和ハウジング株式会社です。設備トラブル等は管理会社に直接連絡してください。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "屋上に上がれますか？", answer: "原則禁止です。法的リスク（落下事故等の責任問題）があるため、緊急時は管理会社または消防署に連絡してください。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "古紙回収の収入はどうなりますか？", answer: "年間約1,000円程度の収入があり、組長活動費に充当されます。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "出不足金（でぶそくきん）とは？", answer: "「出」は参加の意味。河川清掃等の共同活動に参加しなかった場合のペナルティ金です。2025年度で85,000円が積み立てられ、全額を組長倉庫の購入費用に充てました。2026年度から廃止されています。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
       ];
       for (const f of faqData) {
         await db.insert(faq).values(f);
@@ -131,11 +173,14 @@ export const appRouter = router({
 
       // ルール・決定事項
       const rulesData = [
-        { title: "ゴミ出しルール", summary: "分別と収集日の遵守", details: "燃えるゴミ（月・木）、資源ゴミ（火）、プラスチック（水）。朝8時までに指定場所へ。", status: "decided" as const, evidenceLinks: [] as string[], isHypothesis: false },
-        { title: "駐車場利用規約", summary: "駐車場の契約と利用ルール", details: "月額5,000円。来客用は最大3日まで。無断駐車は警告→レッカー。", status: "decided" as const, evidenceLinks: [] as string[], isHypothesis: false },
-        { title: "騒音に関する規約", summary: "夜間の生活音への配慮", details: "夜22時〜朝7時は静粛時間。楽器演奏は20時まで。工事は平日9時〜17時のみ。", status: "decided" as const, evidenceLinks: [] as string[], isHypothesis: false },
-        { title: "ペット飼育規約", summary: "ペットの種類・数の制限", details: "小型犬・猫1匹まで。飼育届提出必須。共用部はリード着用。", status: "decided" as const, evidenceLinks: [] as string[], isHypothesis: false },
-        { title: "共用施設利用規約", summary: "集会室の予約と利用", details: "1週間前までに予約。利用時間9時〜21時。利用後は原状回復。", status: "decided" as const, evidenceLinks: [] as string[], isHypothesis: false },
+        { title: "出不足金制度の廃止", summary: "2026年度から出不足金を廃止", details: "出不足金は「出」=参加の意味。不参加者へのペナルティ金として運用してきたが、2025年度の積立金85,000円を全額組長倉庫購入に充当し、制度を廃止。", status: "decided" as const, evidenceLinks: [] as string[], isHypothesis: false },
+        { title: "河川清掃の範囲確定", summary: "ISY隣接ビルの清掃範囲を明確化", details: "隣接するISYビル周辺の河川清掃範囲について町内会長が仲介。業者による対応で解決。グリーンピアの担当範囲を明確にした。", status: "decided" as const, evidenceLinks: [] as string[], isHypothesis: false },
+        { title: "屋上立入禁止", summary: "屋上への立ち入りは原則禁止", details: "落下事故時の法的責任リスクが高いため、原則立入禁止。緊急時は管理会社（平和ハウジング）または消防署に連絡。", status: "decided" as const, evidenceLinks: [] as string[], isHypothesis: false },
+        { title: "小さな子供がいる家庭の清掃免除", summary: "乳幼児のいる世帯は河川清掃を免除", details: "2026年度より、小さなお子さんのいる家庭は河川清掃への参加を免除する。", status: "decided" as const, evidenceLinks: [] as string[], isHypothesis: false },
+        { title: "組長免除の検討", summary: "夜勤・育児等による組長免除の可否を検討中", details: "夜勤従事者や小さな子供がいる家庭からの免除要望あり。管理会社からは相反する見解が出ており、住民アンケートで意見を集約中。2026年3月までに結論を出す予定。", status: "draft" as const, evidenceLinks: [] as string[], isHypothesis: true },
+        { title: "組長選出の運用細則", summary: "入居順ベースの選出ルール確定", details: "【免除規定】\n・組長経験者：任期終了翌月から24ヶ月免除（不均衡の是正）\n・新規入居者：入居後12ヶ月免除（運営・行事理解の猶予）\n\n【選出優先順位】\n①組長経験回数の少ない方（0回→1回→2回…）\n②同回数内は入居の古い方\n③同時期入居は部屋番号昇順\n\n【年次運用】\n・11月：組長決定アンケート実施→候補者リスト作成・回覧\n・12月：平和ハウジング照会→正式決定→町内会へ報告\n\n令和7年11月9日 町内会長承認済み。", status: "decided" as const, evidenceLinks: [] as string[], isHypothesis: false },
+        { title: "河川清掃の参加免除基準（提案中）", summary: "安全配慮に基づく免除対象の明確化", details: "【免除対象案】\n・小学生以下の子供がいる世帯\n・妊娠中の方\n・70歳以上の方\n・疾病・療養・介護中の方\n\n【手続き案】\n・11月の組長決定アンケートで届出受理\n・最終確認は町内会長判断\n\n【任意協力金案】\n・100〜200円（飲料・消耗品相当）を検討\n\n令和7年11月9日 町内会長へ提案書提出済み。回答待ち。", status: "draft" as const, evidenceLinks: [] as string[], isHypothesis: true },
+        { title: "町内会費の徴収方法の明確化", summary: "集合住宅は管理会社が一括徴収", details: "令和7年度「組長顔合わせ会（保存版資料）」に「組長が町内会費を徴収」と記載があり誤認が発生。\n実態：集合住宅（マンション）は管理会社（平和ハウジング）が一括徴収。マンション組長による徴収は不要。\n→次年度資料への追記を提案済み。", status: "decided" as const, evidenceLinks: [] as string[], isHypothesis: false },
       ];
       for (const r of rulesData) {
         await db.insert(rules).values(r);
@@ -143,11 +188,13 @@ export const appRouter = router({
 
       // テンプレート
       const templateData = [
-        { title: "総会議案書テンプレート", body: "令和○年度 グリーンピア焼津 定例総会 議案書\n\n日時: 令和○年○月○日\n場所: 集会室\n\n【第1号議案】事業報告\n【第2号議案】決算報告\n【第3号議案】事業計画（案）\n【第4号議案】予算（案）\n【第5号議案】役員改選", category: "会議", tags: ["総会", "議案書"] },
-        { title: "回覧板テンプレート", body: "グリーンピア焼津 回覧\n\n日付: 令和○年○月○日\n発信者: 組長\n\n件名: ○○○について\n\n本文:\n\n※確認後、次の方へお回しください。", category: "連絡", tags: ["回覧板"] },
-        { title: "工事届出書テンプレート", body: "リフォーム工事届出書\n\n届出日:\n届出者: ○号室\n\n工事内容:\n工事期間:\n作業時間:\n施工業者:\n連絡先:\n\n※工事は平日9時〜17時に限ります。", category: "届出", tags: ["工事", "届出"] },
-        { title: "退去届テンプレート", body: "退去届\n\n届出日:\n届出者: ○号室\n\n退去予定日:\n連絡先:\n\n返却物:\n□ 鍵\n□ 駐車場リモコン", category: "届出", tags: ["退去"] },
-        { title: "飼育届テンプレート", body: "ペット飼育届\n\n届出日:\n届出者: ○号室\n\nペットの種類: □犬 □猫\n品種:\n名前:\n体重:\n\n予防接種: □狂犬病 □混合ワクチン", category: "届出", tags: ["ペット"] },
+        { title: "回覧テンプレート", body: "グリーンピア焼津 回覧\n\n日付: 令和○年○月○日\n発信者: 組長（○号室）\n\n件名: ○○○について\n\n本文:\n\n※確認後、次の方へお回しください。\n回覧順：101→102→103→201→202→203→301→302→303", category: "連絡", tags: ["回覧板"] },
+        { title: "河川清掃のお知らせ", body: "河川清掃のお知らせ\n\n日時: ○月○日（○）午前8時集合\n場所: グリーンピア玄関前\n持ち物: 長靴、軍手（手袋は組長が用意します）\n\n雨天の場合は中止とし、別途連絡いたします。\n\nご協力よろしくお願いいたします。\n\n組長 ○号室", category: "連絡", tags: ["河川清掃"] },
+        { title: "組長引き継ぎメモテンプレート", body: "組長引き継ぎメモ\n\n前年度組長: ○号室\n新年度組長: ○号室\n引き継ぎ日: 令和○年○月○日\n\n引き継ぎ内容:\n□ 組長倉庫の鍵\n□ クリアファイル（資料一式）\n□ 金銭出入帳\n□ 回覧ファイル（2冊）\n\n特記事項:\n", category: "引き継ぎ", tags: ["引き継ぎ"] },
+        { title: "防災訓練のお知らせ", body: "防災訓練のお知らせ\n\n日時: ○月○日（○）\n集合場所: グリーンピア玄関前\n内容: 避難経路確認、消火器使用訓練\n\nご参加よろしくお願いいたします。\n\n組長 ○号室", category: "連絡", tags: ["防災訓練"] },
+        { title: "世帯調査票", body: "世帯家族調査票\n\n部屋番号: ○号室\n\n世帯主氏名:\n同居家族人数:\n\n緊急連絡先:\n\n備考:\n\n※ご記入後、組長にご提出ください。", category: "届出", tags: ["調査"] },
+        { title: "町内会長への提案書テンプレート", body: "令和○年度　○○に関する提案書\n\n大泉町内会\n八町内会 会長　○○ ○○ 様\n\n令和○年○月○日\nグリーンピア○号室\n8組 組長　○○ ○○\n\n拝啓　時下ますますご清祥のこととお慶び申し上げます。\n平素より格別のご高配を賜り、厚く御礼申し上げます。\n\n（本文）\n\n以上、何卒ご検討のほどよろしくお願い申し上げます。\n敬具\n\n連絡先\n8組 組長　○○ ○○（グリーンピア○号室）\nTEL：○○○-○○○○-○○○○\nEmail：○○○@○○○.com", category: "町内会", tags: ["町内会", "提案書", "正式文書"] },
+        { title: "住民アンケートテンプレート（組長運用）", body: "8組 グリーンピア入居者 各位\n\n日頃より、町内会活動およびマンション内の運営にご理解・ご協力をいただき、ありがとうございます。現組長の○号室・○○です。\n\n（背景説明）\n\nそこで、まずは住民の皆さまの実情やお考えを把握するため、アンケートを実施いたします。回答は任意で、無記名でも構いません。内容は集計し、個人が特定されない形で論点を整理します。\n\nお手数ですが、アンケート用紙を封筒に入れ、○号室ポストへ投函してください。\n\n【提出期限】○年○月○日\n【提出方法】封筒に入れて○号室ポストへ投函（無記名可）\n【問い合わせ】現組長（○号室）まで\n\n住民同士が気まずくならず、安心して居住し続けられる環境を維持するためにも、無理のない範囲でご協力いただけますと幸いです。\nどうぞよろしくお願いいたします。\n\n○年○月○日\n8組 グリーンピア　組長　○○ ○○\n\n※本件は契約・規約等の解釈に関わる可能性があります。必要に応じ、賃貸借契約・重要事項説明書・管理規約・自治会規約等の確認や、専門家への相談を行ってください。", category: "アンケート", tags: ["アンケート", "住民調査", "組長運用"] },
       ];
       for (const t of templateData) {
         await db.insert(templates).values(t);
@@ -155,15 +202,11 @@ export const appRouter = router({
 
       // 引き継ぎ袋チェックリスト
       const handoverData = [
-        { name: "管理室の鍵", location: "引き継ぎ袋", isChecked: false, description: "管理室のマスターキー", notes: "スペアキーは金庫内" },
-        { name: "集会室の鍵", location: "引き継ぎ袋", isChecked: false, description: "集会室の鍵（2本）", notes: null },
-        { name: "管理組合印鑑", location: "引き継ぎ袋", isChecked: false, description: "実印と認印", notes: "銀行届出印" },
-        { name: "通帳", location: "引き継ぎ袋", isChecked: false, description: "管理費口座の通帳", notes: "○○銀行焼津支店" },
-        { name: "管理規約原本", location: "引き継ぎ袋", isChecked: false, description: "管理規約と細則の原本", notes: "改訂履歴付き" },
-        { name: "過去議事録ファイル", location: "引き継ぎ袋", isChecked: false, description: "過去5年分の議事録", notes: null },
-        { name: "住民名簿", location: "引き継ぎ袋", isChecked: false, description: "全住戸の連絡先", notes: "個人情報注意" },
-        { name: "業者連絡先リスト", location: "引き継ぎ袋", isChecked: false, description: "管理会社・業者の連絡先", notes: "緊急時は管理会社へ" },
-        { name: "ポータルサイト情報", location: "引き継ぎ袋", isChecked: false, description: "ポータルの管理情報", notes: "Vaultにも登録済" },
+        { name: "組長倉庫の鍵", location: "引き継ぎ袋", isChecked: false, description: "階段下の物置の鍵", notes: "次年度組長へ引き渡し" },
+        { name: "クリアファイル", location: "引き継ぎ袋", isChecked: false, description: "各種資料一式", notes: "通知文書、議事録等" },
+        { name: "金銭出入帳", location: "引き継ぎ袋", isChecked: false, description: "出不足金等の収支記録", notes: "2025年度で出不足金は廃止" },
+        { name: "回覧ファイル（1冊目）", location: "引き継ぎ袋", isChecked: false, description: "回覧板用ファイル", notes: null },
+        { name: "回覧ファイル（2冊目）", location: "引き継ぎ袋", isChecked: false, description: "回覧板用ファイル", notes: null },
       ];
       for (const h of handoverData) {
         await db.insert(handoverBagItems).values(h);
@@ -171,11 +214,10 @@ export const appRouter = router({
 
       // ローテスケジュール
       const scheduleData = [
-        { year: 2026, primaryHouseholdId: "104", backupHouseholdId: "107", status: "confirmed" as const, reason: "2026年度確定" },
-        { year: 2027, primaryHouseholdId: "107", backupHouseholdId: "109", status: "draft" as const, reason: "自動計算" },
-        { year: 2028, primaryHouseholdId: "109", backupHouseholdId: "102", status: "draft" as const, reason: "自動計算" },
-        { year: 2029, primaryHouseholdId: "102", backupHouseholdId: "105", status: "draft" as const, reason: "自動計算" },
-        { year: 2030, primaryHouseholdId: "105", backupHouseholdId: "101", status: "draft" as const, reason: "自動計算" },
+        { year: 2025, primaryHouseholdId: "102", backupHouseholdId: "103", status: "confirmed" as const, reason: "2025年度確定（現任）" },
+        { year: 2026, primaryHouseholdId: "203", backupHouseholdId: "301", status: "confirmed" as const, reason: "102:免除B（直近組長）、103/202:免除C（就任困難）、101/201/302:免除A（入居12ヶ月未満）→繰上げで203" },
+        { year: 2027, primaryHouseholdId: "302", backupHouseholdId: "101", status: "draft" as const, reason: "自動計算: 0回組で入居が古い順。102:免除B、203:免除B、103/202:免除C想定" },
+        { year: 2028, primaryHouseholdId: "101", backupHouseholdId: "201", status: "draft" as const, reason: "自動計算: 0回組で入居が古い順。102:免除B期限切れで復帰候補" },
       ];
       for (const s of scheduleData) {
         await db.insert(leaderSchedule).values(s);
@@ -184,35 +226,52 @@ export const appRouter = router({
       // ローテーションロジック
       await db.insert(leaderRotationLogic).values({
         version: 1,
-        logic: { priority: ["入居年数が長い順", "組長経験回数が少ない順"], excludeConditions: ["入居1年未満", "免除申請承認済み"] },
-        reason: "初期設定",
+        logic: {
+          priority: [
+            "入居年月が古い順（基本方針）",
+            "免除対象が発生した場合は次に古い世帯へ繰上げ",
+            "経験回数は参考情報（同条件で迷う場合の説明材料）"
+          ],
+          excludeConditions: [
+            "A: 入居12ヶ月未満（自動免除、入居12ヶ月経過の翌月に自動復帰）",
+            "B: 直近組長（任期終了翌月から24ヶ月免除）",
+            "C: 就任困難申告（育児・健康・介護等、年1回11〜12月に継続確認）"
+          ]
+        },
+        reason: "令和7年11月9日 町内会長承認済みの運用細則。ポータルには免除理由＋見直し時期を必ず記載。",
       });
 
       // 返信待ちキュー
       const pendingData = [
-        { title: "エレベーター点検の見積もり", description: "年次点検の見積もり依頼中", toWhom: "○○エレベーターサービス", priority: "high" as const, status: "pending" as const },
-        { title: "駐輪場の増設相談", description: "自転車増加のため増設を管理会社に相談中", toWhom: "△△管理会社", priority: "medium" as const, status: "pending" as const },
+        { title: "組長免除アンケートの回答集約", description: "夜勤者・育児家庭の組長免除に関するアンケートを実施中。回答を集約し、オーナーとの交渉材料にする。", toWhom: "各世帯", priority: "high" as const, status: "pending" as const },
+        { title: "オーナーとの組長制度協議", description: "アンケート結果をもとに、組長制度の改善案をオーナー（管理会社経由）に提案予定。", toWhom: "平和ハウジング株式会社", priority: "medium" as const, status: "pending" as const },
+        { title: "町内会長からの提案書回答待ち", description: "令和7年11月9日提出の統合提案書への回答。河川清掃免除基準・草刈り責任所在・周知改善について12月中の方向性提示を依頼済み。", toWhom: "中山裕二 会長（大泉町内会）", priority: "high" as const, status: "pending" as const },
+        { title: "住民アンケート回答の集約（2/28期限）", description: "2026年2月4日配布の組長運用アンケート。提出期限2/28。回答を集約し、オーナーへの申し入れ材料として整理する。Q6の運用方向性（A/B/C/D）の集計が特に重要。", toWhom: "各世帯（9世帯）", priority: "high" as const, status: "pending" as const },
+        { title: "管理会社からの対応回答待ち", description: "特定入居者の独自見解（免除全否定・退去発言等）について管理会社へ相談済み。公式な説明・指導の実施を依頼中。", toWhom: "平和ハウジング株式会社", priority: "high" as const, status: "pending" as const },
       ];
       for (const p of pendingData) {
         await db.insert(pendingQueue).values(p);
       }
 
-      // 年度ログ
+      // 年度ログ（2025年度）
       const postsData = [
-        { title: "エントランスの照明をLEDに交換", body: "電気代削減のため、エントランスと共用廊下の照明をLEDに交換。年間約3万円の削減見込み。", tags: ["設備", "コスト削減"] as string[], year: 2026, category: "improvement" as const, status: "published" as const, isHypothesis: false, relatedLinks: [] as string[], publishedAt: new Date("2026-01-15") },
-        { title: "3階排水管の詰まり対応", body: "3階共用排水管が詰まり、業者対応。原因は油脂の蓄積。各住戸に注意喚起の回覧を配布。", tags: ["設備", "トラブル"] as string[], year: 2026, category: "trouble" as const, status: "published" as const, isHypothesis: false, relatedLinks: [] as string[], publishedAt: new Date("2026-01-20") },
-        { title: "管理費の値上げについて（検討中）", body: "物価上昇に伴い管理費見直しを検討。現行:月額15,000円→案:16,500円。次回総会で決議予定。", tags: ["管理費", "総会議題"] as string[], year: 2026, category: "pending" as const, status: "published" as const, isHypothesis: true, relatedLinks: [] as string[], publishedAt: new Date("2026-02-01") },
-        { title: "宅配ボックス設置の要望", body: "複数の住民から設置要望あり。見積もり取得中。設置場所はエントランス横を予定。", tags: ["設備", "要望"] as string[], year: 2026, category: "inquiry" as const, status: "published" as const, isHypothesis: false, relatedLinks: [] as string[], publishedAt: new Date("2026-02-05") },
+        { title: "組長倉庫の設置", body: "組長の備品保管場所がなく、個人宅での保管が負担になっていた問題を解決。出不足金の積立金85,000円を全額使用し、エントランス横の階段下に専用物置を購入・設置。約1畳、腰高サイズ。", tags: ["設備", "解決済み"] as string[], year: 2025, category: "improvement" as const, status: "published" as const, isHypothesis: false, relatedLinks: [] as string[], publishedAt: new Date("2025-06-01") },
+        { title: "河川清掃範囲の紛争解決", body: "隣接するISYビル周辺の河川清掃範囲について紛争が発生。町内会長が仲介に入り、業者による清掃で解決。グリーンピアの担当範囲を明確にした。", tags: ["河川清掃", "解決済み"] as string[], year: 2025, category: "trouble" as const, status: "published" as const, isHypothesis: false, relatedLinks: [] as string[], publishedAt: new Date("2025-07-15") },
+        { title: "屋上アクセス要請への対応", body: "住民から屋上への立ち入り要請あり。法的リスク（落下事故時の責任）を説明し、原則禁止とした。緊急時は管理会社または消防署に連絡する運用に。", tags: ["安全", "解決済み"] as string[], year: 2025, category: "decision" as const, status: "published" as const, isHypothesis: false, relatedLinks: [] as string[], publishedAt: new Date("2025-08-20") },
+        { title: "河川堤防草刈りの対応", body: "黒石川堤防の草刈りについて、地主がいる土地のため直接の作業は不可。地主が業者を手配して対応完了。マンション住民の作業は不要と確認。", tags: ["河川清掃", "解決済み"] as string[], year: 2025, category: "decision" as const, status: "published" as const, isHypothesis: false, relatedLinks: [] as string[], publishedAt: new Date("2025-09-25") },
+        { title: "組長免除制度の検討（進行中）", body: "夜勤従事者や小さな子供がいる家庭から組長免除の要望あり。管理会社（平和ハウジング）からは相反する見解が出ており、住民アンケートを実施して意見を集約中。2026年3月までに結論を出す予定。", tags: ["組長制度", "進行中"] as string[], year: 2025, category: "pending" as const, status: "published" as const, isHypothesis: true, relatedLinks: [] as string[], publishedAt: new Date("2025-11-01") },
+        { title: "町内会長への統合提案書を提出", body: "令和7年11月9日、大泉町内会八町内会会長（中山裕二様）宛てに「組長業務改善に関する統合提案書」を提出。\n\n提案内容：\n1. 組長選出ルールの確定（運用細則の策定報告）\n2. 河川清掃の安全配慮と参加免除基準\n3. 河川草刈り作業の責任所在確認\n4. 周知事項の改善（町内会費徴収の明確化、清掃範囲の可視化）\n\n12月中に方向性の回答を依頼。最終確定は令和8年3月末。", tags: ["町内会", "提案書", "組長制度"] as string[], year: 2025, category: "decision" as const, status: "published" as const, isHypothesis: false, relatedLinks: [] as string[], publishedAt: new Date("2025-11-09") },
+        { title: "管理会社へ特定入居者対応を相談", body: "特定の入居者から組長免除の全否定や「組長をしないなら退去すべき」という趣旨の強い意見が複数回文書で示されたため、管理会社（平和ハウジング）へ公式な説明・指導を依頼。\n組長業務のローテーション位置づけ、免除の考え方、退去云々は正式ルールではないことの3点について説明を要請。回答待ち。\n※該当号室は秘匿（秘匿メモ参照）", tags: ["管理会社", "住民対応", "進行中"] as string[], year: 2025, category: "trouble" as const, status: "published" as const, isHypothesis: false, relatedLinks: [] as string[], publishedAt: new Date("2026-01-15") },
+        { title: "住民アンケートを配布", body: "2026年2月4日、全9世帯に組長運用に関するアンケートを配布。\n\n主な質問内容:\n・組長業務の負担感\n・組長会や河川清掃への参加可否\n・今後の運用方向性（住民持ち回り/オーナー担当/折衷案）\n・引き継ぎ方法の改善\n\n背景として、町内会長からのオーナー側運用への示唆、他マンション実例（21組等）、管理会社の不関与スタンスを共有。\n提出期限: 2026年2月28日。回答を集約し、オーナーへの申し入れ材料とする予定。", tags: ["アンケート", "組長制度", "住民調査"] as string[], year: 2025, category: "decision" as const, status: "published" as const, isHypothesis: false, relatedLinks: [] as string[], publishedAt: new Date("2026-02-04") },
       ];
       for (const p of postsData) {
         await db.insert(posts).values(p);
       }
 
-      // 河川清掃実施ログ
+      // 河川清掃実施ログ（2025年度）
       const riverCleaningData = [
-        { date: new Date("2025-06-08"), participantsCount: 18, issues: "護岸付近にゴミ集積あり", whatWorked: "班分けして効率的に清掃できた", whatToImprove: "長靴のサイズが不足。次回は事前に確認", attachments: [] as Array<{url:string,name:string}>, linkedInventoryIds: [] as number[] },
-        { date: new Date("2025-12-14"), participantsCount: 15, issues: "落ち葉が多く排水溝が詰まっていた", whatWorked: "高圧洗浄機が活躍", whatToImprove: "寒さ対策として温かい飲み物の準備", attachments: [] as Array<{url:string,name:string}>, linkedInventoryIds: [] as number[] },
-        { date: new Date("2026-01-12"), participantsCount: 12, issues: null, whatWorked: "前回の改善点を反映し、スムーズに進行", whatToImprove: null, attachments: [] as Array<{url:string,name:string}>, linkedInventoryIds: [] as number[] },
+        { date: new Date("2025-04-20"), participantsCount: 15, issues: null, whatWorked: "黒石川周辺の清掃を班分けして効率的に実施", whatToImprove: null, attachments: [] as Array<{url:string,name:string}>, linkedInventoryIds: [] as number[] },
+        { date: new Date("2025-07-06"), participantsCount: 12, issues: null, whatWorked: "前回の経験を活かしスムーズに進行", whatToImprove: null, attachments: [] as Array<{url:string,name:string}>, linkedInventoryIds: [] as number[] },
       ];
       for (const r of riverCleaningData) {
         await db.insert(riverCleaningRuns).values(r);
@@ -220,12 +279,10 @@ export const appRouter = router({
 
       // Private Vault エントリ
       const vaultData = [
-        { category: "銀行", key: "管理費口座 暗証番号", maskedValue: "****", actualValue: "5927", classification: "confidential" as const },
-        { category: "銀行", key: "管理費口座 口座番号", maskedValue: "○○銀行 ****321", actualValue: "普通 1234321 焼津支店", classification: "confidential" as const },
-        { category: "管理", key: "集会室Wi-Fiパスワード", maskedValue: "G****zu", actualValue: "Greenpia2024yaizu", classification: "internal" as const },
-        { category: "管理", key: "管理室セキュリティコード", maskedValue: "****", actualValue: "8012", classification: "confidential" as const },
-        { category: "業者", key: "管理会社 担当者直通", maskedValue: "054-***-****", actualValue: "054-628-3100 山田さん", classification: "internal" as const },
-        { category: "ポータル", key: "Vercel管理画面", maskedValue: "admin@***.com", actualValue: "admin@greenpia-yaizu.jp / Gp2024!portal", classification: "confidential" as const },
+        { category: "管理", key: "組長倉庫 鍵の場所", maskedValue: "組長が管理", actualValue: "組長が保管。引き継ぎ時に次年度組長へ渡す", classification: "internal" as const },
+        { category: "管理", key: "管理会社連絡先", maskedValue: "平和ハウジング", actualValue: "平和ハウジング株式会社（詳細は引き継ぎ資料参照）", classification: "internal" as const },
+        { category: "ポータル", key: "ポータルサイト管理", maskedValue: "****", actualValue: "kumicho-portal.vercel.app（管理情報は別途）", classification: "confidential" as const },
+        { category: "町内会", key: "町内会長 連絡先", maskedValue: "中山様", actualValue: "大泉町内会 八町内会 会長 中山裕二様（詳細は引き継ぎ資料参照）", classification: "internal" as const },
       ];
       for (const v of vaultData) {
         await db.insert(vaultEntries).values(v);
@@ -233,12 +290,167 @@ export const appRouter = router({
 
       // 秘匿メモ
       const secretNotesData = [
-        { title: "103号室の騒音問題メモ", body: "2025年11月から夜間の音楽騒音の苦情あり。12月に直接訪問し改善依頼。1月以降は収束。念のため経過観察中。" },
-        { title: "管理会社契約更新メモ", body: "現契約: 2027年3月末まで。更新交渉は2026年12月頃に開始予定。他社見積もりも取ること。現行月額48,000円。" },
+        { title: "組長免除問題の経緯メモ", body: "夜勤者と小さな子供がいる家庭から免除要望あり。管理会社からは「免除は認められない」と「相談してください」の両方の見解が出ており統一されていない。住民アンケートを実施し、3月までに方針を決める必要がある。オーナーとの最終交渉は管理会社経由で行う予定。" },
+        { title: "ISY河川清掃紛争の記録", body: "隣接するISYビル周辺の清掃範囲で紛争発生。町内会長に相談し仲介してもらった。最終的に業者対応で解決。今後同様の問題が起きた場合は町内会長を通すのが有効。" },
+        { title: "統合提案書の全文記録（令和7年11月9日）", body: "令和7年度 組長業務改善に関する統合提案書\n宛先: 大泉町内会 八町内会 会長 中山裕二様\n提出日: 令和7年11月9日\n提出者: グリーンピア102号室 8組組長 野田誠紀\n\n【提案内容】\n1. 組長選出ルールの確定（運用細則の策定報告）\n - 免除規定: 経験者24ヶ月免除、新入居者12ヶ月免除\n - 優先順位: 経験回数少→入居古→部屋番号昇順\n - 年次運用: 11月アンケート→12月確定→報告\n\n2. 河川清掃の安全配慮と参加免除基準\n - 免除対象案: 小学生以下同伴/妊娠中/70歳以上/疾病・介護\n - 任意協力金100-200円を検討\n - 出不足金は廃止済み（85,000円→倉庫購入に充当）\n\n3. 河川草刈り作業の責任所在確認\n - 管理会社は関与なし、業者作業を1回確認\n - 町内会の方針を確認中\n\n4. 周知事項の改善\n - 町内会費: マンションは管理会社一括徴収（組長不要）\n - 清掃範囲: マンション前区間を基本担当に変更提案\n\n回答期限: 12月中（最終確定3月末）" },
+        { title: "管理会社への相談メール記録（特定入居者対応）", body: "【宛先】平和ハウジング株式会社 静岡店 岡本様\n【発信者】102号室 野田\n【件名】特定入居者への対応ご相談\n\n【概要】\n特定の入居者から、組長業務や免除の運用に関して強い独自見解が複数回にわたり文書で示されている。\n\n主な内容:\n・いかなる事情（育児・介護・健康）であっても組長免除は認めるべきではないという主張\n・町内会で検討した免除案・ローテーション案の全否定\n・「組長をやらないなら退去すべき」という趣旨の表現\n\nこれらは一入居者の立場からの発言であり、退去の可否を判断できる立場にない方からの発言としては行き過ぎ。\n当該入居者は管理会社・オーナーからの説明には従う方と認識しており、権限を持つ管理会社から公式に説明・指導いただくよう依頼。\n\n【要請事項】\n1. 組長業務やローテーションの位置づけの説明\n2. 免除の考え方（育児・介護・健康・新入居・直近組長等）の説明\n3. 「組長をしない＝退去」は本物件の正式ルールではないことの説明\n\n※号室番号は秘匿。詳細は添付スキャン画像参照。" },
+        { title: "住民アンケート全文（2026年2月4日配布）", body: "【配布日】2026年2月4日\n【提出期限】2026年2月28日\n【提出方法】封筒に入れて102号室ポストへ投函（無記名可）\n\n【カバーレター要旨】\n・河川清掃の範囲がマンション前に縮小される見込み（町内会長からの共有）\n・2025年度に運用上の論点（組長選出・免除・出不足金）で住民間の認識の分かれが複数発生\n・町内会長からの示唆: オーナー側が組長業務を担う方向の検討\n・管理会社（平和ハウジング）は町内会活動への関与を行わないスタンス\n\n【別紙B: 背景共有 6項目】\n1. 2025年度の主な論点（組長選出・河川清掃範囲・出不足金）\n2. 町内会側の認識（確認対応の集中が問題）\n3. 河川清掃のISY前範囲の進捗（関係先が業者手配・費用負担）\n4. 他マンション実例（21組等: オーナー側が役割を担う）\n5. 管理会社スタンス（関与しない）\n6. 組長業務の実態（負担感）\n\n【別紙C: アンケート質問 8問】\nQ1. 組長経験の有無\nQ2. 組長業務の負担感（5段階）\nQ3. 組長会（毎月26日19:00）への参加可否\nQ4. 河川清掃（土日朝8:00-9:00）への参加可否\nQ5. 負担が大きいと感じる業務（複数選択）\nQ6. 今後の運用方向性（A:住民持ち回り / B:オーナー担当 / C:折衷案 / D:わからない）\nQ7. 引き継ぎの改善（紙+Web / Web中心 / 紙中心）\nQ8. 自由記載" },
       ];
       for (const s of secretNotesData) {
         await db.insert(secretNotes).values(s);
       }
+
+      // フォーム（住民アンケート）
+      const [surveyForm] = await db.insert(forms).values({
+        title: "組長運用に関するアンケート",
+        description: "組長選出方法・町内会対応の運用ルール・役割分担の方向性についてのアンケートです。2026年2月4日配布。",
+        dueDate: new Date("2026-02-28"),
+        status: "active" as const,
+      }).returning();
+
+      // Q1: 組長経験
+      const [q1] = await db.insert(formQuestions).values({
+        formId: surveyForm.id,
+        questionText: "組長経験について",
+        questionType: "single_choice" as const,
+        required: true,
+        orderIndex: 1,
+      }).returning();
+      await db.insert(formChoices).values([
+        { questionId: q1.id, choiceText: "ない（未経験）", orderIndex: 1 },
+        { questionId: q1.id, choiceText: "ある（経験あり）", orderIndex: 2 },
+        { questionId: q1.id, choiceText: "わからない", orderIndex: 3 },
+      ]);
+
+      // Q2: 負担感
+      const [q2] = await db.insert(formQuestions).values({
+        formId: surveyForm.id,
+        questionText: "組長業務の負担感（イメージでも可）",
+        questionType: "single_choice" as const,
+        required: true,
+        orderIndex: 2,
+      }).returning();
+      await db.insert(formChoices).values([
+        { questionId: q2.id, choiceText: "かなり重い", orderIndex: 1 },
+        { questionId: q2.id, choiceText: "重い", orderIndex: 2 },
+        { questionId: q2.id, choiceText: "ふつう", orderIndex: 3 },
+        { questionId: q2.id, choiceText: "軽い", orderIndex: 4 },
+        { questionId: q2.id, choiceText: "わからない", orderIndex: 5 },
+      ]);
+
+      // Q3: 組長会参加
+      const [q3] = await db.insert(formQuestions).values({
+        formId: surveyForm.id,
+        questionText: "組長会（毎月26日19:00〜）への参加の難しさ",
+        questionType: "single_choice" as const,
+        required: true,
+        orderIndex: 3,
+      }).returning();
+      await db.insert(formChoices).values([
+        { questionId: q3.id, choiceText: "参加できる", orderIndex: 1 },
+        { questionId: q3.id, choiceText: "条件により参加できる", orderIndex: 2 },
+        { questionId: q3.id, choiceText: "参加が難しい", orderIndex: 3 },
+        { questionId: q3.id, choiceText: "わからない", orderIndex: 4 },
+      ]);
+
+      // Q4: 河川清掃参加
+      const [q4] = await db.insert(formQuestions).values({
+        formId: surveyForm.id,
+        questionText: "河川清掃（土曜/日曜 朝8:00〜9:00）への参加の難しさ",
+        questionType: "single_choice" as const,
+        required: true,
+        orderIndex: 4,
+      }).returning();
+      await db.insert(formChoices).values([
+        { questionId: q4.id, choiceText: "参加できる", orderIndex: 1 },
+        { questionId: q4.id, choiceText: "条件により参加できる", orderIndex: 2 },
+        { questionId: q4.id, choiceText: "参加が難しい", orderIndex: 3 },
+        { questionId: q4.id, choiceText: "わからない", orderIndex: 4 },
+      ]);
+
+      // Q5: 負担が大きい業務（複数選択）
+      const [q5] = await db.insert(formQuestions).values({
+        formId: surveyForm.id,
+        questionText: "組長業務のうち「負担が大きい」と感じるもの（複数選択可）",
+        questionType: "multiple_choice" as const,
+        required: false,
+        orderIndex: 5,
+      }).returning();
+      await db.insert(formChoices).values([
+        { questionId: q5.id, choiceText: "町内会・管理会社との連絡調整", orderIndex: 1 },
+        { questionId: q5.id, choiceText: "住民への周知（配布物作成、各戸投函等）", orderIndex: 2 },
+        { questionId: q5.id, choiceText: "住民意見の整理（問い合わせ対応、調整等）", orderIndex: 3 },
+        { questionId: q5.id, choiceText: "次年度組長の選出・引き継ぎ対応", orderIndex: 4 },
+        { questionId: q5.id, choiceText: "組長会への参加（夜間の固定日時）", orderIndex: 5 },
+        { questionId: q5.id, choiceText: "河川清掃等の町内行事対応（早朝帯）", orderIndex: 6 },
+        { questionId: q5.id, choiceText: "上記すべて", orderIndex: 7 },
+      ]);
+
+      // Q6: 今後の運用方向性
+      const [q6] = await db.insert(formQuestions).values({
+        formId: surveyForm.id,
+        questionText: "今後の運用の方向性について、最も近いものを1つ選んでください",
+        questionType: "single_choice" as const,
+        required: true,
+        orderIndex: 6,
+      }).returning();
+      await db.insert(formChoices).values([
+        { questionId: q6.id, choiceText: "A：住民の持ち回りを基本に、外部・内部対応とも住民側で対応", orderIndex: 1 },
+        { questionId: q6.id, choiceText: "B：オーナー側が外部・内部対応とも担う（外部委託含む）", orderIndex: 2 },
+        { questionId: q6.id, choiceText: "C：折衷案（外部対応と内部対応を住民・オーナーで分担）", orderIndex: 3 },
+        { questionId: q6.id, choiceText: "D：わからない／判断材料が足りない", orderIndex: 4 },
+      ]);
+
+      // Q7: 引き継ぎ改善
+      const [q7] = await db.insert(formQuestions).values({
+        formId: surveyForm.id,
+        questionText: "引き継ぎの改善（手順の見える化）について",
+        questionType: "single_choice" as const,
+        required: true,
+        orderIndex: 7,
+      }).returning();
+      await db.insert(formChoices).values([
+        { questionId: q7.id, choiceText: "紙＋Webの併用がよい", orderIndex: 1 },
+        { questionId: q7.id, choiceText: "Web中心がよい", orderIndex: 2 },
+        { questionId: q7.id, choiceText: "紙中心がよい", orderIndex: 3 },
+        { questionId: q7.id, choiceText: "わからない", orderIndex: 4 },
+      ]);
+
+      // Q8 is free-text, skip for now (schema only supports choice-based questions)
+
+      // 河川清掃出欠確認フォーム（テンプレート的に作成）
+      const [cleaningForm] = await db.insert(forms).values({
+        title: "河川清掃 出欠確認",
+        description: "次回の河川清掃への参加可否を確認します。",
+        status: "draft" as const,
+      }).returning();
+
+      const [cq1] = await db.insert(formQuestions).values({
+        formId: cleaningForm.id,
+        questionText: "次回の河川清掃に参加できますか？",
+        questionType: "single_choice" as const,
+        required: true,
+        orderIndex: 1,
+      }).returning();
+      await db.insert(formChoices).values([
+        { questionId: cq1.id, choiceText: "参加する", orderIndex: 1 },
+        { questionId: cq1.id, choiceText: "参加できない", orderIndex: 2 },
+        { questionId: cq1.id, choiceText: "未定", orderIndex: 3 },
+      ]);
+
+      const [cq2] = await db.insert(formQuestions).values({
+        formId: cleaningForm.id,
+        questionText: "参加できない場合、理由を教えてください",
+        questionType: "single_choice" as const,
+        required: false,
+        orderIndex: 2,
+      }).returning();
+      await db.insert(formChoices).values([
+        { questionId: cq2.id, choiceText: "仕事", orderIndex: 1 },
+        { questionId: cq2.id, choiceText: "体調不良", orderIndex: 2 },
+        { questionId: cq2.id, choiceText: "家庭の事情", orderIndex: 3 },
+        { questionId: cq2.id, choiceText: "その他", orderIndex: 4 },
+      ]);
 
       // 初回ログ
       await db.insert(changelog).values({

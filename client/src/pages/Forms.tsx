@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Edit2, Trash2, BarChart3, Download, X, ArrowLeft } from "lucide-react";
+import { Plus, Edit2, Trash2, BarChart3, Download, X, ArrowLeft, UserPlus } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { FormStatsModal } from "./FormStats";
 
@@ -169,6 +169,15 @@ export default function Forms() {
                       </div>
                     </div>
                     <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-1"
+                        onClick={() => setLocation(`/form-response/${form.id}`)}
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        代理入力
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"

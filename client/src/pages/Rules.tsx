@@ -443,11 +443,14 @@ export default function Rules() {
 
         {/* Rotation Schedule Section */}
         <section className="pt-8 border-t border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">ローテーション表</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">ローテーション表</h2>
+          <p className="text-sm font-light text-gray-500 mb-6">
+            入居順ベース・A/B/C免除区分で管理（令和7年11月 町内会長承認済）
+          </p>
 
           {/* Year selector */}
           <div className="mb-6 flex gap-2 flex-wrap">
-            {[2026, 2027, 2028, 2029, 2030, 2031, 2032, 2033, 2034].map((year) => (
+            {[2025, 2026, 2027, 2028, 2029, 2030, 2031, 2032, 2033, 2034].map((year) => (
               <Button
                 key={year}
                 variant={selectedYear === year ? "default" : "outline"}
@@ -455,7 +458,7 @@ export default function Rules() {
                 onClick={() => setSelectedYear(year)}
                 className="font-light"
               >
-                {year}年度
+                {year}
               </Button>
             ))}
           </div>
@@ -463,98 +466,123 @@ export default function Rules() {
           {/* Rotation details */}
           {isRotationDataValid && (
             <div className="space-y-6">
-              {/* Candidate status */}
-              <Card className="bg-white border border-gray-100 p-4 sm:p-6">
-                <h3 className="font-semibold text-gray-900 mb-4">
-                  {selectedYear}年度 候補状況
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {(rotationData as any).households.map((h: any) => (
-                    <div
-                      key={h.householdId}
-                      className={`p-3 rounded border ${
-                        h.isCandidate
-                          ? "border-green-200 bg-green-50"
-                          : "border-red-200 bg-red-50"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="font-semibold text-gray-900">{h.householdId}号室</p>
-                          <p className="text-xs text-gray-500 font-light mt-1">
-                            {h.moveInDate
-                              ? new Date(h.moveInDate).toLocaleDateString("ja-JP")
-                              : "入居日未設定"}
-                          </p>
-                          <p className="text-xs text-gray-500 font-light">
-                            組長経歴: {h.leaderHistoryCount}回
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          {h.isCandidate ? (
-                            <span className="inline-block px-2 py-1 bg-green-600 text-white text-xs rounded font-medium">
-                              候補
-                            </span>
-                          ) : (
-                            <span className="inline-block px-2 py-1 bg-red-600 text-white text-xs rounded font-medium">
-                              除外
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      {h.reasons.length > 0 && (
-                        <div className="mt-2 pt-2 border-t border-current/10">
-                          <p className="text-xs font-medium text-gray-500 mb-1">除外理由:</p>
-                          <div className="space-y-1">
-                            {h.reasons.includes("A") && (
-                              <p className="text-xs text-gray-500 font-light">
-                                A: 入居12ヶ月未満
-                              </p>
-                            )}
-                            {h.reasons.includes("B") && (
-                              <p className="text-xs text-gray-500 font-light">
-                                B: 直近2年以内に組長経験
-                              </p>
-                            )}
-                            {h.reasons.includes("C") && (
-                              <p className="text-xs text-gray-500 font-light">
-                                C: 免除申請承認
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </Card>
-
-              {/* Current schedule */}
+              {/* Current schedule banner */}
               {(rotationData as any).schedule && (
-                <Card className="bg-white border border-gray-100 p-4 sm:p-6 border-l-4 border-l-blue-500">
-                  <h3 className="font-semibold text-gray-900 mb-4">現在の選定結果</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card className="bg-white border border-gray-100 p-4 sm:p-5 border-l-4 border-l-blue-500">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
-                      <p className="text-sm text-gray-500 font-light mb-1">Primary</p>
-                      <p className="text-lg font-semibold text-gray-900">
+                      <p className="text-xs text-gray-400 font-light mb-1">{selectedYear}年度 組長</p>
+                      <p className="text-xl font-semibold text-gray-900">
                         {(rotationData as any).schedule.primaryHouseholdId}号室
-                      </p>
-                      <p className="text-xs text-gray-500 font-light mt-1">
-                        ステータス: {(rotationData as any).schedule.status}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 font-light mb-1">Backup</p>
-                      <p className="text-lg font-semibold text-gray-900">
-                        {(rotationData as any).schedule.backupHouseholdId}号室
-                      </p>
-                      <p className="text-xs text-gray-500 font-light mt-1">
-                        理由: {(rotationData as any).schedule.reason}
+                        <span className="text-sm font-light text-gray-400 ml-2">
+                          （{(rotationData as any).schedule.status === "confirmed" ? "確定" : (rotationData as any).schedule.status === "draft" ? "暫定" : (rotationData as any).schedule.status}）
+                        </span>
                       </p>
                     </div>
+                    {(rotationData as any).schedule.reason && (
+                      <p className="text-xs font-light text-gray-500 sm:max-w-sm sm:text-right">
+                        {(rotationData as any).schedule.reason}
+                      </p>
+                    )}
                   </div>
                 </Card>
               )}
+
+              {/* Household table */}
+              <Card className="bg-white border border-gray-100 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-100 bg-gray-50/50">
+                        <th className="text-left px-4 py-3 font-medium text-gray-600">号室</th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-600">入居年月</th>
+                        <th className="text-center px-4 py-3 font-medium text-gray-600">経験</th>
+                        <th className="text-center px-4 py-3 font-medium text-gray-600">状態</th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-600">免除理由</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(rotationData as any).households
+                        .sort((a: any, b: any) => a.householdId.localeCompare(b.householdId))
+                        .map((h: any) => {
+                          const isPrimary = (rotationData as any).schedule?.primaryHouseholdId === h.householdId;
+                          return (
+                            <tr
+                              key={h.householdId}
+                              className={`border-b border-gray-50 ${
+                                isPrimary
+                                  ? "bg-blue-50"
+                                  : h.isCandidate
+                                  ? "bg-white"
+                                  : "bg-gray-50/30"
+                              }`}
+                            >
+                              <td className="px-4 py-3">
+                                <span className={`font-medium ${isPrimary ? "text-blue-900" : "text-gray-900"}`}>
+                                  {h.householdId}
+                                </span>
+                                {isPrimary && (
+                                  <span className="ml-2 inline-block px-1.5 py-0.5 bg-blue-600 text-white text-[10px] rounded font-medium">
+                                    担当
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 font-light text-gray-600">
+                                {h.moveInDate
+                                  ? new Date(h.moveInDate).toLocaleDateString("ja-JP", { year: "numeric", month: "short" })
+                                  : "—"}
+                              </td>
+                              <td className="px-4 py-3 text-center font-light text-gray-600">
+                                {h.leaderHistoryCount}回
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                {h.isCandidate ? (
+                                  <span className="inline-block px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded font-medium">
+                                    候補
+                                  </span>
+                                ) : (
+                                  <span className="inline-block px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded font-medium">
+                                    免除
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 font-light text-gray-500 text-xs">
+                                {h.reasons.length > 0 ? (
+                                  <span>
+                                    {h.reasons.map((r: string) => {
+                                      if (r === "A") return "A:入居12ヶ月未満";
+                                      if (r === "B") return "B:直近組長24ヶ月免除";
+                                      if (r === "C") return "C:就任困難申告";
+                                      return r;
+                                    }).join("、")}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-300">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+
+              {/* Legend */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-3 bg-gray-50 rounded border border-gray-100">
+                  <p className="text-xs font-medium text-gray-600 mb-1">A: 入居12ヶ月未満</p>
+                  <p className="text-xs font-light text-gray-400">自動免除。12ヶ月経過の翌月に復帰。</p>
+                </div>
+                <div className="p-3 bg-gray-50 rounded border border-gray-100">
+                  <p className="text-xs font-medium text-gray-600 mb-1">B: 直近組長</p>
+                  <p className="text-xs font-light text-gray-400">任期終了翌月から24ヶ月免除。</p>
+                </div>
+                <div className="p-3 bg-gray-50 rounded border border-gray-100">
+                  <p className="text-xs font-medium text-gray-600 mb-1">C: 就任困難申告</p>
+                  <p className="text-xs font-light text-gray-400">育児・健康・介護等。年1回(11-12月)に継続確認。</p>
+                </div>
+              </div>
             </div>
           )}
         </section>
