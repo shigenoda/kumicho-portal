@@ -1,15 +1,10 @@
-import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
-import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router, protectedProcedure, adminProcedure } from "./_core/trpc";
+import { publicProcedure, router } from "./_core/trpc";
 import { notifyOwner } from "./_core/notification";
-import { sdk } from "./_core/sdk";
 import { z } from "zod";
 import { getDb } from "./db";
 import { eq, like, or, and, desc, asc, lte, gte } from "drizzle-orm";
-import * as bcrypt from "bcryptjs";
 import {
-  users,
   posts,
   events,
   inventory,
@@ -32,136 +27,34 @@ import {
   formChoices,
   formResponses,
   formResponseItems,
+  vaultEntries,
+  auditLogs,
 } from "../drizzle/schema";
+
+// 変更ログをDBに記録するヘルパー
+async function logChange(summary: string, entityType: string, entityId?: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(changelog).values({
+    summary,
+    date: new Date(),
+    relatedEntityType: entityType,
+    relatedEntityId: entityId ?? null,
+  });
+}
 
 export const appRouter = router({
   system: systemRouter,
+
+  // 認証不要 - meはnullを返す
   auth: router({
-    me: publicProcedure.query((opts) => opts.ctx.user),
-
-    // パスワード認証：新規登録
-    register: publicProcedure
-      .input(
-        z.object({
-          householdId: z.string().min(1),
-          name: z.string().min(1),
-          email: z.string().email(),
-          password: z.string().min(8),
-        })
-      )
-      .mutation(async ({ input, ctx }) => {
-        const db = await getDb();
-        if (!db) throw new Error("Database not available");
-
-        // メールアドレスの重複チェック
-        const existingUser = await db
-          .select()
-          .from(users)
-          .where(eq(users.email, input.email))
-          .limit(1);
-
-        if (existingUser.length > 0) {
-          throw new Error("このメールアドレスは既に登録されています");
-        }
-
-        // パスワードをハッシュ化
-        const passwordHash = await bcrypt.hash(input.password, 10);
-
-        // ユーザーを作成
-        const [newUser] = await db
-          .insert(users)
-          .values({
-            householdId: input.householdId,
-            name: input.name,
-            email: input.email,
-            passwordHash,
-            loginMethod: "password",
-            role: "member",
-          })
-          .returning();
-
-        return {
-          success: true,
-          user: {
-            id: newUser.id,
-            name: newUser.name,
-            email: newUser.email,
-          },
-        };
-      }),
-
-    // パスワード認証：ログイン
-    login: publicProcedure
-      .input(
-        z.object({
-          email: z.string().email(),
-          password: z.string(),
-        })
-      )
-      .mutation(async ({ input, ctx }) => {
-        const db = await getDb();
-        if (!db) throw new Error("Database not available");
-
-        // ユーザーを検索
-        const [user] = await db
-          .select()
-          .from(users)
-          .where(eq(users.email, input.email))
-          .limit(1);
-
-        if (!user || !user.passwordHash) {
-          throw new Error("メールアドレスまたはパスワードが正しくありません");
-        }
-
-        // パスワードを検証
-        const isValid = await bcrypt.compare(input.password, user.passwordHash);
-
-        if (!isValid) {
-          throw new Error("メールアドレスまたはパスワードが正しくありません");
-        }
-
-        // セッショントークンを生成（ユーザーIDをopenIdとして使用）
-        const sessionToken = await sdk.createSessionToken(`user_${user.id}`, {
-          name: user.name || "",
-          expiresInMs: ONE_YEAR_MS,
-        });
-
-        // Cookieにセット
-        const cookieOptions = getSessionCookieOptions(ctx.req);
-        ctx.res.cookie(COOKIE_NAME, sessionToken, {
-          ...cookieOptions,
-          maxAge: ONE_YEAR_MS,
-        });
-
-        // 最終ログイン日時を更新
-        await db
-          .update(users)
-          .set({ lastSignedIn: new Date() })
-          .where(eq(users.id, user.id));
-
-        return {
-          success: true,
-          user: {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-          },
-        };
-      }),
-
-    logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return {
-        success: true,
-      } as const;
-    }),
+    me: publicProcedure.query(() => null),
+    logout: publicProcedure.mutation(() => ({ success: true }) as const),
   }),
 
   // Member トップ用 API
   memberTop: router({
-    getSummary: protectedProcedure
+    getSummary: publicProcedure
       .input(z.object({ year: z.number() }))
       .query(async ({ input }) => {
         const db = await getDb();
@@ -176,7 +69,7 @@ export const appRouter = router({
         return summary[0] || null;
       }),
 
-    getLeaderSchedule: protectedProcedure
+    getLeaderSchedule: publicProcedure
       .input(z.object({ year: z.number().optional() }))
       .query(async ({ input }) => {
         const db = await getDb();
@@ -192,7 +85,7 @@ export const appRouter = router({
         return schedules;
       }),
 
-    getPendingQueue: protectedProcedure.query(async () => {
+    getPendingQueue: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) return [];
 
@@ -208,14 +101,12 @@ export const appRouter = router({
 
   // ローテ管理 API
   leaderRotation: router({
-    // ローテ選定ロジックの自動計算
-    calculateNextYear: adminProcedure
+    calculateNextYear: publicProcedure
       .input(z.object({ year: z.number() }))
       .mutation(async ({ input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database not available");
 
-        // 1. 最新のローテロジックを取得
         const logicRecords = await db
           .select()
           .from(leaderRotationLogic)
@@ -225,10 +116,8 @@ export const appRouter = router({
         const logic = logicRecords[0]?.logic;
         if (!logic) throw new Error("No rotation logic defined");
 
-        // 2. 全住戸を取得
         const allHouseholds = await db.select().from(households);
 
-        // 3. 前回担当者を取得
         const prevYear = input.year - 1;
         const prevScheduleArray = await db
           .select()
@@ -237,7 +126,6 @@ export const appRouter = router({
           .limit(1);
         const prevSchedule = prevScheduleArray[0];
 
-        // 4. 免除申請を確認
         const exemptions = await db
           .select()
           .from(exemptionRequests)
@@ -250,32 +138,24 @@ export const appRouter = router({
 
         const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
 
-        // 5. 候補を計算（優先度順）
         const candidates = allHouseholds
           .filter((h) => !exemptedHouseholds.has(h.householdId))
           .sort((a, b) => {
-            // 優先度1: 前回担当からの経過年数
             const aYearsSinceLast = prevSchedule
-              ? prevSchedule.primaryHouseholdId === a.householdId
-                ? 1
-                : 999
+              ? prevSchedule.primaryHouseholdId === a.householdId ? 1 : 999
               : 999;
             const bYearsSinceLast = prevSchedule
-              ? prevSchedule.primaryHouseholdId === b.householdId
-                ? 1
-                : 999
+              ? prevSchedule.primaryHouseholdId === b.householdId ? 1 : 999
               : 999;
 
             if (aYearsSinceLast !== bYearsSinceLast) {
               return bYearsSinceLast - aYearsSinceLast;
             }
 
-            // 優先度2: 入居開始が古い
             if (a.moveInDate && b.moveInDate) {
               return a.moveInDate.getTime() - b.moveInDate.getTime();
             }
 
-            // 優先度3: 住戸ID昇順
             return a.householdId.localeCompare(b.householdId);
           });
 
@@ -283,11 +163,9 @@ export const appRouter = router({
           throw new Error("Not enough eligible households for rotation");
         }
 
-        // 6. Primary と Backup を決定
         const primary = candidates[0];
         const backup = candidates[1];
 
-        // 7. DB に保存
         await db.insert(leaderSchedule).values({
           year: input.year,
           primaryHouseholdId: primary.householdId,
@@ -296,6 +174,8 @@ export const appRouter = router({
           reason: `自動計算: 前回担当からの経過年数、入居開始日、住戸ID昇順で選定`,
         });
 
+        await logChange(`${input.year}年度ローテを自動計算`, "leaderSchedule");
+
         return {
           success: true,
           primary: primary.householdId,
@@ -303,8 +183,7 @@ export const appRouter = router({
         };
       }),
 
-    // ローテを確定
-    confirm: adminProcedure
+    confirm: publicProcedure
       .input(z.object({ scheduleId: z.number(), status: z.enum(["conditional", "confirmed"]) }))
       .mutation(async ({ input }) => {
         const db = await getDb();
@@ -315,11 +194,12 @@ export const appRouter = router({
           .set({ status: input.status })
           .where(eq(leaderSchedule.id, input.scheduleId));
 
+        await logChange(`ローテステータスを「${input.status}」に変更`, "leaderSchedule", input.scheduleId);
+
         return { success: true };
       }),
 
-    // ローテロジックを更新
-    updateLogic: adminProcedure
+    updateLogic: publicProcedure
       .input(
         z.object({
           priority: z.array(z.string()),
@@ -348,13 +228,15 @@ export const appRouter = router({
           reason: input.reason,
         });
 
+        await logChange(`ローテロジック v${nextVersion} を更新`, "leaderRotationLogic");
+
         return { success: true, version: nextVersion };
       }),
   }),
 
   // 検索機能
   search: router({
-    global: protectedProcedure
+    global: publicProcedure
       .input(z.object({ query: z.string().min(1) }))
       .query(async ({ input }) => {
         const db = await getDb();
@@ -367,52 +249,27 @@ export const appRouter = router({
             db
               .select()
               .from(posts)
-              .where(
-                or(
-                  like(posts.title, searchTerm),
-                  like(posts.body, searchTerm)
-                )
-              )
+              .where(or(like(posts.title, searchTerm), like(posts.body, searchTerm)))
               .limit(5),
             db
               .select()
               .from(inventory)
-              .where(
-                or(
-                  like(inventory.name, searchTerm),
-                  like(inventory.notes, searchTerm)
-                )
-              )
+              .where(or(like(inventory.name, searchTerm), like(inventory.notes, searchTerm)))
               .limit(5),
             db
               .select()
               .from(rules)
-              .where(
-                or(
-                  like(rules.title, searchTerm),
-                  like(rules.details, searchTerm)
-                )
-              )
+              .where(or(like(rules.title, searchTerm), like(rules.details, searchTerm)))
               .limit(5),
             db
               .select()
               .from(faq)
-              .where(
-                or(
-                  like(faq.question, searchTerm),
-                  like(faq.answer, searchTerm)
-                )
-              )
+              .where(or(like(faq.question, searchTerm), like(faq.answer, searchTerm)))
               .limit(5),
             db
               .select()
               .from(templates)
-              .where(
-                or(
-                  like(templates.title, searchTerm),
-                  like(templates.body, searchTerm)
-                )
-              )
+              .where(or(like(templates.title, searchTerm), like(templates.body, searchTerm)))
               .limit(5),
           ]);
 
@@ -430,39 +287,39 @@ export const appRouter = router({
       }),
   }),
 
-  // データ取得 API
+  // データ取得・更新 API（全て公開）
   data: router({
-    getEvents: protectedProcedure.query(async () => {
+    getEvents: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) return [];
       return await db.select().from(events).orderBy(asc(events.date));
     }),
 
-    getInventory: protectedProcedure.query(async () => {
+    getInventory: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) return [];
       return await db.select().from(inventory).orderBy(asc(inventory.name));
     }),
 
-    getTemplates: protectedProcedure.query(async () => {
+    getTemplates: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) return [];
       return await db.select().from(templates).orderBy(asc(templates.category));
     }),
 
-    getRules: protectedProcedure.query(async () => {
+    getRules: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) return [];
       return await db.select().from(rules).orderBy(asc(rules.title));
     }),
 
-    getFAQ: protectedProcedure.query(async () => {
+    getFAQ: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) return [];
       return await db.select().from(faq).orderBy(asc(faq.question));
     }),
 
-    updateFAQ: adminProcedure
+    updateFAQ: publicProcedure
       .input(
         z.object({
           id: z.number(),
@@ -483,10 +340,12 @@ export const appRouter = router({
           })
           .where(eq(faq.id, input.id));
 
+        await logChange(`FAQ「${input.question}」を更新`, "faq", input.id);
+
         return { success: true };
       }),
 
-    deleteFAQ: adminProcedure
+    deleteFAQ: publicProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         const db = await getDb();
@@ -494,10 +353,12 @@ export const appRouter = router({
 
         await db.delete(faq).where(eq(faq.id, input.id));
 
+        await logChange(`FAQ (ID: ${input.id}) を削除`, "faq", input.id);
+
         return { success: true };
       }),
 
-    getPosts: protectedProcedure
+    getPosts: publicProcedure
       .input(z.object({ year: z.number().optional() }))
       .query(async ({ input }) => {
         const db = await getDb();
@@ -507,17 +368,12 @@ export const appRouter = router({
         return await db
           .select()
           .from(posts)
-          .where(
-            and(
-              eq(posts.year, currentYear),
-              eq(posts.status, "published")
-            )
-          )
-          .orderBy(desc(posts.publishedAt));
+          .where(eq(posts.year, currentYear))
+          .orderBy(desc(posts.updatedAt));
       }),
 
-    getChangelog: protectedProcedure
-      .input(z.object({ limit: z.number().default(20) }))
+    getChangelog: publicProcedure
+      .input(z.object({ limit: z.number().default(50) }))
       .query(async ({ input }) => {
         const db = await getDb();
         if (!db) return [];
@@ -528,24 +384,498 @@ export const appRouter = router({
           .limit(input.limit);
       }),
 
-    getSecretNotes: adminProcedure.query(async () => {
+    getSecretNotes: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) return [];
       return await db.select().from(secretNotes).orderBy(desc(secretNotes.updatedAt));
     }),
 
-    getHandoverBagItems: protectedProcedure.query(async () => {
+    getHandoverBagItems: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) return [];
       return await db.select().from(handoverBagItems).orderBy(asc(handoverBagItems.name));
     }),
 
-    getHouseholds: protectedProcedure.query(async () => {
+    createHandoverBagItem: publicProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+        location: z.string().min(1),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [item] = await db.insert(handoverBagItems).values({
+          name: input.name,
+          description: input.description || null,
+          location: input.location,
+          notes: input.notes || null,
+          isChecked: false,
+        }).returning();
+        await logChange(`引き継ぎ袋「${input.name}」を追加`, "handoverBagItems", item.id);
+        return item;
+      }),
+
+    updateHandoverBagItem: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().min(1).optional(),
+        description: z.string().optional(),
+        location: z.string().min(1).optional(),
+        notes: z.string().optional(),
+        isChecked: z.boolean().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const updateData: any = { updatedAt: new Date() };
+        if (input.name !== undefined) updateData.name = input.name;
+        if (input.description !== undefined) updateData.description = input.description;
+        if (input.location !== undefined) updateData.location = input.location;
+        if (input.notes !== undefined) updateData.notes = input.notes;
+        if (input.isChecked !== undefined) updateData.isChecked = input.isChecked;
+        await db.update(handoverBagItems).set(updateData).where(eq(handoverBagItems.id, input.id));
+        await logChange(`引き継ぎ袋アイテム (ID: ${input.id}) を更新`, "handoverBagItems", input.id);
+        return { success: true };
+      }),
+
+    deleteHandoverBagItem: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(handoverBagItems).where(eq(handoverBagItems.id, input.id));
+        await logChange(`引き継ぎ袋アイテム (ID: ${input.id}) を削除`, "handoverBagItems", input.id);
+        return { success: true };
+      }),
+
+    // PendingQueue CRUD
+    getPendingQueueAll: publicProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      return await db.select().from(pendingQueue).orderBy(desc(pendingQueue.createdAt));
+    }),
+
+    createPendingQueueItem: publicProcedure
+      .input(z.object({
+        title: z.string().min(1),
+        description: z.string().min(1),
+        toWhom: z.string().min(1),
+        priority: z.enum(["low", "medium", "high"]).default("medium"),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [item] = await db.insert(pendingQueue).values({
+          title: input.title,
+          description: input.description,
+          toWhom: input.toWhom,
+          priority: input.priority,
+          status: "pending",
+        }).returning();
+        await logChange(`返信待ち「${input.title}」を追加`, "pendingQueue", item.id);
+        return item;
+      }),
+
+    updatePendingQueueItem: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().min(1).optional(),
+        description: z.string().optional(),
+        toWhom: z.string().optional(),
+        priority: z.enum(["low", "medium", "high"]).optional(),
+        status: z.enum(["pending", "resolved", "transferred"]).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const updateData: any = { updatedAt: new Date() };
+        if (input.title !== undefined) updateData.title = input.title;
+        if (input.description !== undefined) updateData.description = input.description;
+        if (input.toWhom !== undefined) updateData.toWhom = input.toWhom;
+        if (input.priority !== undefined) updateData.priority = input.priority;
+        if (input.status !== undefined) {
+          updateData.status = input.status;
+          if (input.status === "resolved") updateData.resolvedAt = new Date();
+        }
+        await db.update(pendingQueue).set(updateData).where(eq(pendingQueue.id, input.id));
+        await logChange(`返信待ち (ID: ${input.id}) を更新`, "pendingQueue", input.id);
+        return { success: true };
+      }),
+
+    deletePendingQueueItem: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(pendingQueue).where(eq(pendingQueue.id, input.id));
+        await logChange(`返信待ち (ID: ${input.id}) を削除`, "pendingQueue", input.id);
+        return { success: true };
+      }),
+
+    // Vault Entries CRUD
+    getVaultEntries: publicProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      return await db.select().from(vaultEntries).orderBy(asc(vaultEntries.category));
+    }),
+
+    createVaultEntry: publicProcedure
+      .input(z.object({
+        category: z.string().min(1),
+        key: z.string().min(1),
+        maskedValue: z.string().min(1),
+        actualValue: z.string().min(1),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [entry] = await db.insert(vaultEntries).values({
+          category: input.category,
+          key: input.key,
+          maskedValue: input.maskedValue,
+          actualValue: input.actualValue,
+        }).returning();
+        await logChange(`Vault「${input.key}」を追加`, "vaultEntries", entry.id);
+        return entry;
+      }),
+
+    updateVaultEntry: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        category: z.string().optional(),
+        key: z.string().optional(),
+        maskedValue: z.string().optional(),
+        actualValue: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const updateData: any = { updatedAt: new Date() };
+        if (input.category !== undefined) updateData.category = input.category;
+        if (input.key !== undefined) updateData.key = input.key;
+        if (input.maskedValue !== undefined) updateData.maskedValue = input.maskedValue;
+        if (input.actualValue !== undefined) updateData.actualValue = input.actualValue;
+        await db.update(vaultEntries).set(updateData).where(eq(vaultEntries.id, input.id));
+        await logChange(`Vault (ID: ${input.id}) を更新`, "vaultEntries", input.id);
+        return { success: true };
+      }),
+
+    deleteVaultEntry: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(vaultEntries).where(eq(vaultEntries.id, input.id));
+        await logChange(`Vault (ID: ${input.id}) を削除`, "vaultEntries", input.id);
+        return { success: true };
+      }),
+
+    // Audit Logs
+    getAuditLogs: publicProcedure
+      .input(z.object({ limit: z.number().default(100) }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        return await db.select().from(auditLogs).orderBy(desc(auditLogs.timestamp)).limit(input.limit);
+      }),
+
+    // Secret Notes CRUD
+    createSecretNote: publicProcedure
+      .input(z.object({ title: z.string().min(1), body: z.string().min(1) }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [note] = await db.insert(secretNotes).values({
+          title: input.title,
+          body: input.body,
+        }).returning();
+        await logChange(`秘匿メモ「${input.title}」を追加`, "secretNotes", note.id);
+        return note;
+      }),
+
+    updateSecretNote: publicProcedure
+      .input(z.object({ id: z.number(), title: z.string().optional(), body: z.string().optional() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const updateData: any = { updatedAt: new Date() };
+        if (input.title !== undefined) updateData.title = input.title;
+        if (input.body !== undefined) updateData.body = input.body;
+        await db.update(secretNotes).set(updateData).where(eq(secretNotes.id, input.id));
+        await logChange(`秘匿メモ (ID: ${input.id}) を更新`, "secretNotes", input.id);
+        return { success: true };
+      }),
+
+    deleteSecretNote: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(secretNotes).where(eq(secretNotes.id, input.id));
+        await logChange(`秘匿メモ (ID: ${input.id}) を削除`, "secretNotes", input.id);
+        return { success: true };
+      }),
+
+    // Events CRUD
+    createEvent: publicProcedure
+      .input(z.object({
+        title: z.string().min(1),
+        date: z.string(),
+        category: z.string().min(1),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [event] = await db.insert(events).values({
+          title: input.title,
+          date: new Date(input.date),
+          category: input.category,
+          checklist: [],
+          notes: input.notes || null,
+          attachments: [],
+        }).returning();
+        await logChange(`イベント「${input.title}」を追加`, "events", event.id);
+        return event;
+      }),
+
+    updateEvent: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        date: z.string().optional(),
+        category: z.string().optional(),
+        notes: z.string().optional(),
+        checklist: z.array(z.object({ id: z.string(), text: z.string(), completed: z.boolean() })).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const updateData: any = { updatedAt: new Date() };
+        if (input.title !== undefined) updateData.title = input.title;
+        if (input.date !== undefined) updateData.date = new Date(input.date);
+        if (input.category !== undefined) updateData.category = input.category;
+        if (input.notes !== undefined) updateData.notes = input.notes;
+        if (input.checklist !== undefined) updateData.checklist = input.checklist;
+        await db.update(events).set(updateData).where(eq(events.id, input.id));
+        await logChange(`イベント (ID: ${input.id}) を更新`, "events", input.id);
+        return { success: true };
+      }),
+
+    deleteEvent: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(events).where(eq(events.id, input.id));
+        await logChange(`イベント (ID: ${input.id}) を削除`, "events", input.id);
+        return { success: true };
+      }),
+
+    // Inventory CRUD
+    createInventoryItem: publicProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        qty: z.number().default(0),
+        location: z.string().min(1),
+        condition: z.string().optional(),
+        notes: z.string().optional(),
+        tags: z.array(z.string()).default([]),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [item] = await db.insert(inventory).values({
+          name: input.name,
+          qty: input.qty,
+          location: input.location,
+          condition: input.condition || null,
+          notes: input.notes || null,
+          tags: input.tags,
+        }).returning();
+        await logChange(`備品「${input.name}」を追加`, "inventory", item.id);
+        return item;
+      }),
+
+    updateInventoryItem: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().optional(),
+        qty: z.number().optional(),
+        location: z.string().optional(),
+        condition: z.string().optional(),
+        notes: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+        lastCheckedAt: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const updateData: any = { updatedAt: new Date() };
+        if (input.name !== undefined) updateData.name = input.name;
+        if (input.qty !== undefined) updateData.qty = input.qty;
+        if (input.location !== undefined) updateData.location = input.location;
+        if (input.condition !== undefined) updateData.condition = input.condition;
+        if (input.notes !== undefined) updateData.notes = input.notes;
+        if (input.tags !== undefined) updateData.tags = input.tags;
+        if (input.lastCheckedAt !== undefined) updateData.lastCheckedAt = new Date(input.lastCheckedAt);
+        await db.update(inventory).set(updateData).where(eq(inventory.id, input.id));
+        await logChange(`備品 (ID: ${input.id}) を更新`, "inventory", input.id);
+        return { success: true };
+      }),
+
+    deleteInventoryItem: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(inventory).where(eq(inventory.id, input.id));
+        await logChange(`備品 (ID: ${input.id}) を削除`, "inventory", input.id);
+        return { success: true };
+      }),
+
+    // FAQ Create
+    createFAQ: publicProcedure
+      .input(z.object({
+        question: z.string().min(1),
+        answer: z.string().min(1),
+        relatedRuleIds: z.array(z.number()).default([]),
+        relatedPostIds: z.array(z.number()).default([]),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [item] = await db.insert(faq).values({
+          question: input.question,
+          answer: input.answer,
+          relatedRuleIds: input.relatedRuleIds,
+          relatedPostIds: input.relatedPostIds,
+        }).returning();
+        await logChange(`FAQ「${input.question}」を追加`, "faq", item.id);
+        return item;
+      }),
+
+    // Templates CRUD
+    createTemplate: publicProcedure
+      .input(z.object({
+        title: z.string().min(1),
+        body: z.string().min(1),
+        category: z.string().min(1),
+        tags: z.array(z.string()).default([]),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [item] = await db.insert(templates).values({
+          title: input.title,
+          body: input.body,
+          category: input.category,
+          tags: input.tags,
+        }).returning();
+        await logChange(`テンプレート「${input.title}」を追加`, "templates", item.id);
+        return item;
+      }),
+
+    updateTemplate: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        body: z.string().optional(),
+        category: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const updateData: any = { updatedAt: new Date() };
+        if (input.title !== undefined) updateData.title = input.title;
+        if (input.body !== undefined) updateData.body = input.body;
+        if (input.category !== undefined) updateData.category = input.category;
+        if (input.tags !== undefined) updateData.tags = input.tags;
+        await db.update(templates).set(updateData).where(eq(templates.id, input.id));
+        await logChange(`テンプレート (ID: ${input.id}) を更新`, "templates", input.id);
+        return { success: true };
+      }),
+
+    deleteTemplate: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(templates).where(eq(templates.id, input.id));
+        await logChange(`テンプレート (ID: ${input.id}) を削除`, "templates", input.id);
+        return { success: true };
+      }),
+
+    // Rules CRUD
+    createRule: publicProcedure
+      .input(z.object({
+        title: z.string().min(1),
+        summary: z.string().min(1),
+        details: z.string().min(1),
+        status: z.enum(["draft", "decided", "published"]).default("decided"),
+        evidenceLinks: z.array(z.string()).default([]),
+        isHypothesis: z.boolean().default(false),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [rule] = await db.insert(rules).values({
+          title: input.title,
+          summary: input.summary,
+          details: input.details,
+          status: input.status,
+          evidenceLinks: input.evidenceLinks,
+          isHypothesis: input.isHypothesis,
+        }).returning();
+        await logChange(`ルール「${input.title}」を追加`, "rules", rule.id);
+        return rule;
+      }),
+
+    updateRule: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        summary: z.string().optional(),
+        details: z.string().optional(),
+        status: z.enum(["draft", "decided", "published"]).optional(),
+        evidenceLinks: z.array(z.string()).optional(),
+        isHypothesis: z.boolean().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const updateData: any = { updatedAt: new Date() };
+        if (input.title !== undefined) updateData.title = input.title;
+        if (input.summary !== undefined) updateData.summary = input.summary;
+        if (input.details !== undefined) updateData.details = input.details;
+        if (input.status !== undefined) updateData.status = input.status;
+        if (input.evidenceLinks !== undefined) updateData.evidenceLinks = input.evidenceLinks;
+        if (input.isHypothesis !== undefined) updateData.isHypothesis = input.isHypothesis;
+        await db.update(rules).set(updateData).where(eq(rules.id, input.id));
+        await logChange(`ルール (ID: ${input.id}) を更新`, "rules", input.id);
+        return { success: true };
+      }),
+
+    deleteRule: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(rules).where(eq(rules.id, input.id));
+        await logChange(`ルール (ID: ${input.id}) を削除`, "rules", input.id);
+        return { success: true };
+      }),
+
+    getHouseholds: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) return [];
       return await db.select().from(households).orderBy(asc(households.householdId));
     }),
-    updateHousehold: adminProcedure
+
+    updateHousehold: publicProcedure
       .input(
         z.object({
           householdId: z.string(),
@@ -565,10 +895,12 @@ export const appRouter = router({
           })
           .where(eq(households.householdId, input.householdId));
 
+        await logChange(`住戸 ${input.householdId} の情報を更新`, "households");
+
         return { success: true };
       }),
 
-    recalculateSchedules: adminProcedure
+    recalculateSchedules: publicProcedure
       .input(z.object({ year: z.number() }))
       .mutation(async ({ input }) => {
         const db = await getDb();
@@ -650,19 +982,19 @@ export const appRouter = router({
           });
         }
 
+        await logChange(`${input.year}年度ローテを再計算`, "leaderSchedule");
+
         return { success: true, candidateCount: candidates.length };
       }),
 
-    getRotationWithReasons: protectedProcedure
+    getRotationWithReasons: publicProcedure
       .input(z.object({ year: z.number() }))
       .query(async ({ input }) => {
         const db = await getDb();
         if (!db) return [];
 
-        // 全住戸を取得
         const allHouseholds = await db.select().from(households);
 
-        // 前回担当者を取得
         const prevYear = input.year - 1;
         const prevScheduleArray = await db
           .select()
@@ -671,7 +1003,6 @@ export const appRouter = router({
           .limit(1);
         const prevSchedule = prevScheduleArray[0];
 
-        // 免除申請を確認
         const exemptions = await db
           .select()
           .from(exemptionRequests)
@@ -684,7 +1015,6 @@ export const appRouter = router({
 
         const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
 
-        // 入居12ヶ月未満の住戸を確認
         const now = new Date();
         const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, now.getDate());
         const lessThanYearHouseholds = new Set(
@@ -693,14 +1023,12 @@ export const appRouter = router({
             .map((h) => h.householdId)
         );
 
-        // 直近2年以内に組長経験のある住戸を確認
         const recentLeaderHouseholds = new Set(
           allHouseholds
             .filter((h) => (h.leaderHistoryCount || 0) > 0)
             .map((h) => h.householdId)
         );
 
-        // 各住戸の候補外理由を計算
         const householdsWithReasons = allHouseholds.map((h) => {
           const reasons: string[] = [];
           if (lessThanYearHouseholds.has(h.householdId)) {
@@ -722,7 +1050,6 @@ export const appRouter = router({
           };
         });
 
-        // 現在のスケジュールを取得
         const schedule = await db
           .select()
           .from(leaderSchedule)
@@ -739,44 +1066,28 @@ export const appRouter = router({
     getResidentEmails: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) return [];
-
-      const emails = await db.select().from(residentEmails);
-      return emails;
+      return await db.select().from(residentEmails);
     }),
 
-    getForms: adminProcedure.query(async () => {
+    getForms: publicProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      return await db.select().from(forms).orderBy(desc(forms.createdAt));
+    }),
+
+    // 認証不要：アクティブなフォーム一覧を返す
+    getActiveForms: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) return [];
 
-      const allForms = await db.select().from(forms).orderBy(desc(forms.createdAt));
-      return allForms;
-    }),
-
-    getUnansweredForms: protectedProcedure.query(async ({ ctx }) => {
-      const db = await getDb();
-      if (!db) return [];
-
-      // アクティブなフォーム一覧を取得
       const activeForms = await db
         .select()
         .from(forms)
         .where(eq(forms.status, "active"))
         .orderBy(desc(forms.createdAt));
 
-      // ユーザーが回答済みのフォームを取得
-      const answeredFormIds = await db
-        .select({ formId: formResponses.formId })
-        .from(formResponses)
-        .where(eq(formResponses.userId, ctx.user.id));
-
-      const answeredFormIdSet = new Set(answeredFormIds.map((r) => r.formId));
-
-      // 未回答のフォームをフィルタリング
-      const unansweredForms = activeForms.filter((form) => !answeredFormIdSet.has(form.id));
-
-      // 各フォームの質問と選択肢を取得
       const formsWithDetails = await Promise.all(
-        unansweredForms.map(async (form) => {
+        activeForms.map(async (form) => {
           const questions = await db
             .select()
             .from(formQuestions)
@@ -791,27 +1102,22 @@ export const appRouter = router({
                 .where(eq(formChoices.questionId, question.id))
                 .orderBy(asc(formChoices.orderIndex));
 
-              return {
-                ...question,
-                choices,
-              };
+              return { ...question, choices };
             })
           );
 
-          return {
-            ...form,
-            questions: questionsWithChoices,
-          };
+          return { ...form, questions: questionsWithChoices };
         })
       );
 
       return formsWithDetails;
     }),
 
-    submitFormResponse: protectedProcedure
+    submitFormResponse: publicProcedure
       .input(
         z.object({
           formId: z.number(),
+          householdId: z.string().optional(),
           answers: z.array(
             z.object({
               questionId: z.number(),
@@ -821,31 +1127,19 @@ export const appRouter = router({
           ),
         })
       )
-      .mutation(async ({ input, ctx }) => {
+      .mutation(async ({ input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database connection failed");
 
         try {
-          // フォーム回答を作成
-          const response = await db.insert(formResponses).values({
+          const [createdResponse] = await db.insert(formResponses).values({
             formId: input.formId,
-            userId: ctx.user.id,
-            householdId: ctx.user.householdId || "unknown",
+            householdId: input.householdId || null,
             submittedAt: new Date(),
-          });
+          }).returning();
 
-          // 回答IDを取得
-          const createdResponse = await db
-            .select()
-            .from(formResponses)
-            .where(and(eq(formResponses.formId, input.formId), eq(formResponses.userId, ctx.user.id)))
-            .orderBy(desc(formResponses.submittedAt))
-            .limit(1);
+          const responseId = createdResponse.id;
 
-          if (!createdResponse.length) throw new Error("Response creation failed");
-          const responseId = createdResponse[0].id;
-
-          // 各質問への回答を保存
           for (const answer of input.answers) {
             await db.insert(formResponseItems).values({
               responseId,
@@ -855,18 +1149,19 @@ export const appRouter = router({
             });
           }
 
-          // Admin に通知を送信
           const formData = await db.select().from(forms).where(eq(forms.id, input.formId)).limit(1);
           if (formData.length > 0) {
             try {
               await notifyOwner({
                 title: `フォーム回答: ${formData[0].title}`,
-                content: `住戸 ${ctx.user.householdId} から「${formData[0].title}」への回答がありました。`,
+                content: `${input.householdId || "匿名"} から「${formData[0].title}」への回答がありました。`,
               });
             } catch (notifyError) {
               console.warn("Failed to send notification:", notifyError);
             }
           }
+
+          await logChange(`フォーム「${formData[0]?.title}」に回答`, "formResponses", responseId);
 
           return { success: true, responseId };
         } catch (error) {
@@ -875,7 +1170,7 @@ export const appRouter = router({
         }
       }),
 
-    createForm: adminProcedure
+    createForm: publicProcedure
       .input(
         z.object({
           title: z.string().min(1),
@@ -890,45 +1185,32 @@ export const appRouter = router({
           ),
         })
       )
-      .mutation(async ({ input, ctx }) => {
+      .mutation(async ({ input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database connection failed");
 
         try {
-          await db.insert(forms).values({
+          const [createdForm] = await db.insert(forms).values({
             title: input.title,
             description: input.description || null,
             dueDate: input.dueDate ? new Date(input.dueDate) : null,
-            createdBy: ctx.user.id,
             status: "draft",
-          });
+          }).returning();
 
-          const createdForm = await db.select().from(forms)
-            .where(eq(forms.title, input.title))
-            .orderBy(desc(forms.createdAt))
-            .limit(1);
-
-          if (!createdForm.length) throw new Error("Form creation failed");
-          const formId = createdForm[0].id;
+          const formId = createdForm.id;
 
           for (let qIndex = 0; qIndex < input.questions.length; qIndex++) {
             const question = input.questions[qIndex];
 
-            await db.insert(formQuestions).values({
+            const [createdQuestion] = await db.insert(formQuestions).values({
               formId,
               questionText: question.text,
               questionType: question.type,
               required: true,
               orderIndex: qIndex,
-            });
+            }).returning();
 
-            const createdQuestion = await db.select().from(formQuestions)
-              .where(eq(formQuestions.formId, formId))
-              .orderBy(desc(formQuestions.createdAt))
-              .limit(1);
-
-            if (!createdQuestion.length) throw new Error("Question creation failed");
-            const questionId = createdQuestion[0].id;
+            const questionId = createdQuestion.id;
 
             for (let cIndex = 0; cIndex < question.choices.length; cIndex++) {
               const choice = question.choices[cIndex];
@@ -942,6 +1224,8 @@ export const appRouter = router({
             }
           }
 
+          await logChange(`フォーム「${input.title}」を作成`, "forms", formId);
+
           return { success: true, formId };
         } catch (error) {
           console.error("Form creation error:", error);
@@ -949,35 +1233,30 @@ export const appRouter = router({
         }
       }),
 
-    getFormStats: adminProcedure
+    getFormStats: publicProcedure
       .input(z.object({ formId: z.number() }))
       .query(async ({ input }) => {
         const db = await getDb();
         if (!db) return null;
 
         try {
-          // フォーム情報を取得
           const form = await db.select().from(forms).where(eq(forms.id, input.formId)).limit(1);
           if (!form.length) throw new Error("Form not found");
 
-          // 全質問を取得
           const questions = await db
             .select()
             .from(formQuestions)
             .where(eq(formQuestions.formId, input.formId))
             .orderBy(asc(formQuestions.orderIndex));
 
-          // 各質問の統計を計算
           const questionStats = await Promise.all(
             questions.map(async (question) => {
-              // 選択肢を取得
               const choices = await db
                 .select()
                 .from(formChoices)
                 .where(eq(formChoices.questionId, question.id))
                 .orderBy(asc(formChoices.orderIndex));
 
-              // 各選択肢の回答数を計算
               const choiceStats = await Promise.all(
                 choices.map(async (choice) => {
                   const count = await db
@@ -1002,13 +1281,11 @@ export const appRouter = router({
             })
           );
 
-          // 回答者情報を取得
           const responses = await db
             .select()
             .from(formResponses)
             .where(eq(formResponses.formId, input.formId));
 
-          // 回答者詳細を取得
           const respondents = await Promise.all(
             responses.map(async (response) => {
               const items = await db
@@ -1025,7 +1302,6 @@ export const appRouter = router({
             })
           );
 
-          // 全住戸を取得（未回答者を計算するため）
           const allHouseholds = await db.select().from(households);
           const respondedHouseholds = new Set(respondents.map((r) => r.householdId));
           const unansweredHouseholds = allHouseholds.filter(
@@ -1047,7 +1323,7 @@ export const appRouter = router({
         }
       }),
 
-    updateForm: adminProcedure
+    updateForm: publicProcedure
       .input(
         z.object({
           formId: z.number(),
@@ -1057,7 +1333,7 @@ export const appRouter = router({
           status: z.enum(["draft", "active", "closed"]).optional(),
         })
       )
-      .mutation(async ({ input, ctx }) => {
+      .mutation(async ({ input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database connection failed");
 
@@ -1070,6 +1346,8 @@ export const appRouter = router({
 
           await db.update(forms).set(updateData).where(eq(forms.id, input.formId));
 
+          await logChange(`フォーム (ID: ${input.formId}) を更新`, "forms", input.formId);
+
           return { success: true };
         } catch (error) {
           console.error("Form update error:", error);
@@ -1077,14 +1355,13 @@ export const appRouter = router({
         }
       }),
 
-    deleteForm: adminProcedure
+    deleteForm: publicProcedure
       .input(z.object({ formId: z.number() }))
-      .mutation(async ({ input, ctx }) => {
+      .mutation(async ({ input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database connection failed");
 
         try {
-          // 回答を削除
           const responses = await db
             .select()
             .from(formResponses)
@@ -1098,7 +1375,6 @@ export const appRouter = router({
 
           await db.delete(formResponses).where(eq(formResponses.formId, input.formId));
 
-          // 質問を削除
           const questions = await db
             .select()
             .from(formQuestions)
@@ -1110,8 +1386,9 @@ export const appRouter = router({
 
           await db.delete(formQuestions).where(eq(formQuestions.formId, input.formId));
 
-          // フォームを削除
           await db.delete(forms).where(eq(forms.id, input.formId));
+
+          await logChange(`フォーム (ID: ${input.formId}) を削除`, "forms", input.formId);
 
           return { success: true };
         } catch (error) {
@@ -1123,7 +1400,7 @@ export const appRouter = router({
 
   // 投稿管理 API
   posts: router({
-    create: protectedProcedure
+    create: publicProcedure
       .input(
         z.object({
           title: z.string(),
@@ -1135,11 +1412,9 @@ export const appRouter = router({
           relatedLinks: z.array(z.string()).default([]),
         })
       )
-      .mutation(async ({ input, ctx }) => {
+      .mutation(async ({ input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database not available");
-
-        if (!ctx.user) throw new Error("Not authenticated");
 
         await db.insert(posts).values({
           title: input.title,
@@ -1147,17 +1422,18 @@ export const appRouter = router({
           tags: input.tags,
           category: input.category,
           year: input.year,
-          status: ctx.user.role === "admin" ? "published" : "pending",
-          authorId: ctx.user.id,
-          authorRole: ctx.user.role as "editor" | "admin",
+          status: "published",
           isHypothesis: input.isHypothesis,
           relatedLinks: input.relatedLinks,
+          publishedAt: new Date(),
         });
+
+        await logChange(`投稿「${input.title}」を作成`, "posts");
 
         return { success: true };
       }),
 
-    approve: adminProcedure
+    approve: publicProcedure
       .input(z.object({ postId: z.number() }))
       .mutation(async ({ input }) => {
         const db = await getDb();
@@ -1168,17 +1444,18 @@ export const appRouter = router({
           .set({ status: "published", publishedAt: new Date() })
           .where(eq(posts.id, input.postId));
 
+        await logChange(`投稿 (ID: ${input.postId}) を承認`, "posts", input.postId);
+
         return { success: true };
       }),
   }),
 
   // リマインダーメール送信
   reminder: router({
-    sendFormReminderEmails: adminProcedure.mutation(async ({ ctx }) => {
+    sendFormReminderEmails: publicProcedure.mutation(async () => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      // 回答期限が 24 時間以内のアクティブなフォームを取得
       const now = new Date();
       const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
@@ -1194,7 +1471,6 @@ export const appRouter = router({
         );
 
       for (const form of upcomingForms) {
-        // 未回答者を取得
         const unansweredHouseholds = await db
           .select({ householdId: households.householdId })
           .from(households)
@@ -1207,7 +1483,6 @@ export const appRouter = router({
           )
           .where(eq(formResponses.id, null as any));
 
-        // メール送信
         for (const household of unansweredHouseholds) {
           await notifyOwner({
             title: `フォーム回答リマインダー: ${form.title}`,

@@ -1,244 +1,297 @@
-import { useAuth } from "@/_core/hooks/useAuth";
-import { Button } from "@/components/ui/button";
-import { Lock, Download, Filter } from "lucide-react";
+import { trpc } from "@/lib/trpc";
+import { Shield, ArrowLeft, Clock, Filter } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 
-/**
- * Admin 監査ログページ
- * Vault アクセス・編集・コピーを記録・表示
- */
+const entityTypeLabels: Record<string, string> = {
+  faq: "FAQ",
+  forms: "フォーム",
+  posts: "投稿",
+  rules: "ルール",
+  templates: "テンプレート",
+  inventory: "備品",
+  handoverBagItems: "引き継ぎ袋",
+  pendingQueue: "返信待ち",
+  vaultEntries: "Vault",
+  secretNotes: "秘匿メモ",
+  leaderSchedule: "ローテーション",
+  leaderRotationLogic: "ローテロジック",
+  formResponses: "フォーム回答",
+  events: "イベント",
+  households: "住戸",
+};
+
+const entityTypeColors: Record<string, string> = {
+  faq: "bg-blue-50 text-blue-700",
+  forms: "bg-purple-50 text-purple-700",
+  posts: "bg-green-50 text-green-700",
+  rules: "bg-amber-50 text-amber-700",
+  templates: "bg-indigo-50 text-indigo-700",
+  inventory: "bg-teal-50 text-teal-700",
+  handoverBagItems: "bg-orange-50 text-orange-700",
+  pendingQueue: "bg-rose-50 text-rose-700",
+  vaultEntries: "bg-slate-100 text-slate-700",
+  secretNotes: "bg-red-50 text-red-700",
+  leaderSchedule: "bg-cyan-50 text-cyan-700",
+  leaderRotationLogic: "bg-sky-50 text-sky-700",
+  formResponses: "bg-violet-50 text-violet-700",
+  events: "bg-emerald-50 text-emerald-700",
+  households: "bg-lime-50 text-lime-700",
+};
+
+const actionLabels: Record<string, string> = {
+  view: "閲覧",
+  edit: "編集",
+  copy: "コピー",
+  delete: "削除",
+  create: "作成",
+};
+
+const actionColors: Record<string, string> = {
+  view: "bg-blue-50 text-blue-700",
+  edit: "bg-yellow-50 text-yellow-700",
+  copy: "bg-green-50 text-green-700",
+  delete: "bg-red-50 text-red-700",
+  create: "bg-emerald-50 text-emerald-700",
+};
+
+function formatDate(value: string | Date): string {
+  const d = typeof value === "string" ? new Date(value) : value;
+  return d.toLocaleString("ja-JP");
+}
+
 export default function AuditLogs() {
-  const { user } = useAuth();
   const [, setLocation] = useLocation();
+  const [activeTab, setActiveTab] = useState<"changelog" | "audit">("changelog");
   const [filterAction, setFilterAction] = useState<string>("all");
-  const [filterDate, setFilterDate] = useState<string>("all");
 
-  // Admin限定チェック
-  if (user?.role !== "admin") {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center px-4">
-        <div className="max-w-md text-center">
-          <Lock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h1 className="text-2xl font-light text-gray-900 mb-2">アクセス拒否</h1>
-          <p className="text-gray-600 mb-6">
-            監査ログは Admin のみアクセス可能です
-          </p>
-          <Button
-            onClick={() => setLocation("/")}
-            className="w-full bg-blue-900 hover:bg-blue-800 text-white"
-          >
-            トップに戻る
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  const { data: changelog, isLoading: changelogLoading } =
+    trpc.data.getChangelog.useQuery({ limit: 100 });
+  const { data: auditLogs, isLoading: auditLoading } =
+    trpc.data.getAuditLogs.useQuery({ limit: 100 });
 
-  // サンプルデータ
-  const auditLogs = [
-    {
-      id: 1,
-      userId: 1,
-      userName: "Yamada Taro",
-      action: "view",
-      entityType: "vault_entry",
-      entityId: 1,
-      details: "マスキング解除",
-      timestamp: "2025-01-01 10:30:45",
-      ipAddress: "192.168.1.100",
-    },
-    {
-      id: 2,
-      userId: 1,
-      userName: "Yamada Taro",
-      action: "copy",
-      entityType: "vault_entry",
-      entityId: 1,
-      details: "管理会社電話をコピー",
-      timestamp: "2025-01-01 10:31:12",
-      ipAddress: "192.168.1.100",
-    },
-    {
-      id: 3,
-      userId: 1,
-      userName: "Yamada Taro",
-      action: "view",
-      entityType: "vault_entry",
-      entityId: 3,
-      details: "マスキング解除",
-      timestamp: "2025-01-01 10:32:00",
-      ipAddress: "192.168.1.100",
-    },
-    {
-      id: 4,
-      userId: 2,
-      userName: "Suzuki Hanako",
-      action: "view",
-      entityType: "vault_entry",
-      entityId: 5,
-      details: "マスキング解除",
-      timestamp: "2024-12-31 15:20:30",
-      ipAddress: "192.168.1.101",
-    },
-    {
-      id: 5,
-      userId: 2,
-      userName: "Suzuki Hanako",
-      action: "edit",
-      entityType: "vault_entry",
-      entityId: 2,
-      details: "メールアドレスを更新",
-      timestamp: "2024-12-31 14:15:00",
-      ipAddress: "192.168.1.101",
-    },
-  ];
-
-  const actionLabels: Record<string, string> = {
-    view: "表示",
-    copy: "コピー",
-    edit: "編集",
-    delete: "削除",
-  };
-
-  const actionColors: Record<string, string> = {
-    view: "bg-blue-50 text-blue-700",
-    copy: "bg-green-50 text-green-700",
-    edit: "bg-yellow-50 text-yellow-700",
-    delete: "bg-red-50 text-red-700",
-  };
-
-  const filteredLogs = auditLogs.filter((log) => {
-    if (filterAction !== "all" && log.action !== filterAction) return false;
-    return true;
-  });
+  const filteredAuditLogs =
+    auditLogs?.filter((log) => {
+      if (filterAction !== "all" && log.action !== filterAction) return false;
+      return true;
+    }) ?? [];
 
   return (
     <div className="min-h-screen bg-white">
-      {/* ヘッダー */}
-      <header className="fixed top-0 left-0 right-0 bg-cover bg-center border-b border-gray-200 z-50" style={{ backgroundImage: "url('/greenpia-yaizu.jpg')" }}>
-        <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/50" />
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between relative">
-          <h1 className="text-xl font-light text-white">監査ログ</h1>
-          <Button
+      {/* Header */}
+      <header className="border-b border-gray-200">
+        <div className="max-w-4xl mx-auto px-6 py-8">
+          <button
             onClick={() => setLocation("/")}
-            variant="ghost"
-            className="text-white hover:text-white/70"
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors mb-6"
           >
-            ← トップに戻る
-          </Button>
+            <ArrowLeft className="w-4 h-4" />
+            トップに戻る
+          </button>
+          <div className="flex items-center gap-3 mb-2">
+            <Shield className="w-5 h-5 text-gray-400" />
+            <h1 className="text-2xl font-light text-gray-900 tracking-wide">
+              監査ログ
+            </h1>
+          </div>
+          <p className="text-sm font-light text-gray-500 ml-8">
+            システムの変更履歴とアクセス記録
+          </p>
         </div>
       </header>
 
-      {/* メインコンテンツ */}
-      <main className="pt-24 pb-16 max-w-7xl mx-auto px-6">
-        {/* フィルタ */}
-        <div className="mb-8 flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-600" />
-            <label className="text-sm text-gray-600">アクション：</label>
-            <select
-              value={filterAction}
-              onChange={(e) => setFilterAction(e.target.value)}
-              className="text-sm border border-gray-200 rounded px-3 py-2 focus:outline-none focus:border-blue-900"
-            >
-              <option value="all">すべて</option>
-              <option value="view">表示</option>
-              <option value="copy">コピー</option>
-              <option value="edit">編集</option>
-              <option value="delete">削除</option>
-            </select>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto text-gray-600 hover:text-gray-900"
+      {/* Tabs */}
+      <div className="border-b border-gray-200">
+        <div className="max-w-4xl mx-auto px-6 flex gap-0">
+          <button
+            onClick={() => setActiveTab("changelog")}
+            className={`px-5 py-3 text-sm font-light transition-colors border-b-2 ${
+              activeTab === "changelog"
+                ? "border-gray-900 text-gray-900"
+                : "border-transparent text-gray-400 hover:text-gray-600"
+            }`}
           >
-            <Download className="w-4 h-4 mr-2" />
-            エクスポート
-          </Button>
+            変更履歴
+          </button>
+          <button
+            onClick={() => setActiveTab("audit")}
+            className={`px-5 py-3 text-sm font-light transition-colors border-b-2 ${
+              activeTab === "audit"
+                ? "border-gray-900 text-gray-900"
+                : "border-transparent text-gray-400 hover:text-gray-600"
+            }`}
+          >
+            アクセスログ
+          </button>
         </div>
+      </div>
 
-        {/* ログテーブル */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 font-medium text-gray-900">
-                  タイムスタンプ
-                </th>
-                <th className="text-left py-3 px-4 font-medium text-gray-900">
-                  ユーザー
-                </th>
-                <th className="text-left py-3 px-4 font-medium text-gray-900">
-                  アクション
-                </th>
-                <th className="text-left py-3 px-4 font-medium text-gray-900">
-                  詳細
-                </th>
-                <th className="text-left py-3 px-4 font-medium text-gray-900">
-                  IP アドレス
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredLogs.map((log) => (
-                <tr
-                  key={log.id}
-                  className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
-                >
-                  <td className="py-3 px-4 text-gray-600">{log.timestamp}</td>
-                  <td className="py-3 px-4 text-gray-900">{log.userName}</td>
-                  <td className="py-3 px-4">
-                    <span
-                      className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                        actionColors[log.action] || "bg-gray-50 text-gray-700"
-                      }`}
-                    >
-                      {actionLabels[log.action] || log.action}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-gray-600">{log.details}</td>
-                  <td className="py-3 px-4 text-gray-600 font-mono text-xs">
-                    {log.ipAddress}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {/* Content */}
+      <main className="max-w-4xl mx-auto px-6 py-10">
+        {/* Changelog Tab */}
+        {activeTab === "changelog" && (
+          <div>
+            {changelogLoading && (
+              <div className="text-center py-16">
+                <p className="text-sm font-light text-gray-400">読み込み中...</p>
+              </div>
+            )}
 
-        {filteredLogs.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-600">ログがありません</p>
+            {!changelogLoading && (!changelog || changelog.length === 0) && (
+              <div className="text-center py-16">
+                <Clock className="w-6 h-6 text-gray-300 mx-auto mb-3" />
+                <p className="text-sm font-light text-gray-400">
+                  変更履歴はまだありません
+                </p>
+              </div>
+            )}
+
+            {!changelogLoading && changelog && changelog.length > 0 && (
+              <div className="relative">
+                {/* Timeline line */}
+                <div className="absolute left-[7px] top-2 bottom-2 w-px bg-gray-200" />
+
+                <div className="space-y-6">
+                  {changelog.map((entry) => (
+                    <div key={entry.id} className="relative pl-8">
+                      {/* Timeline dot */}
+                      <div className="absolute left-0 top-1.5 w-[15px] h-[15px] rounded-full border-2 border-gray-300 bg-white" />
+
+                      <div className="pb-1">
+                        <div className="flex items-center gap-3 mb-1.5">
+                          <time className="text-xs font-light text-gray-400">
+                            {formatDate(entry.date)}
+                          </time>
+                          {entry.relatedEntityType && (
+                            <span
+                              className={`inline-block px-2 py-0.5 rounded text-xs font-light ${
+                                entityTypeColors[entry.relatedEntityType] ??
+                                "bg-gray-50 text-gray-600"
+                              }`}
+                            >
+                              {entityTypeLabels[entry.relatedEntityType] ??
+                                entry.relatedEntityType}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm font-light text-gray-900 leading-relaxed">
+                          {entry.summary}
+                        </p>
+                        {entry.editorName && (
+                          <p className="text-xs font-light text-gray-400 mt-1">
+                            by {entry.editorName}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        {/* 統計 */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="p-4 border border-gray-200 rounded">
-            <p className="text-xs text-gray-600 mb-1">総ログ数</p>
-            <p className="text-2xl font-light text-gray-900">{auditLogs.length}</p>
+        {/* Audit Logs Tab */}
+        {activeTab === "audit" && (
+          <div>
+            {/* Filter */}
+            <div className="mb-6 flex items-center gap-3">
+              <Filter className="w-4 h-4 text-gray-400" />
+              <select
+                value={filterAction}
+                onChange={(e) => setFilterAction(e.target.value)}
+                className="text-sm font-light border border-gray-200 rounded px-3 py-1.5 text-gray-700 focus:outline-none focus:border-gray-400 bg-white"
+              >
+                <option value="all">すべてのアクション</option>
+                <option value="view">閲覧</option>
+                <option value="create">作成</option>
+                <option value="edit">編集</option>
+                <option value="copy">コピー</option>
+                <option value="delete">削除</option>
+              </select>
+            </div>
+
+            {auditLoading && (
+              <div className="text-center py-16">
+                <p className="text-sm font-light text-gray-400">読み込み中...</p>
+              </div>
+            )}
+
+            {!auditLoading && filteredAuditLogs.length === 0 && (
+              <div className="text-center py-16">
+                <Shield className="w-6 h-6 text-gray-300 mx-auto mb-3" />
+                <p className="text-sm font-light text-gray-400">
+                  アクセスログはまだありません
+                </p>
+              </div>
+            )}
+
+            {!auditLoading && filteredAuditLogs.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        日時
+                      </th>
+                      <th className="text-left py-3 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        アクション
+                      </th>
+                      <th className="text-left py-3 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        対象
+                      </th>
+                      <th className="text-left py-3 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        詳細
+                      </th>
+                      <th className="text-left py-3 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        IPアドレス
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAuditLogs.map((log) => (
+                      <tr
+                        key={log.id}
+                        className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors"
+                      >
+                        <td className="py-3 px-3 font-light text-gray-500 whitespace-nowrap">
+                          {formatDate(log.timestamp)}
+                        </td>
+                        <td className="py-3 px-3">
+                          <span
+                            className={`inline-block px-2 py-0.5 rounded text-xs font-light ${
+                              actionColors[log.action] ?? "bg-gray-50 text-gray-600"
+                            }`}
+                          >
+                            {actionLabels[log.action] ?? log.action}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 font-light text-gray-700">
+                          {log.entityType && (
+                            <span className="text-xs">
+                              {entityTypeLabels[log.entityType] ?? log.entityType}
+                              {log.entityId != null && (
+                                <span className="text-gray-400 ml-1">
+                                  #{log.entityId}
+                                </span>
+                              )}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3 font-light text-gray-500">
+                          {log.details ?? "—"}
+                        </td>
+                        <td className="py-3 px-3 font-mono text-xs text-gray-400">
+                          {log.ipAddress ?? "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-          <div className="p-4 border border-gray-200 rounded">
-            <p className="text-xs text-gray-600 mb-1">表示操作</p>
-            <p className="text-2xl font-light text-gray-900">
-              {auditLogs.filter((l) => l.action === "view").length}
-            </p>
-          </div>
-          <div className="p-4 border border-gray-200 rounded">
-            <p className="text-xs text-gray-600 mb-1">コピー操作</p>
-            <p className="text-2xl font-light text-gray-900">
-              {auditLogs.filter((l) => l.action === "copy").length}
-            </p>
-          </div>
-          <div className="p-4 border border-gray-200 rounded">
-            <p className="text-xs text-gray-600 mb-1">編集操作</p>
-            <p className="text-2xl font-light text-gray-900">
-              {auditLogs.filter((l) => l.action === "edit").length}
-            </p>
-          </div>
-        </div>
+        )}
       </main>
     </div>
   );
