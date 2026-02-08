@@ -282,7 +282,7 @@ var riverCleaningRuns = pgTable("river_cleaning_runs", {
 var inventory = pgTable("inventory", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
-  photo: varchar("photo", { length: 500 }),
+  photo: text("photo"),
   qty: integer("qty").default(0).notNull(),
   location: varchar("location", { length: 255 }).notNull(),
   condition: varchar("condition", { length: 100 }),
@@ -1042,10 +1042,10 @@ var appRouter = router({
         )
       );
       const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
-      const now = /* @__PURE__ */ new Date();
-      const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, now.getDate());
+      const fiscalYearStart = new Date(input.year, 3, 1);
+      const twelveMonthsBefore = new Date(input.year - 1, 3, 1);
       const lessThanYearHouseholds = new Set(
-        allHouseholds.filter((h) => h.moveInDate && h.moveInDate > twelveMonthsAgo).map((h) => h.householdId)
+        allHouseholds.filter((h) => h.moveInDate && h.moveInDate > twelveMonthsBefore).map((h) => h.householdId)
       );
       const candidates = allHouseholds.filter((h) => {
         return !exemptedHouseholds.has(h.householdId) && !lessThanYearHouseholds.has(h.householdId) && !recentLeaderHouseholds.has(h.householdId);
@@ -1642,10 +1642,10 @@ var appRouter = router({
         )
       );
       const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
-      const now = /* @__PURE__ */ new Date();
-      const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, now.getDate());
+      const fiscalYearStart = new Date(input.year, 3, 1);
+      const twelveMonthsBefore = new Date(input.year - 1, 3, 1);
       const lessThanYearHouseholds = new Set(
-        allHouseholds.filter((h) => h.moveInDate && h.moveInDate > twelveMonthsAgo).map((h) => h.householdId)
+        allHouseholds.filter((h) => h.moveInDate && h.moveInDate > twelveMonthsBefore).map((h) => h.householdId)
       );
       const candidates = allHouseholds.filter((h) => {
         return !exemptedHouseholds.has(h.householdId) && !lessThanYearHouseholds.has(h.householdId) && !recentLeaderHouseholds.has(h.householdId);
@@ -1690,10 +1690,10 @@ var appRouter = router({
         )
       );
       const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
-      const now = /* @__PURE__ */ new Date();
-      const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, now.getDate());
+      const fiscalYearStart = new Date(input.year, 3, 1);
+      const twelveMonthsBefore = new Date(input.year - 1, 3, 1);
       const lessThanYearHouseholds = new Set(
-        allHouseholds.filter((h) => h.moveInDate && h.moveInDate > twelveMonthsAgo).map((h) => h.householdId)
+        allHouseholds.filter((h) => h.moveInDate && h.moveInDate > twelveMonthsBefore).map((h) => h.householdId)
       );
       const householdsWithReasons = allHouseholds.map((h) => {
         const reasons = [];

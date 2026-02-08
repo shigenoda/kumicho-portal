@@ -644,12 +644,12 @@ export const appRouter = router({
           );
         const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
 
-        // A免除: 入居12ヶ月未満
-        const now = new Date();
-        const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, now.getDate());
+        // A免除: 対象年度4月1日時点で入居12ヶ月未満
+        const fiscalYearStart = new Date(input.year, 3, 1); // 4月1日
+        const twelveMonthsBefore = new Date(input.year - 1, 3, 1); // 前年4月1日
         const lessThanYearHouseholds = new Set(
           allHouseholds
-            .filter((h) => h.moveInDate && h.moveInDate > twelveMonthsAgo)
+            .filter((h) => h.moveInDate && h.moveInDate > twelveMonthsBefore)
             .map((h) => h.householdId)
         );
 
@@ -1447,12 +1447,12 @@ export const appRouter = router({
           );
         const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
 
-        // A免除: 入居12ヶ月未満
-        const now = new Date();
-        const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, now.getDate());
+        // A免除: 対象年度4月1日時点で入居12ヶ月未満
+        const fiscalYearStart = new Date(input.year, 3, 1); // 4月1日
+        const twelveMonthsBefore = new Date(input.year - 1, 3, 1); // 前年4月1日
         const lessThanYearHouseholds = new Set(
           allHouseholds
-            .filter((h) => h.moveInDate && h.moveInDate > twelveMonthsAgo)
+            .filter((h) => h.moveInDate && h.moveInDate > twelveMonthsBefore)
             .map((h) => h.householdId)
         );
 
@@ -1528,12 +1528,12 @@ export const appRouter = router({
           );
         const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
 
-        // A免除: 入居12ヶ月未満
-        const now = new Date();
-        const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, now.getDate());
+        // A免除: 対象年度4月1日時点で入居12ヶ月未満
+        const fiscalYearStart = new Date(input.year, 3, 1); // 4月1日
+        const twelveMonthsBefore = new Date(input.year - 1, 3, 1); // 前年4月1日
         const lessThanYearHouseholds = new Set(
           allHouseholds
-            .filter((h) => h.moveInDate && h.moveInDate > twelveMonthsAgo)
+            .filter((h) => h.moveInDate && h.moveInDate > twelveMonthsBefore)
             .map((h) => h.householdId)
         );
 

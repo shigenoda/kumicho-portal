@@ -154,7 +154,7 @@ export type InsertRiverCleaningRun = typeof riverCleaningRuns.$inferInsert;
 export const inventory = pgTable("inventory", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
-  photo: varchar("photo", { length: 500 }),
+  photo: text("photo"),
   qty: integer("qty").default(0).notNull(),
   location: varchar("location", { length: 255 }).notNull(),
   condition: varchar("condition", { length: 100 }),
