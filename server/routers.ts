@@ -55,14 +55,44 @@ export const appRouter = router({
 
   // シードデータ投入（初回のみ）
   seed: router({
-    run: publicProcedure.mutation(async () => {
+    run: publicProcedure
+      .input(z.object({ force: z.boolean().optional() }).optional())
+      .mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      // 既にデータがある場合はスキップ
+      const force = input?.force ?? false;
+
+      // 既にデータがある場合
       const existingHouseholds = await db.select().from(households);
-      if (existingHouseholds.length > 0) {
-        return { success: true, message: "データは既に投入済みです", skipped: true };
+      if (existingHouseholds.length > 0 && !force) {
+        return { success: true, message: "データは既に投入済みです。force: true で再投入できます。", skipped: true };
+      }
+
+      // force モードの場合は既存データを削除（依存関係の順序で削除）
+      if (force && existingHouseholds.length > 0) {
+        await db.delete(formResponseItems);
+        await db.delete(formResponses);
+        await db.delete(formChoices);
+        await db.delete(formQuestions);
+        await db.delete(forms);
+        await db.delete(changelog);
+        await db.delete(secretNotes);
+        await db.delete(vaultEntries);
+        await db.delete(riverCleaningRuns);
+        await db.delete(posts);
+        await db.delete(pendingQueue);
+        await db.delete(handoverBagItems);
+        await db.delete(leaderRotationLogic);
+        await db.delete(leaderSchedule);
+        await db.delete(exemptionRequests);
+        await db.delete(ruleVersions);
+        await db.delete(rules);
+        await db.delete(templates);
+        await db.delete(faq);
+        await db.delete(inventory);
+        await db.delete(events);
+        await db.delete(households);
       }
 
       // 住戸 (9戸: 3階×3戸)
