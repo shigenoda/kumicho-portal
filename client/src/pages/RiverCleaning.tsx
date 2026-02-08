@@ -1,129 +1,545 @@
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { ArrowLeft, Droplets, Pencil, Trash2 } from "lucide-react";
-import { useLocation } from "wouter";
 import { useState } from "react";
+import { useLocation } from "wouter";
+import { trpc } from "@/lib/trpc";
+import {
+  ArrowLeft,
+  Droplets,
+  Plus,
+  Pencil,
+  Trash2,
+  ChevronDown,
+  Users,
+  CalendarDays,
+  AlertTriangle,
+  CheckCircle2,
+  Lightbulb,
+  Shield,
+  ClipboardList,
+  Footprints,
+  Info,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/components/ui/collapsible";
+
+interface RunFormData {
+  date: string;
+  participantsCount: string;
+  issues: string;
+  whatWorked: string;
+  whatToImprove: string;
+}
+
+const emptyForm: RunFormData = {
+  date: "",
+  participantsCount: "",
+  issues: "",
+  whatWorked: "",
+  whatToImprove: "",
+};
 
 export default function RiverCleaning() {
   const [, setLocation] = useLocation();
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const utils = trpc.useUtils();
+
+  // ── Query ──
+  const { data: runs = [], isLoading } =
+    trpc.data.getRiverCleaningRuns.useQuery();
+
+  // ── Mutations ──
+  const createRun = trpc.data.createRiverCleaningRun.useMutation({
+    onSuccess: () => {
+      utils.data.getRiverCleaningRuns.invalidate();
+      closeAddDialog();
+    },
+  });
+  const updateRun = trpc.data.updateRiverCleaningRun.useMutation({
+    onSuccess: () => {
+      utils.data.getRiverCleaningRuns.invalidate();
+      closeEditDialog();
+    },
+  });
+  const deleteRun = trpc.data.deleteRiverCleaningRun.useMutation({
+    onSuccess: () => {
+      utils.data.getRiverCleaningRuns.invalidate();
+    },
+  });
+
+  // ── SOP accordion state ──
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+
+  const toggleSection = (key: string) => {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  // ── Add dialog state ──
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [addForm, setAddForm] = useState<RunFormData>(emptyForm);
+
+  const closeAddDialog = () => {
+    setShowAddDialog(false);
+    setAddForm(emptyForm);
+  };
+
+  // ── Edit dialog state ──
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<RunFormData>(emptyForm);
+
+  const openEditDialog = (item: any) => {
+    setEditingId(item.id);
+    const d = new Date(item.date);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    setEditForm({
+      date: `${yyyy}-${mm}-${dd}`,
+      participantsCount: item.participantsCount?.toString() ?? "",
+      issues: item.issues ?? "",
+      whatWorked: item.whatWorked ?? "",
+      whatToImprove: item.whatToImprove ?? "",
+    });
+  };
+
+  const closeEditDialog = () => {
+    setEditingId(null);
+    setEditForm(emptyForm);
+  };
+
+  // ── Handlers ──
+  const handleAdd = () => {
+    if (!addForm.date) return;
+    createRun.mutate({
+      date: new Date(addForm.date).toISOString(),
+      participantsCount: addForm.participantsCount
+        ? parseInt(addForm.participantsCount, 10)
+        : undefined,
+      issues: addForm.issues.trim() || undefined,
+      whatWorked: addForm.whatWorked.trim() || undefined,
+      whatToImprove: addForm.whatToImprove.trim() || undefined,
+    });
+  };
+
+  const handleUpdate = () => {
+    if (editingId === null || !editForm.date) return;
+    updateRun.mutate({
+      id: editingId,
+      date: new Date(editForm.date).toISOString(),
+      participantsCount: editForm.participantsCount
+        ? parseInt(editForm.participantsCount, 10)
+        : undefined,
+      issues: editForm.issues.trim() || undefined,
+      whatWorked: editForm.whatWorked.trim() || undefined,
+      whatToImprove: editForm.whatToImprove.trim() || undefined,
+    });
+  };
+
+  const handleDelete = (id: number) => {
+    if (confirm("この記録を削除しますか？")) {
+      deleteRun.mutate({ id });
+    }
+  };
+
+  // ── Shared styles ──
+  const inputClass =
+    "w-full border border-gray-200 rounded px-3 py-2 text-sm font-light text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-300 transition-colors";
+  const textareaClass = inputClass + " resize-none";
+
+  // ── Form renderer (shared between add / edit) ──
+  const renderForm = (
+    form: RunFormData,
+    setForm: (f: RunFormData) => void
+  ) => (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-light text-gray-600 mb-1">
+          実施日 <span className="text-red-400">*</span>
+        </label>
+        <input
+          type="date"
+          value={form.date}
+          onChange={(e) => setForm({ ...form, date: e.target.value })}
+          className={inputClass}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-light text-gray-600 mb-1">
+          参加人数
+        </label>
+        <input
+          type="number"
+          min="0"
+          value={form.participantsCount}
+          onChange={(e) =>
+            setForm({ ...form, participantsCount: e.target.value })
+          }
+          placeholder="例: 12"
+          className={inputClass}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-light text-gray-600 mb-1">
+          発生した問題
+        </label>
+        <textarea
+          value={form.issues}
+          onChange={(e) => setForm({ ...form, issues: e.target.value })}
+          placeholder="問題があれば記入"
+          rows={3}
+          className={textareaClass}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-light text-gray-600 mb-1">
+          うまくいったこと
+        </label>
+        <textarea
+          value={form.whatWorked}
+          onChange={(e) => setForm({ ...form, whatWorked: e.target.value })}
+          placeholder="良かった点を記入"
+          rows={3}
+          className={textareaClass}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-light text-gray-600 mb-1">
+          改善点
+        </label>
+        <textarea
+          value={form.whatToImprove}
+          onChange={(e) => setForm({ ...form, whatToImprove: e.target.value })}
+          placeholder="次回の改善点を記入"
+          rows={3}
+          className={textareaClass}
+        />
+      </div>
+    </div>
+  );
+
+  // ── SOP sections data ──
+  const sopSections = [
+    {
+      key: "safety",
+      icon: <Shield className="w-4 h-4 text-gray-400" />,
+      title: "安全確認事項",
+      items: [
+        "天候チェック（雨天・増水時は中止）",
+        "長靴・手袋の着用（必須）",
+        "熱中症対策（帽子・水分補給）",
+      ],
+    },
+    {
+      key: "equipment",
+      icon: <ClipboardList className="w-4 h-4 text-gray-400" />,
+      title: "持ち物リスト",
+      items: ["ゴミ袋（大・小）", "トング", "軍手", "飲み物"],
+    },
+    {
+      key: "procedure",
+      icon: <Footprints className="w-4 h-4 text-gray-400" />,
+      title: "作業手順",
+      items: [
+        "集合（グリーンピア玄関前）",
+        "分担決め（班長が指示）",
+        "作業開始（安全確認後）",
+        "集合・点呼",
+        "記録・振り返り",
+      ],
+    },
+    {
+      key: "caution",
+      icon: <Info className="w-4 h-4 text-gray-400" />,
+      title: "注意事項",
+      items: ["単独行動禁止", "無理のない範囲で作業する", "体調不良時は即時報告"],
+    },
+  ];
 
   return (
-    <div className="page-container">
-      {/* Header */}
-      <header className="bg-cover bg-center text-white py-6" style={{ backgroundImage: "url('/greenpia-yaizu.jpg')" }}>
-        <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/50" />
-        <div className="container flex items-center gap-4 relative">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-white hover:bg-white/10"
+    <div className="min-h-screen bg-white">
+      {/* ── Header ── */}
+      <header className="border-b border-gray-100">
+        <div className="max-w-3xl mx-auto px-6 py-8">
+          <button
             onClick={() => setLocation("/")}
+            className="flex items-center gap-1 text-sm font-light text-gray-400 hover:text-gray-600 transition-colors mb-6"
           >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Droplets className="w-6 h-6" />
-              河川清掃ガイド
+            <ArrowLeft className="w-4 h-4" />
+            戻る
+          </button>
+          <div className="flex items-center gap-3 mb-2">
+            <Droplets className="w-5 h-5 text-gray-400" />
+            <h1 className="text-2xl font-light text-gray-900 tracking-wide">
+              河川清掃
             </h1>
-            <p className="text-white/70">準備・役割・安全・片付け</p>
           </div>
+          <p className="text-sm font-light text-gray-400 ml-8">
+            手順ガイド・活動記録
+          </p>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="container py-8">
-        <div className="space-y-6">
-          {/* Overview */}
-          <Card className="p-6 relative">
-            <div className="absolute top-4 right-4 flex gap-1">
-              <button
-                onClick={() => setEditingId(editingId === 'overview' ? null : 'overview')}
-                className="p-2 hover:bg-gray-100 rounded transition-colors text-blue-600"
-                title="編集"
+      <main className="max-w-3xl mx-auto px-6 py-10">
+        {/* ══════════════════════════════════════════════
+            Section 1: SOP Guide (collapsible)
+            ══════════════════════════════════════════════ */}
+        <section className="mb-12">
+          <h2 className="text-lg font-light text-gray-900 tracking-wide mb-6">
+            作業手順ガイド
+          </h2>
+          <div className="space-y-0 divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden">
+            {sopSections.map((section) => (
+              <Collapsible
+                key={section.key}
+                open={!!openSections[section.key]}
+                onOpenChange={() => toggleSection(section.key)}
               >
-                <Pencil className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => {
-                  if (confirm("このセクションを削除しますか？")) {
-                  }
-                }}
-                className="p-2 hover:bg-gray-100 rounded transition-colors text-red-600"
-                title="削除"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-            <h2 className="text-xl font-semibold mb-4">目的</h2>
-            <p className="text-muted-foreground">
-              河川清掃は、地域の環境保全と住民の絆を深める重要な行事です。
-              このガイドは、安全で効率的な清掃活動を実施するための手順をまとめています。
+                <CollapsibleTrigger className="flex items-center justify-between w-full px-5 py-4 text-left hover:bg-gray-50/50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    {section.icon}
+                    <span className="text-sm font-light text-gray-900">
+                      {section.title}
+                    </span>
+                  </div>
+                  <ChevronDown
+                    className={`w-4 h-4 text-gray-300 transition-transform ${
+                      openSections[section.key] ? "rotate-180" : ""
+                    }`}
+                  />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="px-5 pb-4 pl-12">
+                    <ul className="space-y-2">
+                      {section.items.map((item, i) => (
+                        <li
+                          key={i}
+                          className="text-sm font-light text-gray-500 flex items-start gap-2"
+                        >
+                          <span className="text-gray-300 mt-0.5 flex-shrink-0">
+                            &mdash;
+                          </span>
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            ))}
+          </div>
+        </section>
+
+        {/* ══════════════════════════════════════════════
+            Section 2: Activity Log (CRUD)
+            ══════════════════════════════════════════════ */}
+        <section>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-light text-gray-900 tracking-wide">
+              活動記録
+            </h2>
+            <button
+              onClick={() => {
+                setAddForm({
+                  ...emptyForm,
+                  date: new Date().toISOString().slice(0, 10),
+                });
+                setShowAddDialog(true);
+              }}
+              className="flex items-center gap-1.5 text-sm font-light text-gray-500 hover:text-gray-900 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              記録を追加
+            </button>
+          </div>
+
+          {/* Loading */}
+          {isLoading && (
+            <p className="text-sm font-light text-gray-400 text-center py-16">
+              読み込み中...
             </p>
-          </Card>
+          )}
 
-          {/* Sections */}
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">集合・時間割</h2>
-            <div className="space-y-3 text-muted-foreground">
-              <p>📍 集合場所: グリーンピア 玄関前</p>
-              <p>🕐 集合時間: 午前 8:00</p>
-              <p>⏱️ 予定時間: 2時間程度</p>
+          {/* Empty state */}
+          {!isLoading && runs.length === 0 && (
+            <div className="text-center py-20">
+              <Droplets className="w-8 h-8 text-gray-200 mx-auto mb-4" />
+              <p className="text-sm font-light text-gray-400">
+                活動記録がまだありません。「記録を追加」で最初の記録を登録しましょう。
+              </p>
             </div>
-          </Card>
+          )}
 
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">清掃エリア定義</h2>
-            <p className="text-muted-foreground mb-3">
-              開始地点から終了地点までの河川区間を清掃します。
-            </p>
-            <p className="text-sm text-muted-foreground">
-              詳細な地図・マーカーについては、別途資料をご参照ください。
-            </p>
-          </Card>
+          {/* Runs list */}
+          {!isLoading && runs.length > 0 && (
+            <div className="space-y-4">
+              {runs.map((run: any) => (
+                <div
+                  key={run.id}
+                  className="border border-gray-100 rounded-lg p-5"
+                >
+                  {/* Card header: date + actions */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <CalendarDays className="w-4 h-4 text-gray-300" />
+                      <span className="text-base font-light text-gray-900">
+                        {new Date(run.date).toLocaleDateString("ja-JP", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => openEditDialog(run)}
+                        className="p-1.5 text-gray-300 hover:text-gray-600 transition-colors rounded hover:bg-gray-50"
+                        title="編集"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(run.id)}
+                        className="p-1.5 text-gray-300 hover:text-red-500 transition-colors rounded hover:bg-gray-50"
+                        title="削除"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
 
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">役割分担</h2>
-            <div className="space-y-3 text-muted-foreground">
-              <p><strong>班長（2名）:</strong> 班員の安全管理・進捗確認</p>
-              <p><strong>ゴミ回収班（6名）:</strong> ゴミ拾い・分別</p>
-              <p><strong>道具管理班（2名）:</strong> 道具の配布・回収・洗浄</p>
-              <p><strong>飲み物配布班（1名）:</strong> 飲み物の配布・管理</p>
+                  {/* Participant count */}
+                  {run.participantsCount != null && (
+                    <div className="flex items-center gap-2 mb-3">
+                      <Users className="w-3.5 h-3.5 text-gray-300" />
+                      <span className="text-sm font-light text-gray-500">
+                        参加者 {run.participantsCount}名
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Detail fields */}
+                  <div className="space-y-3">
+                    {run.issues && (
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="w-3.5 h-3.5 text-gray-300 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs font-light text-gray-400 mb-0.5">
+                            発生した問題
+                          </p>
+                          <p className="text-sm font-light text-gray-700 whitespace-pre-wrap">
+                            {run.issues}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {run.whatWorked && (
+                      <div className="flex items-start gap-2">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-gray-300 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs font-light text-gray-400 mb-0.5">
+                            うまくいったこと
+                          </p>
+                          <p className="text-sm font-light text-gray-700 whitespace-pre-wrap">
+                            {run.whatWorked}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {run.whatToImprove && (
+                      <div className="flex items-start gap-2">
+                        <Lightbulb className="w-3.5 h-3.5 text-gray-300 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs font-light text-gray-400 mb-0.5">
+                            改善点
+                          </p>
+                          <p className="text-sm font-light text-gray-700 whitespace-pre-wrap">
+                            {run.whatToImprove}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Timestamp */}
+                  {run.updatedAt && (
+                    <p className="text-xs text-gray-300 font-light mt-4 pt-3 border-t border-gray-50">
+                      最終更新:{" "}
+                      {new Date(run.updatedAt).toLocaleDateString("ja-JP")}
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
-          </Card>
-
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">装備・安全</h2>
-            <div className="space-y-3 text-muted-foreground">
-              <p>✓ 長靴（必須）</p>
-              <p>✓ 防水手袋（必須）</p>
-              <p>✓ トング・熊手</p>
-              <p>✓ ゴミ袋（大・小）</p>
-              <p>✓ 帽子・タオル</p>
-              <p>✓ 日焼け止め</p>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">ゴミの分別・処理</h2>
-            <div className="space-y-3 text-muted-foreground">
-              <p><strong>可燃ゴミ:</strong> 落ち葉・木の枝など</p>
-              <p><strong>不燃ゴミ:</strong> 缶・ビン・プラスチック</p>
-              <p><strong>危険物:</strong> ガラス・金属片（別途処理）</p>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">事後処理</h2>
-            <div className="space-y-3 text-muted-foreground">
-              <p>✓ 参加者へのお礼状送付</p>
-              <p>✓ 次年度への申し送り（改善点・工夫）</p>
-              <p>✓ 実施報告書の作成</p>
-            </div>
-          </Card>
-        </div>
+          )}
+        </section>
       </main>
+
+      {/* ══════════════════════════════════════════════
+          Add Dialog
+          ══════════════════════════════════════════════ */}
+      <Dialog open={showAddDialog} onOpenChange={(open) => { if (!open) closeAddDialog(); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-lg font-light text-gray-900">
+              活動記録を追加
+            </DialogTitle>
+          </DialogHeader>
+          {renderForm(addForm, setAddForm)}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <button
+              onClick={closeAddDialog}
+              className="px-4 py-2 text-sm font-light text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              キャンセル
+            </button>
+            <button
+              onClick={handleAdd}
+              disabled={!addForm.date || createRun.isPending}
+              className="px-4 py-2 text-sm font-light text-white bg-gray-900 rounded hover:bg-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {createRun.isPending ? "保存中..." : "保存"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ══════════════════════════════════════════════
+          Edit Dialog
+          ══════════════════════════════════════════════ */}
+      <Dialog open={editingId !== null} onOpenChange={(open) => { if (!open) closeEditDialog(); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-lg font-light text-gray-900">
+              活動記録を編集
+            </DialogTitle>
+          </DialogHeader>
+          {renderForm(editForm, setEditForm)}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <button
+              onClick={closeEditDialog}
+              className="px-4 py-2 text-sm font-light text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              キャンセル
+            </button>
+            <button
+              onClick={handleUpdate}
+              disabled={!editForm.date || updateRun.isPending}
+              className="px-4 py-2 text-sm font-light text-white bg-gray-900 rounded hover:bg-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {updateRun.isPending ? "保存中..." : "保存"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

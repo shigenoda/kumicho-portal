@@ -29,6 +29,7 @@ import {
   formResponseItems,
   vaultEntries,
   auditLogs,
+  riverCleaningRuns,
 } from "../drizzle/schema";
 
 // 変更ログをDBに記録するヘルパー
@@ -323,24 +324,21 @@ export const appRouter = router({
       .input(
         z.object({
           id: z.number(),
-          question: z.string().min(1),
-          answer: z.string().min(1),
+          question: z.string().min(1).optional(),
+          answer: z.string().min(1).optional(),
         })
       )
       .mutation(async ({ input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database connection failed");
 
-        await db
-          .update(faq)
-          .set({
-            question: input.question,
-            answer: input.answer,
-            updatedAt: new Date(),
-          })
-          .where(eq(faq.id, input.id));
+        const updateData: any = { updatedAt: new Date() };
+        if (input.question !== undefined) updateData.question = input.question;
+        if (input.answer !== undefined) updateData.answer = input.answer;
 
-        await logChange(`FAQ「${input.question}」を更新`, "faq", input.id);
+        await db.update(faq).set(updateData).where(eq(faq.id, input.id));
+
+        await logChange(`FAQ (ID: ${input.id}) を更新`, "faq", input.id);
 
         return { success: true };
       }),
@@ -895,7 +893,9 @@ export const appRouter = router({
           })
           .where(eq(households.householdId, input.householdId));
 
-        await logChange(`住戸 ${input.householdId} の情報を更新`, "households");
+        // Get the numeric ID for the changelog
+        const household = await db.select().from(households).where(eq(households.householdId, input.householdId)).limit(1);
+        await logChange(`住戸 ${input.householdId} の情報を更新`, "households", household[0]?.id);
 
         return { success: true };
       }),
@@ -1068,6 +1068,106 @@ export const appRouter = router({
       if (!db) return [];
       return await db.select().from(residentEmails);
     }),
+
+    upsertResidentEmail: publicProcedure
+      .input(z.object({
+        householdId: z.string().min(1),
+        email: z.string().email(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        // Check if email exists for this household
+        const existing = await db.select().from(residentEmails)
+          .where(eq(residentEmails.householdId, input.householdId)).limit(1);
+        if (existing.length > 0) {
+          await db.update(residentEmails)
+            .set({ email: input.email, updatedAt: new Date() })
+            .where(eq(residentEmails.id, existing[0].id));
+          await logChange(`住戸${input.householdId}のメールを更新`, "residentEmails", existing[0].id);
+        } else {
+          const [entry] = await db.insert(residentEmails).values({
+            householdId: input.householdId,
+            email: input.email,
+          }).returning();
+          await logChange(`住戸${input.householdId}のメールを登録`, "residentEmails", entry.id);
+        }
+        return { success: true };
+      }),
+
+    deleteResidentEmail: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(residentEmails).where(eq(residentEmails.id, input.id));
+        await logChange(`住民メール (ID: ${input.id}) を削除`, "residentEmails", input.id);
+        return { success: true };
+      }),
+
+    // River Cleaning Runs CRUD
+    getRiverCleaningRuns: publicProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      return await db.select().from(riverCleaningRuns).orderBy(desc(riverCleaningRuns.date));
+    }),
+
+    createRiverCleaningRun: publicProcedure
+      .input(z.object({
+        date: z.string(),
+        participantsCount: z.number().optional(),
+        issues: z.string().optional(),
+        whatWorked: z.string().optional(),
+        whatToImprove: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [run] = await db.insert(riverCleaningRuns).values({
+          date: new Date(input.date),
+          participantsCount: input.participantsCount ?? null,
+          issues: input.issues || null,
+          whatWorked: input.whatWorked || null,
+          whatToImprove: input.whatToImprove || null,
+          attachments: [],
+          linkedInventoryIds: [],
+        }).returning();
+        await logChange(`河川清掃記録を追加 (${input.date})`, "riverCleaningRuns", run.id);
+        return run;
+      }),
+
+    updateRiverCleaningRun: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        date: z.string().optional(),
+        participantsCount: z.number().optional(),
+        issues: z.string().optional(),
+        whatWorked: z.string().optional(),
+        whatToImprove: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const updateData: any = { updatedAt: new Date() };
+        if (input.date !== undefined) updateData.date = new Date(input.date);
+        if (input.participantsCount !== undefined) updateData.participantsCount = input.participantsCount;
+        if (input.issues !== undefined) updateData.issues = input.issues;
+        if (input.whatWorked !== undefined) updateData.whatWorked = input.whatWorked;
+        if (input.whatToImprove !== undefined) updateData.whatToImprove = input.whatToImprove;
+        await db.update(riverCleaningRuns).set(updateData).where(eq(riverCleaningRuns.id, input.id));
+        await logChange(`河川清掃記録 (ID: ${input.id}) を更新`, "riverCleaningRuns", input.id);
+        return { success: true };
+      }),
+
+    deleteRiverCleaningRun: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(riverCleaningRuns).where(eq(riverCleaningRuns.id, input.id));
+        await logChange(`河川清掃記録 (ID: ${input.id}) を削除`, "riverCleaningRuns", input.id);
+        return { success: true };
+      }),
 
     getForms: publicProcedure.query(async () => {
       const db = await getDb();
@@ -1433,19 +1533,38 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    approve: publicProcedure
-      .input(z.object({ postId: z.number() }))
+    update: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        body: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+        category: z.enum(["inquiry", "answer", "decision", "pending", "trouble", "improvement"]).optional(),
+        isHypothesis: z.boolean().optional(),
+        relatedLinks: z.array(z.string()).optional(),
+      }))
       .mutation(async ({ input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database not available");
+        const updateData: any = { updatedAt: new Date() };
+        if (input.title !== undefined) updateData.title = input.title;
+        if (input.body !== undefined) updateData.body = input.body;
+        if (input.tags !== undefined) updateData.tags = input.tags;
+        if (input.category !== undefined) updateData.category = input.category;
+        if (input.isHypothesis !== undefined) updateData.isHypothesis = input.isHypothesis;
+        if (input.relatedLinks !== undefined) updateData.relatedLinks = input.relatedLinks;
+        await db.update(posts).set(updateData).where(eq(posts.id, input.id));
+        await logChange(`投稿 (ID: ${input.id}) を更新`, "posts", input.id);
+        return { success: true };
+      }),
 
-        await db
-          .update(posts)
-          .set({ status: "published", publishedAt: new Date() })
-          .where(eq(posts.id, input.postId));
-
-        await logChange(`投稿 (ID: ${input.postId}) を承認`, "posts", input.postId);
-
+    delete: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(posts).where(eq(posts.id, input.id));
+        await logChange(`投稿 (ID: ${input.id}) を削除`, "posts", input.id);
         return { success: true };
       }),
   }),
@@ -1491,6 +1610,7 @@ export const appRouter = router({
         }
       }
 
+      await logChange(`リマインダーメール送信: ${upcomingForms.length}件`, "reminder");
       return { success: true, formsProcessed: upcomingForms.length };
     }),
   }),

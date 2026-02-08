@@ -35,6 +35,63 @@ export default function MemberHome() {
 
   const deleteFormMutation = trpc.data.deleteForm.useMutation();
 
+  // Email mutations & feedback state
+  const utils = trpc.useUtils();
+  const [emailFeedback, setEmailFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [isSavingEmails, setIsSavingEmails] = useState(false);
+
+  const upsertEmailMutation = trpc.data.upsertResidentEmail.useMutation();
+  const deleteEmailMutation = trpc.data.deleteResidentEmail.useMutation();
+
+  const handleSaveEmails = async () => {
+    setEmailFeedback(null);
+    setIsSavingEmails(true);
+    try {
+      const entries = Object.entries(newEmails);
+      if (entries.length === 0) {
+        setEmailFeedback({ type: "error", message: "変更されたメールアドレスがありません。" });
+        setIsSavingEmails(false);
+        return;
+      }
+      for (const [householdDbId, email] of entries) {
+        const household = households.find((h: any) => h.id === Number(householdDbId));
+        if (!household) continue;
+        if (email.trim() === "") continue;
+        await upsertEmailMutation.mutateAsync({
+          householdId: household.householdId,
+          email: email.trim(),
+        });
+      }
+      await utils.data.getResidentEmails.invalidate();
+      setNewEmails({});
+      setEmailFeedback({ type: "success", message: "メールアドレスを保存しました。" });
+    } catch (err: any) {
+      setEmailFeedback({ type: "error", message: "保存に失敗しました: " + (err.message || "不明なエラー") });
+    } finally {
+      setIsSavingEmails(false);
+    }
+  };
+
+  const handleDeleteEmail = async (emailRecord: any) => {
+    if (!confirm(`${emailRecord.householdId}号室のメールアドレスを削除しますか？`)) return;
+    try {
+      await deleteEmailMutation.mutateAsync({ id: emailRecord.id });
+      await utils.data.getResidentEmails.invalidate();
+      // Clear any local edit for this household
+      const household = households.find((h: any) => h.householdId === emailRecord.householdId);
+      if (household) {
+        setNewEmails((prev) => {
+          const next = { ...prev };
+          delete next[household.id];
+          return next;
+        });
+      }
+      setEmailFeedback({ type: "success", message: `${emailRecord.householdId}号室のメールアドレスを削除しました。` });
+    } catch (err: any) {
+      setEmailFeedback({ type: "error", message: "削除に失敗しました: " + (err.message || "不明なエラー") });
+    }
+  };
+
   const handleDeleteUnansweredForm = (formId: string) => {
     if (confirm("このフォームを削除しますか？")) {
       deleteFormMutation.mutate(
@@ -469,26 +526,43 @@ export default function MemberHome() {
               <section>
                 <h3 className="text-lg font-semibold text-gray-900 mb-6">住民メールアドレス登録</h3>
                 <div className="space-y-4">
-                  {households.map((household: any) => (
-                    <div key={household.id} className="flex items-end gap-3">
-                      <div className="flex-1">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {household.householdId}号室
-                        </label>
-                        <input
-                          type="email"
-                          value={newEmails[household.id] || residentEmails.find((e: any) => e.householdId === household.householdId)?.email || ""}
-                          onChange={(e) => setNewEmails({ ...newEmails, [household.id]: e.target.value })}
-                          placeholder="メールアドレスを入力"
-                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-900"
-                        />
+                  {households.map((household: any) => {
+                    const existingEmail = residentEmails.find((e: any) => e.householdId === household.householdId);
+                    return (
+                      <div key={household.id} className="flex items-end gap-3">
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            {household.householdId}号室
+                          </label>
+                          <input
+                            type="email"
+                            value={newEmails[household.id] !== undefined ? newEmails[household.id] : (existingEmail?.email || "")}
+                            onChange={(e) => setNewEmails({ ...newEmails, [household.id]: e.target.value })}
+                            placeholder="メールアドレスを入力"
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-900"
+                          />
+                        </div>
+                        {existingEmail && (
+                          <button
+                            onClick={() => handleDeleteEmail(existingEmail)}
+                            className="px-3 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded border border-red-200 text-sm font-light transition-colors"
+                            title="メールアドレスを削除"
+                          >
+                            削除
+                          </button>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-900">
                   <p>登録したメールアドレスに、ポータル登録完了の通知メールが送信されます。</p>
                 </div>
+                {emailFeedback && (
+                  <div className={`mt-3 p-3 rounded text-sm ${emailFeedback.type === "success" ? "bg-green-50 border border-green-200 text-green-800" : "bg-red-50 border border-red-200 text-red-800"}`}>
+                    <p>{emailFeedback.message}</p>
+                  </div>
+                )}
               </section>
 
               {/* 保存ボタン */}
@@ -501,9 +575,11 @@ export default function MemberHome() {
                   キャンセル
                 </Button>
                 <Button
-                  className="flex-1 bg-blue-900 hover:bg-blue-800 text-white"
+                  onClick={handleSaveEmails}
+                  disabled={isSavingEmails}
+                  className="flex-1 bg-blue-900 hover:bg-blue-800 text-white disabled:opacity-50"
                 >
-                  保存
+                  {isSavingEmails ? "保存中..." : "保存"}
                 </Button>
               </div>
             </div>
