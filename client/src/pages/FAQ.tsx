@@ -125,6 +125,16 @@ export default function FAQ() {
 
       {/* Main Content */}
       <main className="container py-8">
+        <div className="flex justify-end mb-6">
+          <Button
+            onClick={() => setShowCreateDialog(true)}
+            className="font-light"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            新規FAQ
+          </Button>
+        </div>
+
         {faqData.length > 0 ? (
           <div className="space-y-3">
             {faqData.map((item: any) => (
@@ -254,6 +264,56 @@ export default function FAQ() {
               キャンセル
             </Button>
             <Button onClick={handleSaveEdit}>保存</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={(open) => {
+        setShowCreateDialog(open);
+        if (!open) setNewFaqData({ question: "", answer: "" });
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-light text-gray-900">新規FAQ作成</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">質問</label>
+              <Input
+                value={newFaqData.question}
+                onChange={(e) =>
+                  setNewFaqData({
+                    ...newFaqData,
+                    question: e.target.value,
+                  })
+                }
+                placeholder="質問を入力"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">回答</label>
+              <Textarea
+                value={newFaqData.answer}
+                onChange={(e) =>
+                  setNewFaqData({
+                    ...newFaqData,
+                    answer: e.target.value,
+                  })
+                }
+                placeholder="回答を入力"
+                rows={6}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowCreateDialog(false);
+              setNewFaqData({ question: "", answer: "" });
+            }}>
+              キャンセル
+            </Button>
+            <Button onClick={handleCreate}>作成</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
