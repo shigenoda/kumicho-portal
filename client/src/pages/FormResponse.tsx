@@ -1,37 +1,35 @@
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, CheckCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle, Home } from "lucide-react";
 import { useLocation, useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useState, useMemo } from "react";
 
 /**
- * フォーム回答画面
- * ユーザーがフォームに回答し、提出できます
+ * フォーム回答画面 - スマホ最適化
+ * ステップ: 部屋番号選択 → 質問に回答 → 送信完了
  */
 export default function FormResponse() {
   const [, setLocation] = useLocation();
   const { formId } = useParams<{ formId: string }>();
   const [answers, setAnswers] = useState<{ [key: number]: number | string | number[] }>({});
   const [submitted, setSubmitted] = useState(false);
-  const [submittedHousehold, setSubmittedHousehold] = useState<string>("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedHousehold, setSelectedHousehold] = useState<string>("");
 
-  // フォーム詳細を取得
   const { data: forms = [] } = trpc.data.getActiveForms.useQuery();
-
-  // 住戸一覧を取得
   const { data: households = [] } = trpc.data.getHouseholds.useQuery();
+
   const form = useMemo(() => {
     return forms.find((f: any) => f.id === parseInt(formId || "0"));
   }, [forms, formId]);
 
-  // 回答保存 API
+  const sortedHouseholds = useMemo(() => {
+    return [...households].sort((a: any, b: any) =>
+      a.householdId.localeCompare(b.householdId)
+    );
+  }, [households]);
+
   const submitFormResponse = trpc.data.submitFormResponse.useMutation({
     onSuccess: () => {
-      setSubmittedHousehold(selectedHousehold);
       setSubmitted(true);
-      // localStorage に回答済みフォームを記録
       try {
         const answered = JSON.parse(localStorage.getItem("answeredForms") || "[]");
         if (!answered.includes(form?.id)) {
@@ -40,82 +38,85 @@ export default function FormResponse() {
         }
       } catch {}
     },
-    onError: (error: any) => {
-      console.error("Failed to submit form:", error);
-      alert("フォームの提出に失敗しました");
+    onError: () => {
+      alert("送信に失敗しました。もう一度お試しください。");
     },
   });
 
-  const handleSubmit = async () => {
-    if (!form) return;
-
-    // バリデーション：すべての必須質問に回答したか確認
-    const unansweredQuestions = form.questions.filter(
-      (q: any) => q.required && !answers[q.id]
+  // すべての必須質問に回答済みか
+  const allRequiredAnswered = useMemo(() => {
+    if (!form) return false;
+    return form.questions.every(
+      (q: any) => !q.required || answers[q.id] !== undefined
     );
+  }, [form, answers]);
 
-    if (unansweredQuestions.length > 0) {
-      alert("すべての必須項目に回答してください");
-      return;
-    }
+  const canSubmit = selectedHousehold && allRequiredAnswered;
 
-    setIsSubmitting(true);
-    await submitFormResponse.mutate({
+  const handleSubmit = () => {
+    if (!form || !canSubmit) return;
+    submitFormResponse.mutate({
       formId: form.id,
-      householdId: selectedHousehold || undefined,
+      householdId: selectedHousehold,
       answers: Object.entries(answers).map(([questionId, answer]) => ({
         questionId: parseInt(questionId),
         choiceId: typeof answer === "number" ? answer : undefined,
         textAnswer: typeof answer === "string" ? answer : undefined,
       })),
     });
-    setIsSubmitting(false);
   };
 
+  const handleReset = () => {
+    setAnswers({});
+    setSelectedHousehold("");
+    setSubmitted(false);
+  };
+
+  // フォームが見つからない
   if (!form) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center px-6">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">フォームが見つかりません</p>
-          <Button onClick={() => setLocation("/")} className="bg-blue-900">
+          <p className="text-gray-500 mb-6">フォームが見つかりません</p>
+          <button
+            onClick={() => setLocation("/")}
+            className="px-6 py-3 bg-gray-900 text-white rounded-xl text-lg"
+          >
             ホームに戻る
-          </Button>
+          </button>
         </div>
       </div>
     );
   }
 
+  // 送信完了
   if (submitted) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center px-4">
-        <div className="text-center max-w-md">
-          <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
+      <div className="min-h-screen bg-white flex items-center justify-center px-6">
+        <div className="text-center max-w-sm">
+          <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle className="w-10 h-10 text-green-600" />
+          </div>
           <h1 className="text-2xl font-medium text-gray-900 mb-2">
-            回答を提出しました
+            送信完了
           </h1>
-          <p className="text-gray-600 mb-6">
-            {submittedHousehold
-              ? `${submittedHousehold}号室の回答を保存しました。`
-              : "ご回答ありがとうございます。"}
+          <p className="text-gray-500 mb-8">
+            {selectedHousehold}号室の回答を受け付けました
           </p>
-          <div className="flex gap-3 justify-center">
-            <Button
-              onClick={() => {
-                setAnswers({});
-                setSelectedHousehold("");
-                setSubmitted(false);
-                setSubmittedHousehold("");
-              }}
-              className="bg-blue-900 hover:bg-blue-800 text-white"
+          <div className="space-y-3">
+            <button
+              onClick={handleReset}
+              className="w-full px-6 py-4 bg-gray-900 text-white rounded-xl text-lg font-medium"
             >
-              次の回答を入力
-            </Button>
-            <Button
+              別の部屋の回答を入力
+            </button>
+            <button
               onClick={() => setLocation("/")}
-              variant="outline"
+              className="w-full px-6 py-4 border-2 border-gray-200 text-gray-700 rounded-xl text-lg font-medium flex items-center justify-center gap-2"
             >
+              <Home className="w-5 h-5" />
               ホームに戻る
-            </Button>
+            </button>
           </div>
         </div>
       </div>
@@ -123,194 +124,145 @@ export default function FormResponse() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* ヘッダー */}
-      <header
-        className="fixed top-0 left-0 right-0 bg-cover bg-center border-b border-gray-200 z-50"
-        style={{ backgroundImage: "url('/greenpia-yaizu.jpg')" }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/50" />
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-4 relative">
+    <div className="min-h-screen bg-gray-50">
+      {/* シンプルヘッダー */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => setLocation("/")}
-            className="p-2 hover:bg-white/10 rounded transition-colors"
+            className="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <ArrowLeft className="w-5 h-5 text-white" />
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
-          <h1 className="text-xl font-light text-white flex-1">
-            フォーム回答
-          </h1>
+          <span className="text-base font-medium text-gray-900 truncate">
+            {form.title}
+          </span>
         </div>
       </header>
 
-      {/* メインコンテンツ */}
-      <main className="pt-24 pb-16">
-        <div className="max-w-2xl mx-auto px-6 py-12">
-          {/* フォームタイトル */}
-          <div className="mb-12">
-            <h2 className="text-3xl font-light text-gray-900 mb-2">
-              {form.title}
-            </h2>
-            {form.description && (
-              <p className="text-gray-600 leading-relaxed">
-                {form.description}
-              </p>
-            )}
-            {form.dueDate && (
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-900">
-                期限: {new Date(form.dueDate).toLocaleDateString("ja-JP")}
-              </div>
-            )}
-          </div>
+      <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
+        {/* フォーム説明 */}
+        {form.description && (
+          <p className="text-sm text-gray-500 leading-relaxed">
+            {form.description}
+          </p>
+        )}
 
-          {/* 代理入力：住戸選択 */}
-          <div className="mb-8 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              回答者（代理入力）
-            </label>
-            <select
-              value={selectedHousehold}
-              onChange={(e) => setSelectedHousehold(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded bg-white text-gray-900 font-light focus:outline-none focus:ring-2 focus:ring-blue-900"
-            >
-              <option value="">（住戸を選択）</option>
-              {households
-                .sort((a: any, b: any) => a.householdId.localeCompare(b.householdId))
-                .map((h: any) => (
-                  <option key={h.id} value={h.householdId}>
-                    {h.householdId}号室
-                  </option>
-                ))}
-            </select>
-            <p className="text-xs font-light text-gray-400 mt-2">
-              紙で回収した回答を代理で入力する場合に選択してください
-            </p>
-          </div>
-
-          {/* 質問フォーム */}
-          <div className="space-y-8">
-            {form.questions.map((question: any, qIndex: number) => (
-              <div key={question.id} className="border-b border-gray-200 pb-8">
-                <label className="block mb-4">
-                  <span className="text-lg font-light text-gray-900">
-                    Q{qIndex + 1}. {question.questionText}
-                  </span>
-                  {question.required && (
-                    <span className="text-red-600 ml-1">*</span>
-                  )}
-                </label>
-
-                {question.questionType === "single_choice" ? (
-                  // ラジオボタン
-                  <div className="space-y-3">
-                    {question.choices.map((choice: any) => (
-                      <label
-                        key={choice.id}
-                        className="flex items-center gap-3 cursor-pointer group"
-                      >
-                        <input
-                          type="radio"
-                          name={`question-${question.id}`}
-                          value={choice.id}
-                          checked={answers[question.id] === choice.id}
-                          onChange={(e) =>
-                            setAnswers({
-                              ...answers,
-                              [question.id]: parseInt(e.target.value) as number,
-                            })
-                          }
-                          className="w-4 h-4 text-blue-900 cursor-pointer"
-                        />
-                        <span className="text-gray-700 group-hover:text-gray-900">
-                          {choice.choiceText}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                ) : (
-                  // チェックボックス
-                  <div className="space-y-3">
-                    {question.choices.map((choice: any) => (
-                      <label
-                        key={choice.id}
-                        className="flex items-center gap-3 cursor-pointer group"
-                      >
-                        <input
-                          type="checkbox"
-                          value={choice.id}
-                          checked={
-                            Array.isArray(answers[question.id])
-                              ? (answers[question.id] as number[]).includes(
-                                  choice.id
-                                )
-                              : false
-                          }
-                          onChange={(e) => {
-                            const currentAnswers = Array.isArray(
-                              answers[question.id]
-                            )
-                              ? (answers[question.id] as number[])
-                              : [];
-                            if (e.target.checked) {
-                              setAnswers({
-                                ...answers,
-                                [question.id]: [
-                                  ...currentAnswers,
-                                  choice.id,
-                                ] as number[],
-                              });
-                            } else {
-                              setAnswers({
-                                ...answers,
-                                [question.id]: currentAnswers.filter(
-                                  (id) => id !== choice.id
-                                ) as number[],
-                              });
-                            }
-                          }}
-                          className="w-4 h-4 text-blue-900 cursor-pointer"
-                        />
-                        <span className="text-gray-700 group-hover:text-gray-900">
-                          {choice.choiceText}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
+        {/* STEP 1: 部屋番号選択 */}
+        <section>
+          <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">
+            部屋番号を選択
+          </h2>
+          <div className="grid grid-cols-3 gap-2">
+            {sortedHouseholds.map((h: any) => (
+              <button
+                key={h.id}
+                onClick={() => setSelectedHousehold(h.householdId)}
+                className={`py-4 rounded-xl text-center text-lg font-medium transition-all ${
+                  selectedHousehold === h.householdId
+                    ? "bg-gray-900 text-white shadow-lg scale-[1.02]"
+                    : "bg-white text-gray-700 border-2 border-gray-200 hover:border-gray-400"
+                }`}
+              >
+                {h.householdId}
+              </button>
             ))}
           </div>
+        </section>
 
-          {/* 提出ボタン */}
-          <div className="mt-12 flex gap-3">
-            <Button
-              onClick={() => setLocation("/")}
-              variant="outline"
-              className="flex-1"
-              disabled={isSubmitting}
-            >
-              キャンセル
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              className="flex-1 bg-blue-900 hover:bg-blue-800 text-white"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "提出中..." : "提出"}
-            </Button>
-          </div>
+        {/* STEP 2: 質問 */}
+        {selectedHousehold && form.questions.map((question: any, qIndex: number) => (
+          <section key={question.id} className="bg-white rounded-xl p-5 border border-gray-200">
+            <h3 className="text-base font-medium text-gray-900 mb-4">
+              {form.questions.length > 1 && (
+                <span className="text-gray-400 mr-1">Q{qIndex + 1}.</span>
+              )}
+              {question.questionText}
+              {question.required && (
+                <span className="text-red-500 ml-1">*</span>
+              )}
+            </h3>
 
-          {/* ホームに戻る */}
-          <div className="mt-8 text-center">
-            <Button
-              onClick={() => setLocation("/")}
-              variant="ghost"
-              className="text-gray-500 hover:text-gray-900 font-light"
-            >
-              ホームに戻る
-            </Button>
-          </div>
-        </div>
+            {question.questionType === "single_choice" ? (
+              <div className="space-y-2">
+                {question.choices.map((choice: any) => {
+                  const isSelected = answers[question.id] === choice.id;
+                  return (
+                    <button
+                      key={choice.id}
+                      onClick={() =>
+                        setAnswers({ ...answers, [question.id]: choice.id })
+                      }
+                      className={`w-full py-3.5 px-4 rounded-xl text-left text-base font-medium transition-all ${
+                        isSelected
+                          ? "bg-blue-900 text-white shadow-md"
+                          : "bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100"
+                      }`}
+                    >
+                      {choice.choiceText}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {question.choices.map((choice: any) => {
+                  const currentAnswers = Array.isArray(answers[question.id])
+                    ? (answers[question.id] as number[])
+                    : [];
+                  const isSelected = currentAnswers.includes(choice.id);
+                  return (
+                    <button
+                      key={choice.id}
+                      onClick={() => {
+                        if (isSelected) {
+                          setAnswers({
+                            ...answers,
+                            [question.id]: currentAnswers.filter(
+                              (id) => id !== choice.id
+                            ),
+                          });
+                        } else {
+                          setAnswers({
+                            ...answers,
+                            [question.id]: [...currentAnswers, choice.id],
+                          });
+                        }
+                      }}
+                      className={`w-full py-3.5 px-4 rounded-xl text-left text-base font-medium transition-all ${
+                        isSelected
+                          ? "bg-blue-900 text-white shadow-md"
+                          : "bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100"
+                      }`}
+                    >
+                      {choice.choiceText}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        ))}
+
+        {/* STEP 3: 送信ボタン */}
+        {selectedHousehold && (
+          <button
+            onClick={handleSubmit}
+            disabled={!canSubmit || submitFormResponse.isPending}
+            className={`w-full py-4 rounded-xl text-lg font-medium transition-all ${
+              canSubmit && !submitFormResponse.isPending
+                ? "bg-gray-900 text-white shadow-lg hover:bg-gray-800 active:scale-[0.98]"
+                : "bg-gray-200 text-gray-400 cursor-not-allowed"
+            }`}
+          >
+            {submitFormResponse.isPending
+              ? "送信中..."
+              : `${selectedHousehold}号室で送信`}
+          </button>
+        )}
+
+        {/* 余白 */}
+        <div className="h-8" />
       </main>
     </div>
   );
