@@ -3,7 +3,7 @@ import { publicProcedure, router } from "./_core/trpc";
 import { notifyOwner } from "./_core/notification";
 import { z } from "zod";
 import { getDb } from "./db";
-import { eq, like, or, and, desc, asc, lte, gte } from "drizzle-orm";
+import { eq, like, or, and, desc, asc, lte, gte, lt } from "drizzle-orm";
 import {
   posts,
   events,
@@ -221,6 +221,8 @@ export const appRouter = router({
         { year: 2026, primaryHouseholdId: "203", backupHouseholdId: "301", status: "confirmed" as const, reason: "102:免除B（直近組長）、103/202:免除C（就任困難）、101/201/302:免除A（入居12ヶ月未満）→繰上げで203" },
         { year: 2027, primaryHouseholdId: "302", backupHouseholdId: "101", status: "draft" as const, reason: "自動計算: 0回組で入居が古い順。102:免除B、203:免除B、103/202:免除C想定" },
         { year: 2028, primaryHouseholdId: "101", backupHouseholdId: "201", status: "draft" as const, reason: "自動計算: 0回組で入居が古い順。102:免除B期限切れで復帰候補" },
+        { year: 2029, primaryHouseholdId: "203", backupHouseholdId: "303", status: "draft" as const, reason: "自動計算: 302/101:免除B、103/202:免除C想定。残りで入居古い順→203" },
+        { year: 2030, primaryHouseholdId: "303", backupHouseholdId: "301", status: "draft" as const, reason: "自動計算: 101/203:免除B、103/202:免除C想定。残りで入居古い順→303" },
       ];
       for (const s of scheduleData) {
         await db.insert(leaderSchedule).values(s);
@@ -645,9 +647,9 @@ export const appRouter = router({
           );
         const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
 
-        // A免除: 対象年度4月1日時点で入居12ヶ月未満
-        const fiscalYearStart = new Date(input.year, 3, 1); // 4月1日
-        const twelveMonthsBefore = new Date(input.year - 1, 3, 1); // 前年4月1日
+        // A免除: 選定時点（前年11月）で入居12ヶ月未満
+        // 例: 2026年度 → 2025年11月に選定 → 2024年11月以降の入居者が免除
+        const twelveMonthsBefore = new Date(input.year - 2, 10, 1);
         const lessThanYearHouseholds = new Set(
           allHouseholds
             .filter((h) => h.moveInDate && h.moveInDate > twelveMonthsBefore)
@@ -1180,6 +1182,59 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    // 次年度カレンダー生成
+    generateNextYearEvents: publicProcedure
+      .input(z.object({ fromYear: z.number(), toYear: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        // 対象年度のイベントを取得（4月〜翌3月）
+        const fromStart = new Date(input.fromYear, 3, 1); // 4月1日
+        const fromEnd = new Date(input.fromYear + 1, 3, 1); // 翌年4月1日
+        const toStart = new Date(input.toYear, 3, 1);
+        const toEnd = new Date(input.toYear + 1, 3, 1);
+
+        // 生成先に既存イベントがあるか確認
+        const existing = await db.select().from(events)
+          .where(and(gte(events.date, toStart), lt(events.date, toEnd)));
+        if (existing.length > 0) {
+          throw new Error(`${input.toYear}年度にはすでに${existing.length}件のイベントがあります。先に削除してください。`);
+        }
+
+        // コピー元のイベントを取得
+        const sourceEvents = await db.select().from(events)
+          .where(and(gte(events.date, fromStart), lt(events.date, fromEnd)));
+
+        if (sourceEvents.length === 0) {
+          throw new Error(`${input.fromYear}年度にイベントがありません。`);
+        }
+
+        // 年数差を計算してコピー
+        const yearDiff = input.toYear - input.fromYear;
+        const created = [];
+        for (const e of sourceEvents) {
+          const newDate = new Date(e.date);
+          newDate.setFullYear(newDate.getFullYear() + yearDiff);
+          const resetChecklist = (e.checklist || []).map((item: any) => ({
+            ...item,
+            completed: false,
+          }));
+          const [newEvent] = await db.insert(events).values({
+            title: e.title,
+            date: newDate,
+            category: e.category,
+            checklist: resetChecklist,
+            notes: e.notes,
+            attachments: [],
+          }).returning();
+          created.push(newEvent);
+        }
+
+        await logChange(`${input.toYear}年度カレンダーを${input.fromYear}年度から生成（${created.length}件）`, "events");
+        return { success: true, count: created.length };
+      }),
+
     // Inventory CRUD
     createInventoryItem: publicProcedure
       .input(z.object({
@@ -1529,9 +1584,9 @@ export const appRouter = router({
           );
         const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
 
-        // A免除: 対象年度4月1日時点で入居12ヶ月未満
-        const fiscalYearStart = new Date(input.year, 3, 1); // 4月1日
-        const twelveMonthsBefore = new Date(input.year - 1, 3, 1); // 前年4月1日
+        // A免除: 選定時点（前年11月）で入居12ヶ月未満
+        // 例: 2026年度 → 2025年11月に選定 → 2024年11月以降の入居者が免除
+        const twelveMonthsBefore = new Date(input.year - 2, 10, 1);
         const lessThanYearHouseholds = new Set(
           allHouseholds
             .filter((h) => h.moveInDate && h.moveInDate > twelveMonthsBefore)

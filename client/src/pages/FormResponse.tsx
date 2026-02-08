@@ -90,7 +90,7 @@ export default function FormResponse() {
       <div className="min-h-screen bg-white flex items-center justify-center px-4">
         <div className="text-center max-w-md">
           <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
-          <h1 className="text-2xl font-light text-gray-900 mb-2">
+          <h1 className="text-2xl font-medium text-gray-900 mb-2">
             回答を提出しました
           </h1>
           <p className="text-gray-600 mb-6">

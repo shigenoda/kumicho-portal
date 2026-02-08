@@ -206,7 +206,7 @@ export default function Inventory() {
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="flex-1">
-              <h1 className="text-2xl font-light text-gray-900 flex items-center gap-3">
+              <h1 className="text-2xl font-medium text-gray-900 flex items-center gap-3">
                 <Package className="w-5 h-5 text-gray-400" />
                 倉庫・備品台帳
               </h1>

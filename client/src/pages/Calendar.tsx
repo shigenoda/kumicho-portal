@@ -27,9 +27,10 @@ import {
   CheckSquare,
   ListChecks,
   X,
+  Copy,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 const CATEGORIES = ["定例", "行事", "清掃", "会議", "締切", "その他"] as const;
 
@@ -114,6 +115,29 @@ export default function CalendarPage() {
       utils.data.getEvents.invalidate();
     },
   });
+
+  const generateNextYear = trpc.data.generateNextYearEvents.useMutation({
+    onSuccess: (data) => {
+      utils.data.getEvents.invalidate();
+      alert(`${data.count}件のイベントを生成しました。`);
+    },
+    onError: (error) => {
+      alert(error.message);
+    },
+  });
+
+  // 現在の年度（4月〜）
+  const currentFiscalYear = useMemo(() => {
+    const now = new Date();
+    return now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  }, []);
+
+  const handleGenerateNextYear = () => {
+    const nextYear = currentFiscalYear + 1;
+    if (confirm(`${currentFiscalYear}年度のイベントを${nextYear}年度にコピーしますか？\nチェックリストはリセットされます。`)) {
+      generateNextYear.mutate({ fromYear: currentFiscalYear, toYear: nextYear });
+    }
+  };
 
   // Group events by year-month
   const groupedByMonth = events.reduce(
@@ -407,7 +431,7 @@ export default function CalendarPage() {
               <ArrowLeft className="w-4 h-4" />
             </button>
             <div>
-              <h1 className="text-2xl font-light text-gray-900 flex items-center gap-2">
+              <h1 className="text-2xl font-medium text-gray-900 flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-gray-400" />
                 年間カレンダー
               </h1>
@@ -416,13 +440,24 @@ export default function CalendarPage() {
               </p>
             </div>
           </div>
-          <button
-            onClick={handleAdd}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-light text-gray-700 border border-gray-200 rounded hover:bg-gray-50 transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            新規追加
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleGenerateNextYear}
+              disabled={generateNextYear.isPending}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-light text-gray-500 border border-gray-200 rounded hover:bg-gray-50 transition-colors disabled:opacity-50"
+              title={`${currentFiscalYear}年度 → ${currentFiscalYear + 1}年度にコピー`}
+            >
+              <Copy className="w-3.5 h-3.5" />
+              {generateNextYear.isPending ? "生成中..." : "次年度生成"}
+            </button>
+            <button
+              onClick={handleAdd}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-light text-gray-700 border border-gray-200 rounded hover:bg-gray-50 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              新規追加
+            </button>
+          </div>
         </div>
       </header>
 

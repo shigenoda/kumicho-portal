@@ -243,7 +243,7 @@ export default function Vault() {
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-6">
               <Lock className="w-7 h-7 text-gray-700" />
             </div>
-            <h1 className="text-2xl font-light text-gray-900 mb-2">
+            <h1 className="text-2xl font-medium text-gray-900 mb-2">
               管理者認証
             </h1>
             <p className="text-sm text-gray-500 font-light">
@@ -444,7 +444,7 @@ export default function Vault() {
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <h1 className="text-2xl font-light text-gray-900">
+                <h1 className="text-2xl font-medium text-gray-900">
                   Private Vault
                 </h1>
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 rounded text-xs text-gray-600 font-light">

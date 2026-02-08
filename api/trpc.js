@@ -548,7 +548,7 @@ async function getUserByOpenId(openId) {
 }
 
 // server/routers.ts
-import { eq as eq2, like, or, and, desc as desc2, asc, lte, gte } from "drizzle-orm";
+import { eq as eq2, like, or, and, desc as desc2, asc, lte, gte, lt } from "drizzle-orm";
 async function logChange(summary, entityType, entityId) {
   const db = await getDb();
   if (!db) return;
@@ -709,7 +709,9 @@ var appRouter = router({
         { year: 2025, primaryHouseholdId: "102", backupHouseholdId: "103", status: "confirmed", reason: "2025\u5E74\u5EA6\u78BA\u5B9A\uFF08\u73FE\u4EFB\uFF09" },
         { year: 2026, primaryHouseholdId: "203", backupHouseholdId: "301", status: "confirmed", reason: "102:\u514D\u9664B\uFF08\u76F4\u8FD1\u7D44\u9577\uFF09\u3001103/202:\u514D\u9664C\uFF08\u5C31\u4EFB\u56F0\u96E3\uFF09\u3001101/201/302:\u514D\u9664A\uFF08\u5165\u5C4512\u30F6\u6708\u672A\u6E80\uFF09\u2192\u7E70\u4E0A\u3052\u3067203" },
         { year: 2027, primaryHouseholdId: "302", backupHouseholdId: "101", status: "draft", reason: "\u81EA\u52D5\u8A08\u7B97: 0\u56DE\u7D44\u3067\u5165\u5C45\u304C\u53E4\u3044\u9806\u3002102:\u514D\u9664B\u3001203:\u514D\u9664B\u3001103/202:\u514D\u9664C\u60F3\u5B9A" },
-        { year: 2028, primaryHouseholdId: "101", backupHouseholdId: "201", status: "draft", reason: "\u81EA\u52D5\u8A08\u7B97: 0\u56DE\u7D44\u3067\u5165\u5C45\u304C\u53E4\u3044\u9806\u3002102:\u514D\u9664B\u671F\u9650\u5207\u308C\u3067\u5FA9\u5E30\u5019\u88DC" }
+        { year: 2028, primaryHouseholdId: "101", backupHouseholdId: "201", status: "draft", reason: "\u81EA\u52D5\u8A08\u7B97: 0\u56DE\u7D44\u3067\u5165\u5C45\u304C\u53E4\u3044\u9806\u3002102:\u514D\u9664B\u671F\u9650\u5207\u308C\u3067\u5FA9\u5E30\u5019\u88DC" },
+        { year: 2029, primaryHouseholdId: "203", backupHouseholdId: "303", status: "draft", reason: "\u81EA\u52D5\u8A08\u7B97: 302/101:\u514D\u9664B\u3001103/202:\u514D\u9664C\u60F3\u5B9A\u3002\u6B8B\u308A\u3067\u5165\u5C45\u53E4\u3044\u9806\u2192203" },
+        { year: 2030, primaryHouseholdId: "303", backupHouseholdId: "301", status: "draft", reason: "\u81EA\u52D5\u8A08\u7B97: 101/203:\u514D\u9664B\u3001103/202:\u514D\u9664C\u60F3\u5B9A\u3002\u6B8B\u308A\u3067\u5165\u5C45\u53E4\u3044\u9806\u2192303" }
       ];
       for (const s of scheduleData) {
         await db.insert(leaderSchedule).values(s);
@@ -1043,8 +1045,7 @@ var appRouter = router({
         )
       );
       const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
-      const fiscalYearStart = new Date(input.year, 3, 1);
-      const twelveMonthsBefore = new Date(input.year - 1, 3, 1);
+      const twelveMonthsBefore = new Date(input.year - 2, 10, 1);
       const lessThanYearHouseholds = new Set(
         allHouseholds.filter((h) => h.moveInDate && h.moveInDate > twelveMonthsBefore).map((h) => h.householdId)
       );
@@ -1432,6 +1433,44 @@ var appRouter = router({
       await logChange(`\u30A4\u30D9\u30F3\u30C8 (ID: ${input.id}) \u3092\u524A\u9664`, "events", input.id);
       return { success: true };
     }),
+    // 次年度カレンダー生成
+    generateNextYearEvents: publicProcedure.input(z2.object({ fromYear: z2.number(), toYear: z2.number() })).mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const fromStart = new Date(input.fromYear, 3, 1);
+      const fromEnd = new Date(input.fromYear + 1, 3, 1);
+      const toStart = new Date(input.toYear, 3, 1);
+      const toEnd = new Date(input.toYear + 1, 3, 1);
+      const existing = await db.select().from(events).where(and(gte(events.date, toStart), lt(events.date, toEnd)));
+      if (existing.length > 0) {
+        throw new Error(`${input.toYear}\u5E74\u5EA6\u306B\u306F\u3059\u3067\u306B${existing.length}\u4EF6\u306E\u30A4\u30D9\u30F3\u30C8\u304C\u3042\u308A\u307E\u3059\u3002\u5148\u306B\u524A\u9664\u3057\u3066\u304F\u3060\u3055\u3044\u3002`);
+      }
+      const sourceEvents = await db.select().from(events).where(and(gte(events.date, fromStart), lt(events.date, fromEnd)));
+      if (sourceEvents.length === 0) {
+        throw new Error(`${input.fromYear}\u5E74\u5EA6\u306B\u30A4\u30D9\u30F3\u30C8\u304C\u3042\u308A\u307E\u305B\u3093\u3002`);
+      }
+      const yearDiff = input.toYear - input.fromYear;
+      const created = [];
+      for (const e of sourceEvents) {
+        const newDate = new Date(e.date);
+        newDate.setFullYear(newDate.getFullYear() + yearDiff);
+        const resetChecklist = (e.checklist || []).map((item) => ({
+          ...item,
+          completed: false
+        }));
+        const [newEvent] = await db.insert(events).values({
+          title: e.title,
+          date: newDate,
+          category: e.category,
+          checklist: resetChecklist,
+          notes: e.notes,
+          attachments: []
+        }).returning();
+        created.push(newEvent);
+      }
+      await logChange(`${input.toYear}\u5E74\u5EA6\u30AB\u30EC\u30F3\u30C0\u30FC\u3092${input.fromYear}\u5E74\u5EA6\u304B\u3089\u751F\u6210\uFF08${created.length}\u4EF6\uFF09`, "events");
+      return { success: true, count: created.length };
+    }),
     // Inventory CRUD
     createInventoryItem: publicProcedure.input(z2.object({
       name: z2.string().min(1),
@@ -1691,8 +1730,7 @@ var appRouter = router({
         )
       );
       const exemptedHouseholds = new Set(exemptions.map((e) => e.householdId));
-      const fiscalYearStart = new Date(input.year, 3, 1);
-      const twelveMonthsBefore = new Date(input.year - 1, 3, 1);
+      const twelveMonthsBefore = new Date(input.year - 2, 10, 1);
       const lessThanYearHouseholds = new Set(
         allHouseholds.filter((h) => h.moveInDate && h.moveInDate > twelveMonthsBefore).map((h) => h.householdId)
       );
