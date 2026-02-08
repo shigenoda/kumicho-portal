@@ -6,7 +6,6 @@
 dist/
 build/
 *.dist
-api/trpc.js
 
 # Environment variables
 .env
