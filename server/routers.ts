@@ -67,15 +67,15 @@ export const appRouter = router({
 
       // 住戸 (9戸: 3階×3戸)
       const householdData = [
-        { householdId: "101", moveInDate: new Date("2023-04-01"), leaderHistoryCount: 0 },
-        { householdId: "102", moveInDate: new Date("2020-04-01"), leaderHistoryCount: 1 },
-        { householdId: "103", moveInDate: new Date("2015-04-01"), leaderHistoryCount: 2 },
-        { householdId: "201", moveInDate: new Date("2024-04-01"), leaderHistoryCount: 0 },
-        { householdId: "202", moveInDate: new Date("2018-04-01"), leaderHistoryCount: 1 },
-        { householdId: "203", moveInDate: new Date("2017-04-01"), leaderHistoryCount: 1 },
-        { householdId: "301", moveInDate: new Date("2019-04-01"), leaderHistoryCount: 1 },
-        { householdId: "302", moveInDate: new Date("2024-04-01"), leaderHistoryCount: 0 },
-        { householdId: "303", moveInDate: new Date("2016-04-01"), leaderHistoryCount: 2 },
+        { householdId: "101", moveInDate: new Date("2025-09-01"), leaderHistoryCount: 0 },
+        { householdId: "102", moveInDate: new Date("2024-10-01"), leaderHistoryCount: 1 },
+        { householdId: "103", moveInDate: new Date("2023-03-01"), leaderHistoryCount: 0 },
+        { householdId: "201", moveInDate: new Date("2025-10-01"), leaderHistoryCount: 0 },
+        { householdId: "202", moveInDate: new Date("2024-02-01"), leaderHistoryCount: 0 },
+        { householdId: "203", moveInDate: new Date("2018-03-01"), leaderHistoryCount: 1 },
+        { householdId: "301", moveInDate: new Date("2022-04-01"), leaderHistoryCount: 1 },
+        { householdId: "302", moveInDate: new Date("2025-03-01"), leaderHistoryCount: 0 },
+        { householdId: "303", moveInDate: new Date("2020-08-01"), leaderHistoryCount: 1 },
       ];
       for (const h of householdData) {
         await db.insert(households).values(h).onConflictDoNothing();
@@ -164,6 +164,7 @@ export const appRouter = router({
         { title: "防災訓練のお知らせ", body: "防災訓練のお知らせ\n\n日時: ○月○日（○）\n集合場所: グリーンピア玄関前\n内容: 避難経路確認、消火器使用訓練\n\nご参加よろしくお願いいたします。\n\n組長 ○号室", category: "連絡", tags: ["防災訓練"] },
         { title: "世帯調査票", body: "世帯家族調査票\n\n部屋番号: ○号室\n\n世帯主氏名:\n同居家族人数:\n\n緊急連絡先:\n\n備考:\n\n※ご記入後、組長にご提出ください。", category: "届出", tags: ["調査"] },
         { title: "町内会長への提案書テンプレート", body: "令和○年度　○○に関する提案書\n\n大泉町内会\n八町内会 会長　○○ ○○ 様\n\n令和○年○月○日\nグリーンピア○号室\n8組 組長　○○ ○○\n\n拝啓　時下ますますご清祥のこととお慶び申し上げます。\n平素より格別のご高配を賜り、厚く御礼申し上げます。\n\n（本文）\n\n以上、何卒ご検討のほどよろしくお願い申し上げます。\n敬具\n\n連絡先\n8組 組長　○○ ○○（グリーンピア○号室）\nTEL：○○○-○○○○-○○○○\nEmail：○○○@○○○.com", category: "町内会", tags: ["町内会", "提案書", "正式文書"] },
+        { title: "住民アンケートテンプレート（組長運用）", body: "8組 グリーンピア入居者 各位\n\n日頃より、町内会活動およびマンション内の運営にご理解・ご協力をいただき、ありがとうございます。現組長の○号室・○○です。\n\n（背景説明）\n\nそこで、まずは住民の皆さまの実情やお考えを把握するため、アンケートを実施いたします。回答は任意で、無記名でも構いません。内容は集計し、個人が特定されない形で論点を整理します。\n\nお手数ですが、アンケート用紙を封筒に入れ、○号室ポストへ投函してください。\n\n【提出期限】○年○月○日\n【提出方法】封筒に入れて○号室ポストへ投函（無記名可）\n【問い合わせ】現組長（○号室）まで\n\n住民同士が気まずくならず、安心して居住し続けられる環境を維持するためにも、無理のない範囲でご協力いただけますと幸いです。\nどうぞよろしくお願いいたします。\n\n○年○月○日\n8組 グリーンピア　組長　○○ ○○\n\n※本件は契約・規約等の解釈に関わる可能性があります。必要に応じ、賃貸借契約・重要事項説明書・管理規約・自治会規約等の確認や、専門家への相談を行ってください。", category: "アンケート", tags: ["アンケート", "住民調査", "組長運用"] },
       ];
       for (const t of templateData) {
         await db.insert(templates).values(t);
@@ -184,10 +185,9 @@ export const appRouter = router({
       // ローテスケジュール
       const scheduleData = [
         { year: 2025, primaryHouseholdId: "102", backupHouseholdId: "103", status: "confirmed" as const, reason: "2025年度確定（現任）" },
-        { year: 2026, primaryHouseholdId: "203", backupHouseholdId: "301", status: "confirmed" as const, reason: "2026年度確定" },
-        { year: 2027, primaryHouseholdId: "101", backupHouseholdId: "201", status: "draft" as const, reason: "自動計算" },
-        { year: 2028, primaryHouseholdId: "302", backupHouseholdId: "202", status: "draft" as const, reason: "自動計算" },
-        { year: 2029, primaryHouseholdId: "301", backupHouseholdId: "103", status: "draft" as const, reason: "自動計算" },
+        { year: 2026, primaryHouseholdId: "203", backupHouseholdId: "301", status: "confirmed" as const, reason: "102:免除B（直近組長）、103/202:免除C（就任困難）、101/201/302:免除A（入居12ヶ月未満）→繰上げで203" },
+        { year: 2027, primaryHouseholdId: "302", backupHouseholdId: "101", status: "draft" as const, reason: "自動計算: 0回組で入居が古い順。102:免除B、203:免除B、103/202:免除C想定" },
+        { year: 2028, primaryHouseholdId: "101", backupHouseholdId: "201", status: "draft" as const, reason: "自動計算: 0回組で入居が古い順。102:免除B期限切れで復帰候補" },
       ];
       for (const s of scheduleData) {
         await db.insert(leaderSchedule).values(s);
@@ -198,17 +198,17 @@ export const appRouter = router({
         version: 1,
         logic: {
           priority: [
-            "組長経験回数が少ない順（0回→1回→2回）",
-            "同回数の場合は入居日が古い順",
-            "同時期入居の場合は部屋番号昇順"
+            "入居年月が古い順（基本方針）",
+            "免除対象が発生した場合は次に古い世帯へ繰上げ",
+            "経験回数は参考情報（同条件で迷う場合の説明材料）"
           ],
           excludeConditions: [
-            "組長経験者は任期終了翌月から24ヶ月免除",
-            "新規入居者は入居後12ヶ月免除",
-            "免除申請承認済み"
+            "A: 入居12ヶ月未満（自動免除、入居12ヶ月経過の翌月に自動復帰）",
+            "B: 直近組長（任期終了翌月から24ヶ月免除）",
+            "C: 就任困難申告（育児・健康・介護等、年1回11〜12月に継続確認）"
           ]
         },
-        reason: "令和7年11月9日 町内会長承認済みの運用細則",
+        reason: "令和7年11月9日 町内会長承認済みの運用細則。ポータルには免除理由＋見直し時期を必ず記載。",
       });
 
       // 返信待ちキュー
@@ -216,6 +216,7 @@ export const appRouter = router({
         { title: "組長免除アンケートの回答集約", description: "夜勤者・育児家庭の組長免除に関するアンケートを実施中。回答を集約し、オーナーとの交渉材料にする。", toWhom: "各世帯", priority: "high" as const, status: "pending" as const },
         { title: "オーナーとの組長制度協議", description: "アンケート結果をもとに、組長制度の改善案をオーナー（管理会社経由）に提案予定。", toWhom: "平和ハウジング株式会社", priority: "medium" as const, status: "pending" as const },
         { title: "町内会長からの提案書回答待ち", description: "令和7年11月9日提出の統合提案書への回答。河川清掃免除基準・草刈り責任所在・周知改善について12月中の方向性提示を依頼済み。", toWhom: "中山裕二 会長（大泉町内会）", priority: "high" as const, status: "pending" as const },
+        { title: "住民アンケート回答の集約（2/28期限）", description: "2026年2月4日配布の組長運用アンケート。提出期限2/28。回答を集約し、オーナーへの申し入れ材料として整理する。Q6の運用方向性（A/B/C/D）の集計が特に重要。", toWhom: "各世帯（9世帯）", priority: "high" as const, status: "pending" as const },
       ];
       for (const p of pendingData) {
         await db.insert(pendingQueue).values(p);
@@ -229,6 +230,7 @@ export const appRouter = router({
         { title: "河川堤防草刈りの対応", body: "黒石川堤防の草刈りについて、地主がいる土地のため直接の作業は不可。地主が業者を手配して対応完了。マンション住民の作業は不要と確認。", tags: ["河川清掃", "解決済み"] as string[], year: 2025, category: "decision" as const, status: "published" as const, isHypothesis: false, relatedLinks: [] as string[], publishedAt: new Date("2025-09-25") },
         { title: "組長免除制度の検討（進行中）", body: "夜勤従事者や小さな子供がいる家庭から組長免除の要望あり。管理会社（平和ハウジング）からは相反する見解が出ており、住民アンケートを実施して意見を集約中。2026年3月までに結論を出す予定。", tags: ["組長制度", "進行中"] as string[], year: 2025, category: "pending" as const, status: "published" as const, isHypothesis: true, relatedLinks: [] as string[], publishedAt: new Date("2025-11-01") },
         { title: "町内会長への統合提案書を提出", body: "令和7年11月9日、大泉町内会八町内会会長（中山裕二様）宛てに「組長業務改善に関する統合提案書」を提出。\n\n提案内容：\n1. 組長選出ルールの確定（運用細則の策定報告）\n2. 河川清掃の安全配慮と参加免除基準\n3. 河川草刈り作業の責任所在確認\n4. 周知事項の改善（町内会費徴収の明確化、清掃範囲の可視化）\n\n12月中に方向性の回答を依頼。最終確定は令和8年3月末。", tags: ["町内会", "提案書", "組長制度"] as string[], year: 2025, category: "decision" as const, status: "published" as const, isHypothesis: false, relatedLinks: [] as string[], publishedAt: new Date("2025-11-09") },
+        { title: "住民アンケートを配布", body: "2026年2月4日、全9世帯に組長運用に関するアンケートを配布。\n\n主な質問内容:\n・組長業務の負担感\n・組長会や河川清掃への参加可否\n・今後の運用方向性（住民持ち回り/オーナー担当/折衷案）\n・引き継ぎ方法の改善\n\n背景として、町内会長からのオーナー側運用への示唆、他マンション実例（21組等）、管理会社の不関与スタンスを共有。\n提出期限: 2026年2月28日。回答を集約し、オーナーへの申し入れ材料とする予定。", tags: ["アンケート", "組長制度", "住民調査"] as string[], year: 2025, category: "decision" as const, status: "published" as const, isHypothesis: false, relatedLinks: [] as string[], publishedAt: new Date("2026-02-04") },
       ];
       for (const p of postsData) {
         await db.insert(posts).values(p);
@@ -259,6 +261,7 @@ export const appRouter = router({
         { title: "組長免除問題の経緯メモ", body: "夜勤者と小さな子供がいる家庭から免除要望あり。管理会社からは「免除は認められない」と「相談してください」の両方の見解が出ており統一されていない。住民アンケートを実施し、3月までに方針を決める必要がある。オーナーとの最終交渉は管理会社経由で行う予定。" },
         { title: "ISY河川清掃紛争の記録", body: "隣接するISYビル周辺の清掃範囲で紛争発生。町内会長に相談し仲介してもらった。最終的に業者対応で解決。今後同様の問題が起きた場合は町内会長を通すのが有効。" },
         { title: "統合提案書の全文記録（令和7年11月9日）", body: "令和7年度 組長業務改善に関する統合提案書\n宛先: 大泉町内会 八町内会 会長 中山裕二様\n提出日: 令和7年11月9日\n提出者: グリーンピア102号室 8組組長 野田誠紀\n\n【提案内容】\n1. 組長選出ルールの確定（運用細則の策定報告）\n - 免除規定: 経験者24ヶ月免除、新入居者12ヶ月免除\n - 優先順位: 経験回数少→入居古→部屋番号昇順\n - 年次運用: 11月アンケート→12月確定→報告\n\n2. 河川清掃の安全配慮と参加免除基準\n - 免除対象案: 小学生以下同伴/妊娠中/70歳以上/疾病・介護\n - 任意協力金100-200円を検討\n - 出不足金は廃止済み（85,000円→倉庫購入に充当）\n\n3. 河川草刈り作業の責任所在確認\n - 管理会社は関与なし、業者作業を1回確認\n - 町内会の方針を確認中\n\n4. 周知事項の改善\n - 町内会費: マンションは管理会社一括徴収（組長不要）\n - 清掃範囲: マンション前区間を基本担当に変更提案\n\n回答期限: 12月中（最終確定3月末）" },
+        { title: "住民アンケート全文（2026年2月4日配布）", body: "【配布日】2026年2月4日\n【提出期限】2026年2月28日\n【提出方法】封筒に入れて102号室ポストへ投函（無記名可）\n\n【カバーレター要旨】\n・河川清掃の範囲がマンション前に縮小される見込み（町内会長からの共有）\n・2025年度に運用上の論点（組長選出・免除・出不足金）で住民間の認識の分かれが複数発生\n・町内会長からの示唆: オーナー側が組長業務を担う方向の検討\n・管理会社（平和ハウジング）は町内会活動への関与を行わないスタンス\n\n【別紙B: 背景共有 6項目】\n1. 2025年度の主な論点（組長選出・河川清掃範囲・出不足金）\n2. 町内会側の認識（確認対応の集中が問題）\n3. 河川清掃のISY前範囲の進捗（関係先が業者手配・費用負担）\n4. 他マンション実例（21組等: オーナー側が役割を担う）\n5. 管理会社スタンス（関与しない）\n6. 組長業務の実態（負担感）\n\n【別紙C: アンケート質問 8問】\nQ1. 組長経験の有無\nQ2. 組長業務の負担感（5段階）\nQ3. 組長会（毎月26日19:00）への参加可否\nQ4. 河川清掃（土日朝8:00-9:00）への参加可否\nQ5. 負担が大きいと感じる業務（複数選択）\nQ6. 今後の運用方向性（A:住民持ち回り / B:オーナー担当 / C:折衷案 / D:わからない）\nQ7. 引き継ぎの改善（紙+Web / Web中心 / 紙中心）\nQ8. 自由記載" },
       ];
       for (const s of secretNotesData) {
         await db.insert(secretNotes).values(s);
