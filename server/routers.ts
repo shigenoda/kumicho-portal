@@ -27,6 +27,8 @@ import {
   formChoices,
   formResponses,
   formResponseItems,
+  vaultEntries,
+  auditLogs,
 } from "../drizzle/schema";
 
 // 変更ログをDBに記録するヘルパー
@@ -393,6 +395,479 @@ export const appRouter = router({
       if (!db) return [];
       return await db.select().from(handoverBagItems).orderBy(asc(handoverBagItems.name));
     }),
+
+    createHandoverBagItem: publicProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+        location: z.string().min(1),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [item] = await db.insert(handoverBagItems).values({
+          name: input.name,
+          description: input.description || null,
+          location: input.location,
+          notes: input.notes || null,
+          isChecked: false,
+        }).returning();
+        await logChange(`引き継ぎ袋「${input.name}」を追加`, "handoverBagItems", item.id);
+        return item;
+      }),
+
+    updateHandoverBagItem: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().min(1).optional(),
+        description: z.string().optional(),
+        location: z.string().min(1).optional(),
+        notes: z.string().optional(),
+        isChecked: z.boolean().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const updateData: any = { updatedAt: new Date() };
+        if (input.name !== undefined) updateData.name = input.name;
+        if (input.description !== undefined) updateData.description = input.description;
+        if (input.location !== undefined) updateData.location = input.location;
+        if (input.notes !== undefined) updateData.notes = input.notes;
+        if (input.isChecked !== undefined) updateData.isChecked = input.isChecked;
+        await db.update(handoverBagItems).set(updateData).where(eq(handoverBagItems.id, input.id));
+        await logChange(`引き継ぎ袋アイテム (ID: ${input.id}) を更新`, "handoverBagItems", input.id);
+        return { success: true };
+      }),
+
+    deleteHandoverBagItem: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(handoverBagItems).where(eq(handoverBagItems.id, input.id));
+        await logChange(`引き継ぎ袋アイテム (ID: ${input.id}) を削除`, "handoverBagItems", input.id);
+        return { success: true };
+      }),
+
+    // PendingQueue CRUD
+    getPendingQueueAll: publicProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      return await db.select().from(pendingQueue).orderBy(desc(pendingQueue.createdAt));
+    }),
+
+    createPendingQueueItem: publicProcedure
+      .input(z.object({
+        title: z.string().min(1),
+        description: z.string().min(1),
+        toWhom: z.string().min(1),
+        priority: z.enum(["low", "medium", "high"]).default("medium"),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [item] = await db.insert(pendingQueue).values({
+          title: input.title,
+          description: input.description,
+          toWhom: input.toWhom,
+          priority: input.priority,
+          status: "pending",
+        }).returning();
+        await logChange(`返信待ち「${input.title}」を追加`, "pendingQueue", item.id);
+        return item;
+      }),
+
+    updatePendingQueueItem: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().min(1).optional(),
+        description: z.string().optional(),
+        toWhom: z.string().optional(),
+        priority: z.enum(["low", "medium", "high"]).optional(),
+        status: z.enum(["pending", "resolved", "transferred"]).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const updateData: any = { updatedAt: new Date() };
+        if (input.title !== undefined) updateData.title = input.title;
+        if (input.description !== undefined) updateData.description = input.description;
+        if (input.toWhom !== undefined) updateData.toWhom = input.toWhom;
+        if (input.priority !== undefined) updateData.priority = input.priority;
+        if (input.status !== undefined) {
+          updateData.status = input.status;
+          if (input.status === "resolved") updateData.resolvedAt = new Date();
+        }
+        await db.update(pendingQueue).set(updateData).where(eq(pendingQueue.id, input.id));
+        await logChange(`返信待ち (ID: ${input.id}) を更新`, "pendingQueue", input.id);
+        return { success: true };
+      }),
+
+    deletePendingQueueItem: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(pendingQueue).where(eq(pendingQueue.id, input.id));
+        await logChange(`返信待ち (ID: ${input.id}) を削除`, "pendingQueue", input.id);
+        return { success: true };
+      }),
+
+    // Vault Entries CRUD
+    getVaultEntries: publicProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      return await db.select().from(vaultEntries).orderBy(asc(vaultEntries.category));
+    }),
+
+    createVaultEntry: publicProcedure
+      .input(z.object({
+        category: z.string().min(1),
+        key: z.string().min(1),
+        maskedValue: z.string().min(1),
+        actualValue: z.string().min(1),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [entry] = await db.insert(vaultEntries).values({
+          category: input.category,
+          key: input.key,
+          maskedValue: input.maskedValue,
+          actualValue: input.actualValue,
+        }).returning();
+        await logChange(`Vault「${input.key}」を追加`, "vaultEntries", entry.id);
+        return entry;
+      }),
+
+    updateVaultEntry: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        category: z.string().optional(),
+        key: z.string().optional(),
+        maskedValue: z.string().optional(),
+        actualValue: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const updateData: any = { updatedAt: new Date() };
+        if (input.category !== undefined) updateData.category = input.category;
+        if (input.key !== undefined) updateData.key = input.key;
+        if (input.maskedValue !== undefined) updateData.maskedValue = input.maskedValue;
+        if (input.actualValue !== undefined) updateData.actualValue = input.actualValue;
+        await db.update(vaultEntries).set(updateData).where(eq(vaultEntries.id, input.id));
+        await logChange(`Vault (ID: ${input.id}) を更新`, "vaultEntries", input.id);
+        return { success: true };
+      }),
+
+    deleteVaultEntry: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(vaultEntries).where(eq(vaultEntries.id, input.id));
+        await logChange(`Vault (ID: ${input.id}) を削除`, "vaultEntries", input.id);
+        return { success: true };
+      }),
+
+    // Audit Logs
+    getAuditLogs: publicProcedure
+      .input(z.object({ limit: z.number().default(100) }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        return await db.select().from(auditLogs).orderBy(desc(auditLogs.timestamp)).limit(input.limit);
+      }),
+
+    // Secret Notes CRUD
+    createSecretNote: publicProcedure
+      .input(z.object({ title: z.string().min(1), body: z.string().min(1) }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [note] = await db.insert(secretNotes).values({
+          title: input.title,
+          body: input.body,
+        }).returning();
+        await logChange(`秘匿メモ「${input.title}」を追加`, "secretNotes", note.id);
+        return note;
+      }),
+
+    updateSecretNote: publicProcedure
+      .input(z.object({ id: z.number(), title: z.string().optional(), body: z.string().optional() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const updateData: any = { updatedAt: new Date() };
+        if (input.title !== undefined) updateData.title = input.title;
+        if (input.body !== undefined) updateData.body = input.body;
+        await db.update(secretNotes).set(updateData).where(eq(secretNotes.id, input.id));
+        await logChange(`秘匿メモ (ID: ${input.id}) を更新`, "secretNotes", input.id);
+        return { success: true };
+      }),
+
+    deleteSecretNote: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(secretNotes).where(eq(secretNotes.id, input.id));
+        await logChange(`秘匿メモ (ID: ${input.id}) を削除`, "secretNotes", input.id);
+        return { success: true };
+      }),
+
+    // Events CRUD
+    createEvent: publicProcedure
+      .input(z.object({
+        title: z.string().min(1),
+        date: z.string(),
+        category: z.string().min(1),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [event] = await db.insert(events).values({
+          title: input.title,
+          date: new Date(input.date),
+          category: input.category,
+          checklist: [],
+          notes: input.notes || null,
+          attachments: [],
+        }).returning();
+        await logChange(`イベント「${input.title}」を追加`, "events", event.id);
+        return event;
+      }),
+
+    updateEvent: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        date: z.string().optional(),
+        category: z.string().optional(),
+        notes: z.string().optional(),
+        checklist: z.array(z.object({ id: z.string(), text: z.string(), completed: z.boolean() })).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const updateData: any = { updatedAt: new Date() };
+        if (input.title !== undefined) updateData.title = input.title;
+        if (input.date !== undefined) updateData.date = new Date(input.date);
+        if (input.category !== undefined) updateData.category = input.category;
+        if (input.notes !== undefined) updateData.notes = input.notes;
+        if (input.checklist !== undefined) updateData.checklist = input.checklist;
+        await db.update(events).set(updateData).where(eq(events.id, input.id));
+        await logChange(`イベント (ID: ${input.id}) を更新`, "events", input.id);
+        return { success: true };
+      }),
+
+    deleteEvent: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(events).where(eq(events.id, input.id));
+        await logChange(`イベント (ID: ${input.id}) を削除`, "events", input.id);
+        return { success: true };
+      }),
+
+    // Inventory CRUD
+    createInventoryItem: publicProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        qty: z.number().default(0),
+        location: z.string().min(1),
+        condition: z.string().optional(),
+        notes: z.string().optional(),
+        tags: z.array(z.string()).default([]),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [item] = await db.insert(inventory).values({
+          name: input.name,
+          qty: input.qty,
+          location: input.location,
+          condition: input.condition || null,
+          notes: input.notes || null,
+          tags: input.tags,
+        }).returning();
+        await logChange(`備品「${input.name}」を追加`, "inventory", item.id);
+        return item;
+      }),
+
+    updateInventoryItem: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().optional(),
+        qty: z.number().optional(),
+        location: z.string().optional(),
+        condition: z.string().optional(),
+        notes: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+        lastCheckedAt: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const updateData: any = { updatedAt: new Date() };
+        if (input.name !== undefined) updateData.name = input.name;
+        if (input.qty !== undefined) updateData.qty = input.qty;
+        if (input.location !== undefined) updateData.location = input.location;
+        if (input.condition !== undefined) updateData.condition = input.condition;
+        if (input.notes !== undefined) updateData.notes = input.notes;
+        if (input.tags !== undefined) updateData.tags = input.tags;
+        if (input.lastCheckedAt !== undefined) updateData.lastCheckedAt = new Date(input.lastCheckedAt);
+        await db.update(inventory).set(updateData).where(eq(inventory.id, input.id));
+        await logChange(`備品 (ID: ${input.id}) を更新`, "inventory", input.id);
+        return { success: true };
+      }),
+
+    deleteInventoryItem: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(inventory).where(eq(inventory.id, input.id));
+        await logChange(`備品 (ID: ${input.id}) を削除`, "inventory", input.id);
+        return { success: true };
+      }),
+
+    // FAQ Create
+    createFAQ: publicProcedure
+      .input(z.object({
+        question: z.string().min(1),
+        answer: z.string().min(1),
+        relatedRuleIds: z.array(z.number()).default([]),
+        relatedPostIds: z.array(z.number()).default([]),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [item] = await db.insert(faq).values({
+          question: input.question,
+          answer: input.answer,
+          relatedRuleIds: input.relatedRuleIds,
+          relatedPostIds: input.relatedPostIds,
+        }).returning();
+        await logChange(`FAQ「${input.question}」を追加`, "faq", item.id);
+        return item;
+      }),
+
+    // Templates CRUD
+    createTemplate: publicProcedure
+      .input(z.object({
+        title: z.string().min(1),
+        body: z.string().min(1),
+        category: z.string().min(1),
+        tags: z.array(z.string()).default([]),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [item] = await db.insert(templates).values({
+          title: input.title,
+          body: input.body,
+          category: input.category,
+          tags: input.tags,
+        }).returning();
+        await logChange(`テンプレート「${input.title}」を追加`, "templates", item.id);
+        return item;
+      }),
+
+    updateTemplate: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        body: z.string().optional(),
+        category: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const updateData: any = { updatedAt: new Date() };
+        if (input.title !== undefined) updateData.title = input.title;
+        if (input.body !== undefined) updateData.body = input.body;
+        if (input.category !== undefined) updateData.category = input.category;
+        if (input.tags !== undefined) updateData.tags = input.tags;
+        await db.update(templates).set(updateData).where(eq(templates.id, input.id));
+        await logChange(`テンプレート (ID: ${input.id}) を更新`, "templates", input.id);
+        return { success: true };
+      }),
+
+    deleteTemplate: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(templates).where(eq(templates.id, input.id));
+        await logChange(`テンプレート (ID: ${input.id}) を削除`, "templates", input.id);
+        return { success: true };
+      }),
+
+    // Rules CRUD
+    createRule: publicProcedure
+      .input(z.object({
+        title: z.string().min(1),
+        summary: z.string().min(1),
+        details: z.string().min(1),
+        status: z.enum(["draft", "decided", "published"]).default("decided"),
+        evidenceLinks: z.array(z.string()).default([]),
+        isHypothesis: z.boolean().default(false),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [rule] = await db.insert(rules).values({
+          title: input.title,
+          summary: input.summary,
+          details: input.details,
+          status: input.status,
+          evidenceLinks: input.evidenceLinks,
+          isHypothesis: input.isHypothesis,
+        }).returning();
+        await logChange(`ルール「${input.title}」を追加`, "rules", rule.id);
+        return rule;
+      }),
+
+    updateRule: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        summary: z.string().optional(),
+        details: z.string().optional(),
+        status: z.enum(["draft", "decided", "published"]).optional(),
+        evidenceLinks: z.array(z.string()).optional(),
+        isHypothesis: z.boolean().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const updateData: any = { updatedAt: new Date() };
+        if (input.title !== undefined) updateData.title = input.title;
+        if (input.summary !== undefined) updateData.summary = input.summary;
+        if (input.details !== undefined) updateData.details = input.details;
+        if (input.status !== undefined) updateData.status = input.status;
+        if (input.evidenceLinks !== undefined) updateData.evidenceLinks = input.evidenceLinks;
+        if (input.isHypothesis !== undefined) updateData.isHypothesis = input.isHypothesis;
+        await db.update(rules).set(updateData).where(eq(rules.id, input.id));
+        await logChange(`ルール (ID: ${input.id}) を更新`, "rules", input.id);
+        return { success: true };
+      }),
+
+    deleteRule: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(rules).where(eq(rules.id, input.id));
+        await logChange(`ルール (ID: ${input.id}) を削除`, "rules", input.id);
+        return { success: true };
+      }),
 
     getHouseholds: publicProcedure.query(async () => {
       const db = await getDb();

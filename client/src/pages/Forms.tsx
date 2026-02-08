@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Edit2, Trash2, Eye, Download, X } from "lucide-react";
+import { Plus, Edit2, Trash2, Eye, Download, X, ArrowLeft } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { FormStatsModal } from "./FormStats";
 
@@ -124,18 +124,22 @@ export default function Forms() {
   return (
     <div className="min-h-screen bg-white">
       {/* ヘッダー */}
-      <header
-        className="fixed top-0 left-0 right-0 bg-cover bg-center border-b border-gray-200 z-50"
-        style={{ backgroundImage: "url('/greenpia-yaizu.jpg')" }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/50" />
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between relative">
-          <h1 className="text-2xl font-light text-white">フォーム管理</h1>
+      <header className="border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <button
+            onClick={() => setLocation("/")}
+            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-900 transition-colors mb-6"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span className="font-light">戻る</span>
+          </button>
+          <h1 className="text-2xl font-light text-gray-900 tracking-wide">フォーム管理</h1>
+          <p className="text-sm font-light text-gray-400 mt-1">アンケートの作成・編集・回答結果管理</p>
         </div>
       </header>
 
       {/* メインコンテンツ */}
-      <main className="pt-24 pb-16">
+      <main className="pb-16">
         <div className="max-w-7xl mx-auto px-6 py-8">
           {/* 作成ボタン */}
           <div className="mb-8 flex gap-2">
