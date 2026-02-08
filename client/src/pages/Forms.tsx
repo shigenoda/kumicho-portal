@@ -40,6 +40,47 @@ export default function Forms() {
     }
   };
 
+  const handleDownloadCSV = async (formId: number) => {
+    try {
+      const stats = await utils.data.getFormStats.fetch({ formId });
+
+      const rows: string[][] = [["質問", "選択肢", "回答数", "回答率(%)"]];
+
+      for (const question of stats.questions) {
+        for (const choice of question.choices) {
+          const rate =
+            stats.respondedCount > 0
+              ? ((choice.count / stats.respondedCount) * 100).toFixed(1)
+              : "0.0";
+          rows.push([question.text, choice.text, String(choice.count), rate]);
+        }
+      }
+
+      const csvContent = rows
+        .map((row) =>
+          row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")
+        )
+        .join("\n");
+
+      const bom = "\uFEFF";
+      const blob = new Blob([bom + csvContent], {
+        type: "text/csv;charset=utf-8;",
+      });
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${stats.form.title}_集計結果.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("CSV download error:", error);
+      alert("CSVダウンロードに失敗しました");
+    }
+  };
+
   const handleCreateForm = async () => {
     if (!formTitle.trim()) {
       alert("フォームタイトルを入力してください");
@@ -203,6 +244,7 @@ export default function Forms() {
                         variant="outline"
                         size="sm"
                         className="flex items-center gap-1"
+                        onClick={() => handleDownloadCSV(form.id)}
                       >
                         <Download className="w-4 h-4" />
                         DL
