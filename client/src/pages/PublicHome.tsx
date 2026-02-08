@@ -122,6 +122,59 @@ export default function PublicHome() {
               ))}
             </div>
           </section>
+
+          {/* Onboarding Section */}
+          <section className="mt-24 text-center">
+            <h3 className="text-3xl sm:text-5xl font-light text-gray-900 mb-16 tracking-tight">
+              利用の流れ
+            </h3>
+            <div className="grid gap-6 md:grid-cols-3">
+              {[
+                {
+                  step: "01",
+                  title: "新規登録",
+                  desc: "組長または住人として登録し、認証後に案内を受け取ります。",
+                },
+                {
+                  step: "02",
+                  title: "ログイン",
+                  desc: "年度情報・資料・フォームなどのメニューにアクセスできます。",
+                },
+                {
+                  step: "03",
+                  title: "引き継ぎ開始",
+                  desc: "河川清掃や備品など、必要な情報を順番に確認できます。",
+                },
+              ].map((flow) => (
+                <div
+                  key={flow.step}
+                  className="bg-white border border-gray-200 rounded-lg p-8 text-left hover:shadow-xl transition-all duration-300"
+                >
+                  <div className="text-sm text-gray-400 font-light tracking-[0.25em] mb-4">
+                    {flow.step}
+                  </div>
+                  <h4 className="text-xl font-medium text-gray-900 mb-3">
+                    {flow.title}
+                  </h4>
+                  <p className="text-gray-600 font-light leading-relaxed">
+                    {flow.desc}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <a href="/register">
+                <Button className="w-full sm:w-auto bg-gray-900 text-white hover:bg-gray-800 px-10 py-3 rounded-md font-medium text-base transition-all">
+                  新規登録へ
+                </Button>
+              </a>
+              <a href={getLoginUrl()}>
+                <Button className="w-full sm:w-auto bg-transparent text-gray-900 hover:bg-gray-100 border border-gray-300 px-10 py-3 rounded-md font-light text-base transition-all">
+                  ログインへ
+                </Button>
+              </a>
+            </div>
+          </section>
         </div>
       </main>
 
