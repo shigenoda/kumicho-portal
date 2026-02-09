@@ -1978,6 +1978,13 @@ var appRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database connection failed");
       try {
+        if (input.householdId) {
+          const existing = await db.select().from(formResponses).where(and(eq2(formResponses.formId, input.formId), eq2(formResponses.householdId, input.householdId)));
+          for (const old of existing) {
+            await db.delete(formResponseItems).where(eq2(formResponseItems.responseId, old.id));
+            await db.delete(formResponses).where(eq2(formResponses.id, old.id));
+          }
+        }
         const [createdResponse] = await db.insert(formResponses).values({
           formId: input.formId,
           householdId: input.householdId || null,
@@ -2107,10 +2114,31 @@ var appRouter = router({
         const unansweredHouseholds = allHouseholds.filter(
           (h) => !respondedHouseholds.has(h.householdId)
         );
+        const householdAnswers = await Promise.all(
+          responses.map(async (response) => {
+            const items = await db.select().from(formResponseItems).where(eq2(formResponseItems.responseId, response.id));
+            const answers = {};
+            for (const item of items) {
+              if (item.choiceId) {
+                const choice = await db.select().from(formChoices).where(eq2(formChoices.id, item.choiceId)).limit(1);
+                answers[item.questionId] = {
+                  choiceId: item.choiceId,
+                  choiceText: choice[0]?.choiceText || null
+                };
+              }
+            }
+            return {
+              householdId: response.householdId,
+              submittedAt: response.submittedAt,
+              answers
+            };
+          })
+        );
         return {
           form: form[0],
           questions: questionStats,
           respondents,
+          householdAnswers,
           totalHouseholds: allHouseholds.length,
           respondedCount: respondents.length,
           unansweredCount: unansweredHouseholds.length,

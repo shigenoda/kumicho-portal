@@ -1914,6 +1914,16 @@ export const appRouter = router({
         if (!db) throw new Error("Database connection failed");
 
         try {
+          // 同じ世帯の既存回答を削除（上書き方式）
+          if (input.householdId) {
+            const existing = await db.select().from(formResponses)
+              .where(and(eq(formResponses.formId, input.formId), eq(formResponses.householdId, input.householdId)));
+            for (const old of existing) {
+              await db.delete(formResponseItems).where(eq(formResponseItems.responseId, old.id));
+              await db.delete(formResponses).where(eq(formResponses.id, old.id));
+            }
+          }
+
           const [createdResponse] = await db.insert(formResponses).values({
             formId: input.formId,
             householdId: input.householdId || null,
@@ -2090,10 +2100,38 @@ export const appRouter = router({
             (h) => !respondedHouseholds.has(h.householdId)
           );
 
+          // 号室別回答一覧（各世帯の質問ごとの回答を取得）
+          const householdAnswers = await Promise.all(
+            responses.map(async (response) => {
+              const items = await db
+                .select()
+                .from(formResponseItems)
+                .where(eq(formResponseItems.responseId, response.id));
+
+              const answers: Record<number, { choiceId: number | null; choiceText: string | null }> = {};
+              for (const item of items) {
+                if (item.choiceId) {
+                  const choice = await db.select().from(formChoices).where(eq(formChoices.id, item.choiceId)).limit(1);
+                  answers[item.questionId] = {
+                    choiceId: item.choiceId,
+                    choiceText: choice[0]?.choiceText || null,
+                  };
+                }
+              }
+
+              return {
+                householdId: response.householdId,
+                submittedAt: response.submittedAt,
+                answers,
+              };
+            })
+          );
+
           return {
             form: form[0],
             questions: questionStats,
             respondents,
+            householdAnswers,
             totalHouseholds: allHouseholds.length,
             respondedCount: respondents.length,
             unansweredCount: unansweredHouseholds.length,

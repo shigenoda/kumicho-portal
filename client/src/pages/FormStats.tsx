@@ -193,6 +193,84 @@ export function FormStatsModal({
             </div>
           </section>
 
+          {/* Per-Household Answer Grid */}
+          {stats.householdAnswers && stats.householdAnswers.length > 0 && stats.questions.length > 0 && (
+            <section>
+              <div className="flex items-center gap-2 mb-4">
+                <Users className="w-4 h-4 text-gray-400" />
+                <h3 className="text-sm font-medium tracking-wide text-gray-900 uppercase">
+                  号室別回答一覧
+                </h3>
+              </div>
+
+              <div className="border border-gray-100 rounded-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-100 bg-gray-50/50">
+                        <th className="text-left text-xs font-medium text-gray-500 px-4 py-3 whitespace-nowrap">
+                          号室
+                        </th>
+                        {stats.questions.map((q: any, i: number) => (
+                          <th key={q.id} className="text-center text-xs font-medium text-gray-500 px-4 py-3 whitespace-nowrap">
+                            {stats.questions.length === 1 ? q.text : `Q${i + 1}`}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* Answered households */}
+                      {[...stats.householdAnswers]
+                        .sort((a: any, b: any) => (a.householdId || "").localeCompare(b.householdId || ""))
+                        .map((ha: any) => (
+                          <tr key={ha.householdId} className="border-b border-gray-50 last:border-0">
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">
+                              {ha.householdId}号室
+                            </td>
+                            {stats.questions.map((q: any) => {
+                              const answer = ha.answers[q.id];
+                              const choiceText = answer?.choiceText || "—";
+                              // Color coding for common patterns
+                              const isPositive = /出席|参加|賛成|OK|はい|可/.test(choiceText);
+                              const isNegative = /欠席|不参加|反対|NG|いいえ|不可/.test(choiceText);
+                              return (
+                                <td key={q.id} className="px-4 py-3 text-center whitespace-nowrap">
+                                  <span className={`inline-block px-2.5 py-1 text-xs rounded-full font-medium ${
+                                    isPositive
+                                      ? "bg-green-100 text-green-700"
+                                      : isNegative
+                                      ? "bg-red-100 text-red-700"
+                                      : answer
+                                      ? "bg-gray-100 text-gray-700"
+                                      : "text-gray-300"
+                                  }`}>
+                                    {choiceText}
+                                  </span>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      {/* Unanswered households */}
+                      {stats.unansweredHouseholds.map((h: any) => (
+                        <tr key={h.householdId} className="border-b border-gray-50 last:border-0 bg-gray-50/30">
+                          <td className="px-4 py-3 text-sm font-medium text-gray-400 whitespace-nowrap">
+                            {h.householdId}号室
+                          </td>
+                          {stats.questions.map((q: any) => (
+                            <td key={q.id} className="px-4 py-3 text-center">
+                              <span className="text-xs text-gray-300">未回答</span>
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* Respondent Timeline */}
           {stats.respondents.length > 0 && (
             <section>
