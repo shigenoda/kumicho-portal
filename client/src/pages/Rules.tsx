@@ -109,6 +109,7 @@ export default function Rules() {
   const { data: rotationData } = trpc.data.getRotationWithReasons.useQuery({ year: selectedYear });
   const { data: exemptions = [] } = trpc.data.getExemptions.useQuery({ year: selectedYear });
   const { data: households = [] } = trpc.data.getHouseholds.useQuery();
+  const { data: allSchedules = [] } = trpc.memberTop.getLeaderSchedule.useQuery({ year: 2025 });
 
   const createMutation = trpc.data.createRule.useMutation({
     onSuccess: () => {
@@ -498,20 +499,53 @@ export default function Rules() {
             入居順ベース・A/B/C免除区分で管理（令和7年11月 町内会長承認済）
           </p>
 
-          {/* Year selector */}
-          <div className="mb-6 flex gap-2 flex-wrap">
-            {[2025, 2026, 2027, 2028, 2029, 2030, 2031, 2032, 2033, 2034].map((year) => (
-              <Button
-                key={year}
-                variant={selectedYear === year ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedYear(year)}
-                className="font-light"
-              >
-                {year}
-              </Button>
-            ))}
-          </div>
+          {/* Timeline overview */}
+          {allSchedules.length > 0 && (
+            <Card className="bg-white border border-gray-100 overflow-hidden mb-6">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50/50">
+                      <th className="text-left px-3 py-2 font-medium text-gray-500">年度</th>
+                      <th className="text-left px-3 py-2 font-medium text-gray-500">組長</th>
+                      <th className="text-left px-3 py-2 font-medium text-gray-500">次点</th>
+                      <th className="text-center px-3 py-2 font-medium text-gray-500">状態</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allSchedules.map((s: any) => (
+                      <tr
+                        key={s.year}
+                        className={`border-b border-gray-50 cursor-pointer transition-colors ${
+                          selectedYear === s.year
+                            ? "bg-blue-50"
+                            : "hover:bg-gray-50/50"
+                        }`}
+                        onClick={() => setSelectedYear(s.year)}
+                      >
+                        <td className="px-3 py-2 font-medium text-gray-900">{s.year}</td>
+                        <td className="px-3 py-2">
+                          <span className={`font-semibold ${selectedYear === s.year ? "text-blue-700" : "text-gray-900"}`}>
+                            {s.primaryHouseholdId}号室
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-gray-500 font-light">
+                          {s.backupHouseholdId}号室
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          {s.status === "confirmed" ? (
+                            <span className="inline-block px-1.5 py-0.5 bg-green-100 text-green-700 text-[10px] rounded font-medium">確定</span>
+                          ) : (
+                            <span className="inline-block px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[10px] rounded font-medium">暫定</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
 
           {/* Rotation details */}
           {isRotationDataValid && (
@@ -528,6 +562,11 @@ export default function Rules() {
                           （{(rotationData as any).schedule.status === "confirmed" ? "確定" : (rotationData as any).schedule.status === "draft" ? "暫定" : (rotationData as any).schedule.status}）
                         </span>
                       </p>
+                      {(rotationData as any).schedule.backupHouseholdId && (
+                        <p className="text-xs text-gray-400 font-light mt-1">
+                          次点: {(rotationData as any).schedule.backupHouseholdId}号室
+                        </p>
+                      )}
                     </div>
                     {(rotationData as any).schedule.reason && (
                       <p className="text-xs font-light text-gray-500 sm:max-w-sm sm:text-right">
