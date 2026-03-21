@@ -164,6 +164,17 @@ export default function MemberHome() {
         setIsSavingEmails(false);
         return;
       }
+
+      // バリデーション
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const invalidEntries = entries.filter(([, email]) => email.trim() !== "" && !emailRegex.test(email.trim()));
+      if (invalidEntries.length > 0) {
+        setEmailFeedback({ type: "error", message: "無効なメールアドレスがあります。修正してください。" });
+        setIsSavingEmails(false);
+        return;
+      }
+
+      let savedCount = 0;
       for (const [householdDbId, email] of entries) {
         const household = households.find((h: any) => h.id === Number(householdDbId));
         if (!household) continue;
@@ -172,10 +183,11 @@ export default function MemberHome() {
           householdId: household.householdId,
           email: email.trim(),
         });
+        savedCount++;
       }
       await utils.data.getResidentEmails.invalidate();
       setNewEmails({});
-      setEmailFeedback({ type: "success", message: "メールアドレスを保存しました。" });
+      setEmailFeedback({ type: "success", message: `${savedCount}件のメールアドレスを保存しました。` });
     } catch (err: any) {
       setEmailFeedback({ type: "error", message: "保存に失敗しました: " + (err.message || "不明なエラー") });
     } finally {
@@ -957,45 +969,91 @@ export default function MemberHome() {
 
               {/* 住民メールアドレス登録セクション */}
               <section>
-                <h3 className="text-lg font-semibold text-gray-900 mb-6">住民メールアドレス登録</h3>
-                <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">住民メールアドレス登録</h3>
+                <p className="text-sm text-gray-500 font-light mb-4">
+                  各住戸のメールアドレスを登録すると、通知メールが届くようになります。
+                </p>
+
+                {/* 登録状況サマリー */}
+                <div className="mb-4 flex items-center gap-4 text-sm">
+                  <span className="text-gray-500">
+                    登録済み: <span className="font-medium text-gray-900">{residentEmails.length}</span> / {households.length} 世帯
+                  </span>
+                  <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-900 rounded-full transition-all duration-300"
+                      style={{ width: `${households.length > 0 ? (residentEmails.length / households.length) * 100 : 0}%` }}
+                    />
+                  </div>
+                </div>
+
+                {emailFeedback && (
+                  <div className={`mb-4 p-3 rounded text-sm flex items-center gap-2 ${emailFeedback.type === "success" ? "bg-green-50 border border-green-200 text-green-800" : "bg-red-50 border border-red-200 text-red-800"}`}>
+                    {emailFeedback.type === "success" ? <CheckCircle className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+                    <p>{emailFeedback.message}</p>
+                  </div>
+                )}
+
+                <div className="space-y-3">
                   {households.map((household: any) => {
                     const existingEmail = residentEmails.find((e: any) => e.householdId === household.householdId);
+                    const editValue = newEmails[household.id];
+                    const displayValue = editValue !== undefined ? editValue : (existingEmail?.email || "");
+                    const isModified = editValue !== undefined && editValue !== (existingEmail?.email || "");
+                    const isValidEmail = displayValue === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(displayValue);
+
                     return (
-                      <div key={household.id} className="flex items-end gap-3">
-                        <div className="flex-1">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            {household.householdId}号室
-                          </label>
+                      <div key={household.id} className={`border rounded-lg p-4 transition-colors ${isModified ? "border-blue-300 bg-blue-50/30" : existingEmail ? "border-green-200 bg-green-50/20" : "border-gray-200"}`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-900">{household.householdId}号室</span>
+                            {existingEmail && !isModified && (
+                              <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                <CheckCircle className="w-3 h-3" />
+                                登録済み
+                              </span>
+                            )}
+                            {isModified && (
+                              <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+                                変更あり
+                              </span>
+                            )}
+                          </div>
+                          {existingEmail && (
+                            <span className="text-xs text-gray-400">
+                              {new Date(existingEmail.updatedAt).toLocaleDateString("ja-JP")} 登録
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
                           <input
                             type="email"
-                            value={newEmails[household.id] !== undefined ? newEmails[household.id] : (existingEmail?.email || "")}
+                            value={displayValue}
                             onChange={(e) => setNewEmails({ ...newEmails, [household.id]: e.target.value })}
-                            placeholder="メールアドレスを入力"
-                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-900"
+                            placeholder="example@email.com"
+                            className={`flex-1 px-3 py-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-900 ${!isValidEmail ? "border-red-300 bg-red-50" : "border-gray-300"}`}
                           />
+                          {existingEmail && (
+                            <button
+                              onClick={() => handleDeleteEmail(existingEmail)}
+                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                              title="メールアドレスを削除"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
-                        {existingEmail && (
-                          <button
-                            onClick={() => handleDeleteEmail(existingEmail)}
-                            className="px-3 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded border border-red-200 text-sm font-light transition-colors"
-                            title="メールアドレスを削除"
-                          >
-                            削除
-                          </button>
+                        {!isValidEmail && displayValue && (
+                          <p className="text-xs text-red-500 mt-1">有効なメールアドレスを入力してください</p>
                         )}
                       </div>
                     );
                   })}
                 </div>
-                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-900">
-                  <p>登録したメールアドレスに、ポータル登録完了の通知メールが送信されます。</p>
+
+                <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded text-xs text-gray-500">
+                  登録したメールアドレスに、ポータルからの通知メールが送信されます。
                 </div>
-                {emailFeedback && (
-                  <div className={`mt-3 p-3 rounded text-sm ${emailFeedback.type === "success" ? "bg-green-50 border border-green-200 text-green-800" : "bg-red-50 border border-red-200 text-red-800"}`}>
-                    <p>{emailFeedback.message}</p>
-                  </div>
-                )}
               </section>
 
               {/* 保存ボタン */}
