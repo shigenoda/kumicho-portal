@@ -177,11 +177,18 @@ export default function AuditLogs() {
                         <p className="text-sm font-light text-gray-900 leading-relaxed">
                           {entry.summary}
                         </p>
-                        {(entry.editorName || entry.authorRole) && (
+                        {(entry.editorName || entry.authorRole || entry.ipAddress) && (
                           <p className="text-xs font-light text-gray-400 mt-1">
-                            by {entry.editorName ?? `${entry.authorRole ?? "unknown"}`}
-                            {entry.editorName && entry.authorRole && (
-                              <span className="ml-1.5 text-gray-300">({entry.authorRole})</span>
+                            {entry.editorName || entry.authorRole ? (
+                              <>
+                                by {entry.editorName ?? entry.authorRole}
+                                {entry.editorName && entry.authorRole && (
+                                  <span className="ml-1.5 text-gray-300">({entry.authorRole})</span>
+                                )}
+                              </>
+                            ) : null}
+                            {entry.ipAddress && (
+                              <span className="ml-2 font-mono text-gray-300">{entry.ipAddress}</span>
                             )}
                           </p>
                         )}

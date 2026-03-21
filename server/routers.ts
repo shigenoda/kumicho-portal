@@ -42,18 +42,28 @@ import {
 } from "../drizzle/schema";
 
 // 変更ログをDBに記録するヘルパー
-type ChangeAuthor = { id: number; name?: string | null; role?: string | null } | null | undefined;
-async function logChange(summary: string, entityType: string, entityId?: number, author?: ChangeAuthor) {
+type ChangeContext = {
+  user?: { id: number; name?: string | null; role?: string | null } | null;
+  req?: { ip?: string; socket?: { remoteAddress?: string }; headers?: Record<string, string | string[] | undefined> };
+};
+async function logChange(summary: string, entityType: string, entityId?: number, changeCtx?: ChangeContext) {
   const db = await getDb();
   if (!db) return;
+  const user = changeCtx?.user;
+  const req = changeCtx?.req;
+  const ip = req?.headers?.["x-forwarded-for"]?.toString().split(",")[0].trim()
+    ?? req?.ip
+    ?? req?.socket?.remoteAddress
+    ?? null;
   await db.insert(changelog).values({
     summary,
     date: new Date(),
     relatedEntityType: entityType,
     relatedEntityId: entityId ?? null,
-    authorId: author?.id ?? null,
-    authorRole: (author?.role as "member" | "editor" | "admin") ?? null,
-    editorName: author?.name ?? null,
+    authorId: user?.id ?? null,
+    authorRole: (user?.role as "member" | "editor" | "admin") ?? null,
+    editorName: user?.name ?? null,
+    ipAddress: ip,
   });
 }
 
@@ -705,7 +715,7 @@ export const appRouter = router({
           reason: `自動計算: 前回担当からの経過年数、入居開始日、住戸ID昇順で選定`,
         });
 
-        await logChange(`${input.year}年度ローテを自動計算`, "leaderSchedule", undefined, ctx.user);
+        await logChange(`${input.year}年度ローテを自動計算`, "leaderSchedule", undefined, ctx);
 
         return {
           success: true,
@@ -725,7 +735,7 @@ export const appRouter = router({
           .set({ status: input.status })
           .where(eq(leaderSchedule.id, input.scheduleId));
 
-        await logChange(`ローテステータスを「${input.status}」に変更`, "leaderSchedule", input.scheduleId, ctx.user);
+        await logChange(`ローテステータスを「${input.status}」に変更`, "leaderSchedule", input.scheduleId, ctx);
 
         return { success: true };
       }),
@@ -759,7 +769,7 @@ export const appRouter = router({
           reason: input.reason,
         });
 
-        await logChange(`ローテロジック v${nextVersion} を更新`, "leaderRotationLogic", undefined, ctx.user);
+        await logChange(`ローテロジック v${nextVersion} を更新`, "leaderRotationLogic", undefined, ctx);
 
         return { success: true, version: nextVersion };
       }),
@@ -850,7 +860,7 @@ export const appRouter = router({
 
         const sent = await sendEmail(payload);
         if (sent) {
-          await logChange(`${input.householdId}号室に登録完了メール送信`, "email", undefined, ctx.user);
+          await logChange(`${input.householdId}号室に登録完了メール送信`, "email", undefined, ctx);
         }
         return { success: sent, message: sent ? "送信しました" : "SMTP未設定のため送信できません" };
       }),
@@ -893,7 +903,7 @@ export const appRouter = router({
         }
 
         if (sentCount > 0) {
-          await logChange(`フォーム「${form[0].title}」の通知メールを${sentCount}件送信`, "email", undefined, ctx.user);
+          await logChange(`フォーム「${form[0].title}」の通知メールを${sentCount}件送信`, "email", undefined, ctx);
         }
         return { success: sentCount > 0, sent: sentCount, message: `${sentCount}/${emails.length}件送信` };
       }),
@@ -927,7 +937,7 @@ export const appRouter = router({
         }
 
         if (sentCount > 0) {
-          await logChange(`河川清掃リマインダーメールを${sentCount}件送信`, "email", undefined, ctx.user);
+          await logChange(`河川清掃リマインダーメールを${sentCount}件送信`, "email", undefined, ctx);
         }
         return { success: sentCount > 0, sent: sentCount, message: `${sentCount}/${emails.length}件送信` };
       }),
@@ -956,7 +966,7 @@ export const appRouter = router({
 
         const sent = await sendEmail(payload);
         if (sent) {
-          await logChange(`${input.householdId}号室に${input.year}年度組長確定メール送信`, "email", undefined, ctx.user);
+          await logChange(`${input.householdId}号室に${input.year}年度組長確定メール送信`, "email", undefined, ctx);
         }
         return { success: sent, message: sent ? "送信しました" : "SMTP未設定のため送信できません" };
       }),
@@ -986,7 +996,7 @@ export const appRouter = router({
         const sent = await sendEmail(payload);
         if (sent) {
           const result = input.approved ? "承認" : "却下";
-          await logChange(`${input.householdId}号室に免除申請${result}メール送信`, "email", undefined, ctx.user);
+          await logChange(`${input.householdId}号室に免除申請${result}メール送信`, "email", undefined, ctx);
         }
         return { success: sent, message: sent ? "送信しました" : "SMTP未設定のため送信できません" };
       }),
@@ -1042,7 +1052,7 @@ export const appRouter = router({
 
         await db.update(faq).set(updateData).where(eq(faq.id, input.id));
 
-        await logChange(`FAQ (ID: ${input.id}) を更新`, "faq", input.id, ctx.user);
+        await logChange(`FAQ (ID: ${input.id}) を更新`, "faq", input.id, ctx);
 
         return { success: true };
       }),
@@ -1055,7 +1065,7 @@ export const appRouter = router({
 
         await db.delete(faq).where(eq(faq.id, input.id));
 
-        await logChange(`FAQ (ID: ${input.id}) を削除`, "faq", input.id, ctx.user);
+        await logChange(`FAQ (ID: ${input.id}) を削除`, "faq", input.id, ctx);
 
         return { success: true };
       }),
@@ -1115,7 +1125,7 @@ export const appRouter = router({
           notes: input.notes || null,
           isChecked: false,
         }).returning();
-        await logChange(`引き継ぎ袋「${input.name}」を追加`, "handoverBagItems", item.id, ctx.user);
+        await logChange(`引き継ぎ袋「${input.name}」を追加`, "handoverBagItems", item.id, ctx);
         return item;
       }),
 
@@ -1138,7 +1148,7 @@ export const appRouter = router({
         if (input.notes !== undefined) updateData.notes = input.notes;
         if (input.isChecked !== undefined) updateData.isChecked = input.isChecked;
         await db.update(handoverBagItems).set(updateData).where(eq(handoverBagItems.id, input.id));
-        await logChange(`引き継ぎ袋アイテム (ID: ${input.id}) を更新`, "handoverBagItems", input.id, ctx.user);
+        await logChange(`引き継ぎ袋アイテム (ID: ${input.id}) を更新`, "handoverBagItems", input.id, ctx);
         return { success: true };
       }),
 
@@ -1148,7 +1158,7 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         await db.delete(handoverBagItems).where(eq(handoverBagItems.id, input.id));
-        await logChange(`引き継ぎ袋アイテム (ID: ${input.id}) を削除`, "handoverBagItems", input.id, ctx.user);
+        await logChange(`引き継ぎ袋アイテム (ID: ${input.id}) を削除`, "handoverBagItems", input.id, ctx);
         return { success: true };
       }),
 
@@ -1176,7 +1186,7 @@ export const appRouter = router({
           priority: input.priority,
           status: "pending",
         }).returning();
-        await logChange(`返信待ち「${input.title}」を追加`, "pendingQueue", item.id, ctx.user);
+        await logChange(`返信待ち「${input.title}」を追加`, "pendingQueue", item.id, ctx);
         return item;
       }),
 
@@ -1202,7 +1212,7 @@ export const appRouter = router({
           if (input.status === "resolved") updateData.resolvedAt = new Date();
         }
         await db.update(pendingQueue).set(updateData).where(eq(pendingQueue.id, input.id));
-        await logChange(`返信待ち (ID: ${input.id}) を更新`, "pendingQueue", input.id, ctx.user);
+        await logChange(`返信待ち (ID: ${input.id}) を更新`, "pendingQueue", input.id, ctx);
         return { success: true };
       }),
 
@@ -1212,7 +1222,7 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         await db.delete(pendingQueue).where(eq(pendingQueue.id, input.id));
-        await logChange(`返信待ち (ID: ${input.id}) を削除`, "pendingQueue", input.id, ctx.user);
+        await logChange(`返信待ち (ID: ${input.id}) を削除`, "pendingQueue", input.id, ctx);
         return { success: true };
       }),
 
@@ -1239,7 +1249,7 @@ export const appRouter = router({
           maskedValue: input.maskedValue,
           actualValue: input.actualValue,
         }).returning();
-        await logChange(`Vault「${input.key}」を追加`, "vaultEntries", entry.id, ctx.user);
+        await logChange(`Vault「${input.key}」を追加`, "vaultEntries", entry.id, ctx);
         return entry;
       }),
 
@@ -1260,7 +1270,7 @@ export const appRouter = router({
         if (input.maskedValue !== undefined) updateData.maskedValue = input.maskedValue;
         if (input.actualValue !== undefined) updateData.actualValue = input.actualValue;
         await db.update(vaultEntries).set(updateData).where(eq(vaultEntries.id, input.id));
-        await logChange(`Vault (ID: ${input.id}) を更新`, "vaultEntries", input.id, ctx.user);
+        await logChange(`Vault (ID: ${input.id}) を更新`, "vaultEntries", input.id, ctx);
         return { success: true };
       }),
 
@@ -1270,7 +1280,7 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         await db.delete(vaultEntries).where(eq(vaultEntries.id, input.id));
-        await logChange(`Vault (ID: ${input.id}) を削除`, "vaultEntries", input.id, ctx.user);
+        await logChange(`Vault (ID: ${input.id}) を削除`, "vaultEntries", input.id, ctx);
         return { success: true };
       }),
 
@@ -1293,7 +1303,7 @@ export const appRouter = router({
           title: input.title,
           body: input.body,
         }).returning();
-        await logChange(`秘匿メモ「${input.title}」を追加`, "secretNotes", note.id, ctx.user);
+        await logChange(`秘匿メモ「${input.title}」を追加`, "secretNotes", note.id, ctx);
         return note;
       }),
 
@@ -1306,7 +1316,7 @@ export const appRouter = router({
         if (input.title !== undefined) updateData.title = input.title;
         if (input.body !== undefined) updateData.body = input.body;
         await db.update(secretNotes).set(updateData).where(eq(secretNotes.id, input.id));
-        await logChange(`秘匿メモ (ID: ${input.id}) を更新`, "secretNotes", input.id, ctx.user);
+        await logChange(`秘匿メモ (ID: ${input.id}) を更新`, "secretNotes", input.id, ctx);
         return { success: true };
       }),
 
@@ -1316,7 +1326,7 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         await db.delete(secretNotes).where(eq(secretNotes.id, input.id));
-        await logChange(`秘匿メモ (ID: ${input.id}) を削除`, "secretNotes", input.id, ctx.user);
+        await logChange(`秘匿メモ (ID: ${input.id}) を削除`, "secretNotes", input.id, ctx);
         return { success: true };
       }),
 
@@ -1340,7 +1350,7 @@ export const appRouter = router({
           notes: input.notes || null,
           attachments: [],
         }).returning();
-        await logChange(`イベント「${input.title}」を追加`, "events", event.id, ctx.user);
+        await logChange(`イベント「${input.title}」を追加`, "events", event.id, ctx);
         return event;
       }),
 
@@ -1363,7 +1373,7 @@ export const appRouter = router({
         if (input.notes !== undefined) updateData.notes = input.notes;
         if (input.checklist !== undefined) updateData.checklist = input.checklist;
         await db.update(events).set(updateData).where(eq(events.id, input.id));
-        await logChange(`イベント (ID: ${input.id}) を更新`, "events", input.id, ctx.user);
+        await logChange(`イベント (ID: ${input.id}) を更新`, "events", input.id, ctx);
         return { success: true };
       }),
 
@@ -1373,7 +1383,7 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         await db.delete(events).where(eq(events.id, input.id));
-        await logChange(`イベント (ID: ${input.id}) を削除`, "events", input.id, ctx.user);
+        await logChange(`イベント (ID: ${input.id}) を削除`, "events", input.id, ctx);
         return { success: true };
       }),
 
@@ -1426,7 +1436,7 @@ export const appRouter = router({
           created.push(newEvent);
         }
 
-        await logChange(`${input.toYear}年度カレンダーを${input.fromYear}年度から生成（${created.length}件）`, "events", undefined, ctx.user);
+        await logChange(`${input.toYear}年度カレンダーを${input.fromYear}年度から生成（${created.length}件）`, "events", undefined, ctx);
         return { success: true, count: created.length };
       }),
 
@@ -1453,7 +1463,7 @@ export const appRouter = router({
           notes: input.notes || null,
           tags: input.tags,
         }).returning();
-        await logChange(`備品「${input.name}」を追加`, "inventory", item.id, ctx.user);
+        await logChange(`備品「${input.name}」を追加`, "inventory", item.id, ctx);
         return item;
       }),
 
@@ -1482,7 +1492,7 @@ export const appRouter = router({
         if (input.tags !== undefined) updateData.tags = input.tags;
         if (input.lastCheckedAt !== undefined) updateData.lastCheckedAt = new Date(input.lastCheckedAt);
         await db.update(inventory).set(updateData).where(eq(inventory.id, input.id));
-        await logChange(`備品 (ID: ${input.id}) を更新`, "inventory", input.id, ctx.user);
+        await logChange(`備品 (ID: ${input.id}) を更新`, "inventory", input.id, ctx);
         return { success: true };
       }),
 
@@ -1492,7 +1502,7 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         await db.delete(inventory).where(eq(inventory.id, input.id));
-        await logChange(`備品 (ID: ${input.id}) を削除`, "inventory", input.id, ctx.user);
+        await logChange(`備品 (ID: ${input.id}) を削除`, "inventory", input.id, ctx);
         return { success: true };
       }),
 
@@ -1513,7 +1523,7 @@ export const appRouter = router({
           relatedRuleIds: input.relatedRuleIds,
           relatedPostIds: input.relatedPostIds,
         }).returning();
-        await logChange(`FAQ「${input.question}」を追加`, "faq", item.id, ctx.user);
+        await logChange(`FAQ「${input.question}」を追加`, "faq", item.id, ctx);
         return item;
       }),
 
@@ -1534,7 +1544,7 @@ export const appRouter = router({
           category: input.category,
           tags: input.tags,
         }).returning();
-        await logChange(`テンプレート「${input.title}」を追加`, "templates", item.id, ctx.user);
+        await logChange(`テンプレート「${input.title}」を追加`, "templates", item.id, ctx);
         return item;
       }),
 
@@ -1555,7 +1565,7 @@ export const appRouter = router({
         if (input.category !== undefined) updateData.category = input.category;
         if (input.tags !== undefined) updateData.tags = input.tags;
         await db.update(templates).set(updateData).where(eq(templates.id, input.id));
-        await logChange(`テンプレート (ID: ${input.id}) を更新`, "templates", input.id, ctx.user);
+        await logChange(`テンプレート (ID: ${input.id}) を更新`, "templates", input.id, ctx);
         return { success: true };
       }),
 
@@ -1565,7 +1575,7 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         await db.delete(templates).where(eq(templates.id, input.id));
-        await logChange(`テンプレート (ID: ${input.id}) を削除`, "templates", input.id, ctx.user);
+        await logChange(`テンプレート (ID: ${input.id}) を削除`, "templates", input.id, ctx);
         return { success: true };
       }),
 
@@ -1590,7 +1600,7 @@ export const appRouter = router({
           evidenceLinks: input.evidenceLinks,
           isHypothesis: input.isHypothesis,
         }).returning();
-        await logChange(`ルール「${input.title}」を追加`, "rules", rule.id, ctx.user);
+        await logChange(`ルール「${input.title}」を追加`, "rules", rule.id, ctx);
         return rule;
       }),
 
@@ -1615,7 +1625,7 @@ export const appRouter = router({
         if (input.evidenceLinks !== undefined) updateData.evidenceLinks = input.evidenceLinks;
         if (input.isHypothesis !== undefined) updateData.isHypothesis = input.isHypothesis;
         await db.update(rules).set(updateData).where(eq(rules.id, input.id));
-        await logChange(`ルール (ID: ${input.id}) を更新`, "rules", input.id, ctx.user);
+        await logChange(`ルール (ID: ${input.id}) を更新`, "rules", input.id, ctx);
         return { success: true };
       }),
 
@@ -1625,7 +1635,7 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         await db.delete(rules).where(eq(rules.id, input.id));
-        await logChange(`ルール (ID: ${input.id}) を削除`, "rules", input.id, ctx.user);
+        await logChange(`ルール (ID: ${input.id}) を削除`, "rules", input.id, ctx);
         return { success: true };
       }),
 
@@ -1657,7 +1667,7 @@ export const appRouter = router({
 
         // Get the numeric ID for the changelog
         const household = await db.select().from(households).where(eq(households.householdId, input.householdId)).limit(1);
-        await logChange(`住戸 ${input.householdId} の情報を更新`, "households", household[0]?.id, ctx.user);
+        await logChange(`住戸 ${input.householdId} の情報を更新`, "households", household[0]?.id, ctx);
 
         return { success: true };
       }),
@@ -1738,7 +1748,7 @@ export const appRouter = router({
           });
         }
 
-        await logChange(`${input.year}年度ローテを再計算`, "leaderSchedule", undefined, ctx.user);
+        await logChange(`${input.year}年度ローテを再計算`, "leaderSchedule", undefined, ctx);
 
         return { success: true, candidateCount: candidates.length };
       }),
@@ -1854,7 +1864,7 @@ export const appRouter = router({
           status: input.status,
           approvedAt: input.status === "approved" ? new Date() : null,
         }).returning();
-        await logChange(`${input.householdId}号室の${input.year}年度免除申請を登録`, "exemptionRequests", entry.id, ctx.user);
+        await logChange(`${input.householdId}号室の${input.year}年度免除申請を登録`, "exemptionRequests", entry.id, ctx);
         return entry;
       }),
 
@@ -1874,7 +1884,7 @@ export const appRouter = router({
           if (input.status === "approved") updateData.approvedAt = new Date();
         }
         await db.update(exemptionRequests).set(updateData).where(eq(exemptionRequests.id, input.id));
-        await logChange(`免除申請 (ID: ${input.id}) を更新`, "exemptionRequests", input.id, ctx.user);
+        await logChange(`免除申請 (ID: ${input.id}) を更新`, "exemptionRequests", input.id, ctx);
         return { success: true };
       }),
 
@@ -1884,7 +1894,7 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         await db.delete(exemptionRequests).where(eq(exemptionRequests.id, input.id));
-        await logChange(`免除申請 (ID: ${input.id}) を削除`, "exemptionRequests", input.id, ctx.user);
+        await logChange(`免除申請 (ID: ${input.id}) を削除`, "exemptionRequests", input.id, ctx);
         return { success: true };
       }),
 
@@ -1910,7 +1920,7 @@ export const appRouter = router({
             status: "pending",
           });
         }
-        await logChange(`${input.fromYear}→${input.toYear}年度に免除${source.length}件をコピー`, "exemptionRequests", undefined, ctx.user);
+        await logChange(`${input.fromYear}→${input.toYear}年度に免除${source.length}件をコピー`, "exemptionRequests", undefined, ctx);
         return { success: true, count: source.length };
       }),
 
@@ -1936,13 +1946,13 @@ export const appRouter = router({
           await db.update(residentEmails)
             .set({ email: input.email, updatedAt: new Date() })
             .where(eq(residentEmails.id, existing[0].id));
-          await logChange(`住戸${input.householdId}のメールを更新`, "residentEmails", existing[0].id, ctx.user);
+          await logChange(`住戸${input.householdId}のメールを更新`, "residentEmails", existing[0].id, ctx);
         } else {
           const [entry] = await db.insert(residentEmails).values({
             householdId: input.householdId,
             email: input.email,
           }).returning();
-          await logChange(`住戸${input.householdId}のメールを登録`, "residentEmails", entry.id, ctx.user);
+          await logChange(`住戸${input.householdId}のメールを登録`, "residentEmails", entry.id, ctx);
         }
         // 登録完了メールを非同期送信（失敗してもエラーにしない）
         const portalUrl = process.env.VERCEL_URL
@@ -1960,7 +1970,7 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         await db.delete(residentEmails).where(eq(residentEmails.id, input.id));
-        await logChange(`住民メール (ID: ${input.id}) を削除`, "residentEmails", input.id, ctx.user);
+        await logChange(`住民メール (ID: ${input.id}) を削除`, "residentEmails", input.id, ctx);
         return { success: true };
       }),
 
@@ -1991,7 +2001,7 @@ export const appRouter = router({
           attachments: [],
           linkedInventoryIds: [],
         }).returning();
-        await logChange(`河川清掃記録を追加 (${input.date})`, "riverCleaningRuns", run.id, ctx.user);
+        await logChange(`河川清掃記録を追加 (${input.date})`, "riverCleaningRuns", run.id, ctx);
         return run;
       }),
 
@@ -2014,7 +2024,7 @@ export const appRouter = router({
         if (input.whatWorked !== undefined) updateData.whatWorked = input.whatWorked;
         if (input.whatToImprove !== undefined) updateData.whatToImprove = input.whatToImprove;
         await db.update(riverCleaningRuns).set(updateData).where(eq(riverCleaningRuns.id, input.id));
-        await logChange(`河川清掃記録 (ID: ${input.id}) を更新`, "riverCleaningRuns", input.id, ctx.user);
+        await logChange(`河川清掃記録 (ID: ${input.id}) を更新`, "riverCleaningRuns", input.id, ctx);
         return { success: true };
       }),
 
@@ -2024,7 +2034,7 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         await db.delete(riverCleaningRuns).where(eq(riverCleaningRuns.id, input.id));
-        await logChange(`河川清掃記録 (ID: ${input.id}) を削除`, "riverCleaningRuns", input.id, ctx.user);
+        await logChange(`河川清掃記録 (ID: ${input.id}) を削除`, "riverCleaningRuns", input.id, ctx);
         return { success: true };
       }),
 
@@ -2137,7 +2147,7 @@ export const appRouter = router({
             }
           }
 
-          await logChange(`フォーム「${formData[0]?.title}」に回答`, "formResponses", responseId, ctx.user);
+          await logChange(`フォーム「${formData[0]?.title}」に回答`, "formResponses", responseId, ctx);
 
           return { success: true, responseId };
         } catch (error) {
@@ -2200,7 +2210,7 @@ export const appRouter = router({
             }
           }
 
-          await logChange(`フォーム「${input.title}」を作成`, "forms", formId, ctx.user);
+          await logChange(`フォーム「${input.title}」を作成`, "forms", formId, ctx);
 
           return { success: true, formId };
         } catch (error) {
@@ -2322,7 +2332,7 @@ export const appRouter = router({
 
           await db.update(forms).set(updateData).where(eq(forms.id, input.formId));
 
-          await logChange(`フォーム (ID: ${input.formId}) を更新`, "forms", input.formId, ctx.user);
+          await logChange(`フォーム (ID: ${input.formId}) を更新`, "forms", input.formId, ctx);
 
           return { success: true };
         } catch (error) {
@@ -2364,7 +2374,7 @@ export const appRouter = router({
 
           await db.delete(forms).where(eq(forms.id, input.formId));
 
-          await logChange(`フォーム (ID: ${input.formId}) を削除`, "forms", input.formId, ctx.user);
+          await logChange(`フォーム (ID: ${input.formId}) を削除`, "forms", input.formId, ctx);
 
           return { success: true };
         } catch (error) {
@@ -2425,7 +2435,7 @@ export const appRouter = router({
             `ページコンテンツ「${input.title}」を更新 (${input.pageKey}/${input.sectionKey})`,
             "pageContent",
             existing[0].id,
-            ctx.user
+            ctx
           );
           return { success: true, id: existing[0].id };
         } else {
@@ -2445,7 +2455,7 @@ export const appRouter = router({
             `ページコンテンツ「${input.title}」を作成 (${input.pageKey}/${input.sectionKey})`,
             "pageContent",
             row.id,
-            ctx.user
+            ctx
           );
           return { success: true, id: row.id };
         }
@@ -2476,7 +2486,7 @@ export const appRouter = router({
           `ページコンテンツ (ID: ${input.id}) を更新`,
           "pageContent",
           input.id,
-          ctx.user
+          ctx
         );
         return { success: true };
       }),
@@ -2491,7 +2501,7 @@ export const appRouter = router({
           `ページコンテンツ (ID: ${input.id}) を削除`,
           "pageContent",
           input.id,
-          ctx.user
+          ctx
         );
         return { success: true };
       }),
@@ -2540,7 +2550,7 @@ export const appRouter = router({
           `ページコンテンツ「${input.pageKey}」を初期化 (${input.sections.length}セクション)`,
           "pageContent",
           undefined,
-          ctx.user
+          ctx
         );
         return { success: true, skipped: false };
       }),
@@ -2576,7 +2586,7 @@ export const appRouter = router({
           publishedAt: new Date(),
         });
 
-        await logChange(`投稿「${input.title}」を作成`, "posts", undefined, ctx.user);
+        await logChange(`投稿「${input.title}」を作成`, "posts", undefined, ctx);
 
         return { success: true };
       }),
@@ -2602,7 +2612,7 @@ export const appRouter = router({
         if (input.isHypothesis !== undefined) updateData.isHypothesis = input.isHypothesis;
         if (input.relatedLinks !== undefined) updateData.relatedLinks = input.relatedLinks;
         await db.update(posts).set(updateData).where(eq(posts.id, input.id));
-        await logChange(`投稿 (ID: ${input.id}) を更新`, "posts", input.id, ctx.user);
+        await logChange(`投稿 (ID: ${input.id}) を更新`, "posts", input.id, ctx);
         return { success: true };
       }),
 
@@ -2612,7 +2622,7 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         await db.delete(posts).where(eq(posts.id, input.id));
-        await logChange(`投稿 (ID: ${input.id}) を削除`, "posts", input.id, ctx.user);
+        await logChange(`投稿 (ID: ${input.id}) を削除`, "posts", input.id, ctx);
         return { success: true };
       }),
   }),
@@ -2658,7 +2668,7 @@ export const appRouter = router({
         }
       }
 
-      await logChange(`リマインダーメール送信: ${upcomingForms.length}件`, "reminder", undefined, ctx.user);
+      await logChange(`リマインダーメール送信: ${upcomingForms.length}件`, "reminder", undefined, ctx);
       return { success: true, formsProcessed: upcomingForms.length };
     }),
   }),

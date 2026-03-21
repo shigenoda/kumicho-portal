@@ -266,6 +266,7 @@ export const changelog = pgTable("changelog", {
   authorId: integer("authorId"),
   authorRole: authorRoleEnum("authorRole"),
   editorName: varchar("editorName", { length: 100 }),
+  ipAddress: varchar("ipAddress", { length: 45 }),
   relatedEntityType: varchar("relatedEntityType", { length: 100 }).notNull(),
   relatedEntityId: integer("relatedEntityId"),
 });
