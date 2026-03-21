@@ -108,6 +108,14 @@ export default function Changelog() {
                         {change.summary}
                       </p>
                     </div>
+                    {(change.editorName || change.authorRole) && (
+                      <p className="mt-1 text-xs text-gray-400 font-light">
+                        by {change.editorName ?? `${change.authorRole ?? "unknown"}`}
+                        {change.editorName && change.authorRole && (
+                          <span className="ml-1.5 text-gray-300">({change.authorRole})</span>
+                        )}
+                      </p>
+                    )}
                   </div>
                 </div>
               ))}

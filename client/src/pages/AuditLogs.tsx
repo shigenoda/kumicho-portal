@@ -177,9 +177,12 @@ export default function AuditLogs() {
                         <p className="text-sm font-light text-gray-900 leading-relaxed">
                           {entry.summary}
                         </p>
-                        {entry.editorName && (
+                        {(entry.editorName || entry.authorRole) && (
                           <p className="text-xs font-light text-gray-400 mt-1">
-                            by {entry.editorName}
+                            by {entry.editorName ?? `${entry.authorRole ?? "unknown"}`}
+                            {entry.editorName && entry.authorRole && (
+                              <span className="ml-1.5 text-gray-300">({entry.authorRole})</span>
+                            )}
                           </p>
                         )}
                       </div>
