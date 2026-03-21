@@ -16,6 +16,7 @@ import {
   ClipboardList,
   Footprints,
   Info,
+  Mail,
 } from "lucide-react";
 import {
   Dialog,
@@ -68,6 +69,9 @@ export default function RiverCleaning() {
       utils.data.getRiverCleaningRuns.invalidate();
     },
   });
+
+  const sendReminder = trpc.email.sendRiverCleaningReminder.useMutation();
+  const [reminderFeedback, setReminderFeedback] = useState<{ runId: number; message: string; type: "success" | "error" } | null>(null);
 
   // ── Add dialog state ──
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -379,6 +383,24 @@ export default function RiverCleaning() {
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <button
+                        onClick={async () => {
+                          const dateStr = new Date(run.date).toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric" });
+                          if (!confirm(`${dateStr}の河川清掃リマインダーメールを全住戸に送信しますか？`)) return;
+                          setReminderFeedback(null);
+                          try {
+                            const result = await sendReminder.mutateAsync({ date: dateStr });
+                            setReminderFeedback({ runId: run.id, message: result.message, type: result.success ? "success" : "error" });
+                          } catch {
+                            setReminderFeedback({ runId: run.id, message: "送信に失敗しました", type: "error" });
+                          }
+                        }}
+                        disabled={sendReminder.isPending}
+                        className="p-1.5 text-gray-300 hover:text-blue-600 transition-colors rounded hover:bg-blue-50 disabled:opacity-50"
+                        title="リマインダーメール送信"
+                      >
+                        <Mail className="w-3.5 h-3.5" />
+                      </button>
+                      <button
                         onClick={() => openEditDialog(run)}
                         className="p-1.5 text-gray-300 hover:text-gray-600 transition-colors rounded hover:bg-gray-50"
                         title="編集"
@@ -402,6 +424,12 @@ export default function RiverCleaning() {
                       <span className="text-sm font-light text-gray-500">
                         参加者 {run.participantsCount}名
                       </span>
+                    </div>
+                  )}
+
+                  {reminderFeedback && reminderFeedback.runId === run.id && (
+                    <div className={`mb-3 text-xs px-3 py-2 rounded ${reminderFeedback.type === "success" ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+                      {reminderFeedback.message}
                     </div>
                   )}
 

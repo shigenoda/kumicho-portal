@@ -1,9 +1,17 @@
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { notifyOwner } from "./_core/notification";
+import {
+  sendEmail,
+  registrationEmail,
+  formNotificationEmail,
+  riverCleaningReminderEmail,
+  leaderConfirmationEmail,
+  exemptionResultEmail,
+} from "./_core/email";
 import { z } from "zod";
 import { getDb } from "./db";
-import { eq, like, or, and, desc, asc, lte, gte, lt } from "drizzle-orm";
+import { eq, like, ilike, or, and, desc, asc, lte, gte, lt } from "drizzle-orm";
 import {
   posts,
   events,
@@ -759,7 +767,7 @@ export const appRouter = router({
       .input(z.object({ query: z.string().min(1) }))
       .query(async ({ input }) => {
         const db = await getDb();
-        if (!db) return [];
+        if (!db) return { posts: [], inventory: [], rules: [], faq: [], templates: [], events: [] };
 
         const searchTerm = `%${input.query}%`;
 
@@ -768,27 +776,32 @@ export const appRouter = router({
             db
               .select()
               .from(posts)
-              .where(or(like(posts.title, searchTerm), like(posts.body, searchTerm)))
+              .where(or(ilike(posts.title, searchTerm), ilike(posts.body, searchTerm)))
               .limit(5),
             db
               .select()
               .from(inventory)
-              .where(or(like(inventory.name, searchTerm), like(inventory.notes, searchTerm)))
+              .where(or(ilike(inventory.name, searchTerm), ilike(inventory.notes, searchTerm)))
               .limit(5),
             db
               .select()
               .from(rules)
-              .where(or(like(rules.title, searchTerm), like(rules.details, searchTerm)))
+              .where(or(ilike(rules.title, searchTerm), ilike(rules.details, searchTerm)))
               .limit(5),
             db
               .select()
               .from(faq)
-              .where(or(like(faq.question, searchTerm), like(faq.answer, searchTerm)))
+              .where(or(ilike(faq.question, searchTerm), ilike(faq.answer, searchTerm)))
               .limit(5),
             db
               .select()
               .from(templates)
-              .where(or(like(templates.title, searchTerm), like(templates.body, searchTerm)))
+              .where(or(ilike(templates.title, searchTerm), ilike(templates.body, searchTerm)))
+              .limit(5),
+            db
+              .select()
+              .from(events)
+              .where(or(ilike(events.title, searchTerm), ilike(events.notes, searchTerm)))
               .limit(5),
           ]);
 
@@ -798,11 +811,180 @@ export const appRouter = router({
             rules: results[2],
             faq: results[3],
             templates: results[4],
+            events: results[5],
           };
         } catch (error) {
           console.error("Search error:", error);
-          return [];
+          return { posts: [], inventory: [], rules: [], faq: [], templates: [], events: [] };
         }
+      }),
+  }),
+
+  // メール送信 API
+  email: router({
+    // 登録完了メール送信
+    sendRegistration: publicProcedure
+      .input(z.object({ householdId: z.string() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return { success: false, message: "DB接続エラー" };
+
+        const emailRecord = await db
+          .select()
+          .from(residentEmails)
+          .where(eq(residentEmails.householdId, input.householdId))
+          .limit(1);
+        if (!emailRecord[0]) {
+          return { success: false, message: "メールアドレスが登録されていません" };
+        }
+
+        const portalUrl = process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : "http://localhost:3000";
+        const payload = registrationEmail(input.householdId, portalUrl);
+        payload.to = emailRecord[0].email;
+
+        const sent = await sendEmail(payload);
+        if (sent) {
+          await logChange(`${input.householdId}号室に登録完了メール送信`, "email");
+        }
+        return { success: sent, message: sent ? "送信しました" : "SMTP未設定のため送信できません" };
+      }),
+
+    // フォーム通知メール一斉送信
+    sendFormNotification: publicProcedure
+      .input(z.object({ formId: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return { success: false, sent: 0, message: "DB接続エラー" };
+
+        const form = await db.select().from(forms).where(eq(forms.id, input.formId)).limit(1);
+        if (!form[0]) {
+          return { success: false, sent: 0, message: "フォームが見つかりません" };
+        }
+
+        const emails = await db.select().from(residentEmails);
+        if (emails.length === 0) {
+          return { success: false, sent: 0, message: "登録済みメールアドレスがありません" };
+        }
+
+        const portalUrl = process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : "http://localhost:3000";
+        const dueDate = form[0].dueDate
+          ? new Date(form[0].dueDate).toLocaleDateString("ja-JP")
+          : null;
+
+        let sentCount = 0;
+        for (const emailRecord of emails) {
+          const payload = formNotificationEmail(
+            emailRecord.householdId,
+            form[0].title,
+            dueDate,
+            `${portalUrl}/form-response/${form[0].id}`
+          );
+          payload.to = emailRecord.email;
+          const sent = await sendEmail(payload);
+          if (sent) sentCount++;
+        }
+
+        if (sentCount > 0) {
+          await logChange(`フォーム「${form[0].title}」の通知メールを${sentCount}件送信`, "email");
+        }
+        return { success: sentCount > 0, sent: sentCount, message: `${sentCount}/${emails.length}件送信` };
+      }),
+
+    // 河川清掃リマインダーメール一斉送信
+    sendRiverCleaningReminder: publicProcedure
+      .input(z.object({ date: z.string() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return { success: false, sent: 0, message: "DB接続エラー" };
+
+        const emails = await db.select().from(residentEmails);
+        if (emails.length === 0) {
+          return { success: false, sent: 0, message: "登録済みメールアドレスがありません" };
+        }
+
+        const portalUrl = process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : "http://localhost:3000";
+
+        let sentCount = 0;
+        for (const emailRecord of emails) {
+          const payload = riverCleaningReminderEmail(
+            emailRecord.householdId,
+            input.date,
+            `${portalUrl}/river-cleaning`
+          );
+          payload.to = emailRecord.email;
+          const sent = await sendEmail(payload);
+          if (sent) sentCount++;
+        }
+
+        if (sentCount > 0) {
+          await logChange(`河川清掃リマインダーメールを${sentCount}件送信`, "email");
+        }
+        return { success: sentCount > 0, sent: sentCount, message: `${sentCount}/${emails.length}件送信` };
+      }),
+
+    // 組長確定メール送信
+    sendLeaderConfirmation: publicProcedure
+      .input(z.object({ householdId: z.string(), year: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return { success: false, message: "DB接続エラー" };
+
+        const emailRecord = await db
+          .select()
+          .from(residentEmails)
+          .where(eq(residentEmails.householdId, input.householdId))
+          .limit(1);
+        if (!emailRecord[0]) {
+          return { success: false, message: "メールアドレスが登録されていません" };
+        }
+
+        const portalUrl = process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : "http://localhost:3000";
+        const payload = leaderConfirmationEmail(input.householdId, input.year, portalUrl);
+        payload.to = emailRecord[0].email;
+
+        const sent = await sendEmail(payload);
+        if (sent) {
+          await logChange(`${input.householdId}号室に${input.year}年度組長確定メール送信`, "email");
+        }
+        return { success: sent, message: sent ? "送信しました" : "SMTP未設定のため送信できません" };
+      }),
+
+    // 免除申請結果メール送信
+    sendExemptionResult: publicProcedure
+      .input(z.object({ householdId: z.string(), year: z.number(), approved: z.boolean() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return { success: false, message: "DB接続エラー" };
+
+        const emailRecord = await db
+          .select()
+          .from(residentEmails)
+          .where(eq(residentEmails.householdId, input.householdId))
+          .limit(1);
+        if (!emailRecord[0]) {
+          return { success: false, message: "メールアドレスが登録されていません" };
+        }
+
+        const portalUrl = process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : "http://localhost:3000";
+        const payload = exemptionResultEmail(input.householdId, input.year, input.approved, portalUrl);
+        payload.to = emailRecord[0].email;
+
+        const sent = await sendEmail(payload);
+        if (sent) {
+          const result = input.approved ? "承認" : "却下";
+          await logChange(`${input.householdId}号室に免除申請${result}メール送信`, "email");
+        }
+        return { success: sent, message: sent ? "送信しました" : "SMTP未設定のため送信できません" };
       }),
   }),
 
@@ -1745,7 +1927,8 @@ export const appRouter = router({
         // Check if email exists for this household
         const existing = await db.select().from(residentEmails)
           .where(eq(residentEmails.householdId, input.householdId)).limit(1);
-        if (existing.length > 0) {
+        const isNew = existing.length === 0;
+        if (!isNew) {
           await db.update(residentEmails)
             .set({ email: input.email, updatedAt: new Date() })
             .where(eq(residentEmails.id, existing[0].id));
@@ -1757,6 +1940,13 @@ export const appRouter = router({
           }).returning();
           await logChange(`住戸${input.householdId}のメールを登録`, "residentEmails", entry.id);
         }
+        // 登録完了メールを非同期送信（失敗してもエラーにしない）
+        const portalUrl = process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : "http://localhost:3000";
+        const emailPayload = registrationEmail(input.householdId, portalUrl);
+        emailPayload.to = input.email;
+        sendEmail(emailPayload).catch(() => {});
         return { success: true };
       }),
 

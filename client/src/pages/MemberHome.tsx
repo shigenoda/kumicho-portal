@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Settings, X, ArrowRight, BarChart3, CheckCircle, AlertCircle } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
+import { Search, Settings, X, ArrowRight, BarChart3, CheckCircle, AlertCircle, FileText, Package, BookOpen, HelpCircle, FileCheck, CalendarDays, Mail } from "lucide-react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { FormStatsModal } from "@/pages/FormStats";
@@ -14,6 +14,9 @@ import { QRCodeSVG } from "qrcode.react";
  */
 export default function MemberHome() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
   const [, setLocation] = useLocation();
   const [showSettings, setShowSettings] = useState(false);
   const [newEmails, setNewEmails] = useState<{ [key: number]: string }>({});
@@ -33,6 +36,54 @@ export default function MemberHome() {
       setAnsweredFormIds(stored);
     } catch {}
   }, []);
+
+  // 検索デバウンス
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // 検索結果の表示/非表示
+  useEffect(() => {
+    setShowSearchResults(debouncedQuery.length > 0);
+  }, [debouncedQuery]);
+
+  // 検索窓の外をクリックしたら閉じる
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowSearchResults(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // 検索API
+  const { data: searchResults, isLoading: isSearching } = trpc.search.global.useQuery(
+    { query: debouncedQuery },
+    { enabled: debouncedQuery.length > 0 }
+  );
+
+  const totalResults = useMemo(() => {
+    if (!searchResults || Array.isArray(searchResults)) return 0;
+    return (
+      (searchResults.posts?.length || 0) +
+      (searchResults.inventory?.length || 0) +
+      (searchResults.rules?.length || 0) +
+      (searchResults.faq?.length || 0) +
+      (searchResults.templates?.length || 0) +
+      (searchResults.events?.length || 0)
+    );
+  }, [searchResults]);
+
+  const navigateAndCloseSearch = (path: string) => {
+    setShowSearchResults(false);
+    setSearchQuery("");
+    setLocation(path);
+  };
 
   // 現在の年度を自動判定（4月が新年度）
   const currentYear = useMemo(() => {
@@ -102,6 +153,7 @@ export default function MemberHome() {
 
   const upsertEmailMutation = trpc.data.upsertResidentEmail.useMutation();
   const deleteEmailMutation = trpc.data.deleteResidentEmail.useMutation();
+  const sendRegistrationEmail = trpc.email.sendRegistration.useMutation();
 
   const handleSaveEmails = async () => {
     setEmailFeedback(null);
@@ -113,6 +165,17 @@ export default function MemberHome() {
         setIsSavingEmails(false);
         return;
       }
+
+      // バリデーション
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const invalidEntries = entries.filter(([, email]) => email.trim() !== "" && !emailRegex.test(email.trim()));
+      if (invalidEntries.length > 0) {
+        setEmailFeedback({ type: "error", message: "無効なメールアドレスがあります。修正してください。" });
+        setIsSavingEmails(false);
+        return;
+      }
+
+      let savedCount = 0;
       for (const [householdDbId, email] of entries) {
         const household = households.find((h: any) => h.id === Number(householdDbId));
         if (!household) continue;
@@ -121,10 +184,11 @@ export default function MemberHome() {
           householdId: household.householdId,
           email: email.trim(),
         });
+        savedCount++;
       }
       await utils.data.getResidentEmails.invalidate();
       setNewEmails({});
-      setEmailFeedback({ type: "success", message: "メールアドレスを保存しました。" });
+      setEmailFeedback({ type: "success", message: `${savedCount}件のメールアドレスを保存しました。` });
     } catch (err: any) {
       setEmailFeedback({ type: "error", message: "保存に失敗しました: " + (err.message || "不明なエラー") });
     } finally {
@@ -209,7 +273,7 @@ export default function MemberHome() {
       <header className="fixed top-0 left-0 right-0 bg-cover bg-center border-b border-gray-200 z-50" style={{ backgroundImage: "url('/greenpia-yaizu.jpg')" }}>
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/50" />
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between relative">
-          <div className="flex-1">
+          <div className="flex-1" ref={searchRef}>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white" />
               <Input
@@ -217,8 +281,168 @@ export default function MemberHome() {
                 placeholder="検索（河川、備品、会費など）"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => debouncedQuery.length > 0 && setShowSearchResults(true)}
                 className="w-full max-w-md bg-white/20 border-white/30 text-white placeholder:text-white/50 pl-10"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => { setSearchQuery(""); setShowSearchResults(false); }}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+
+              {/* 検索結果ドロップダウン */}
+              {showSearchResults && (
+                <div className="absolute top-full left-0 mt-2 w-full max-w-md bg-white rounded-lg shadow-xl border border-gray-200 max-h-[70vh] overflow-y-auto z-50">
+                  {isSearching ? (
+                    <div className="p-6 text-center text-gray-400 text-sm">検索中...</div>
+                  ) : totalResults === 0 ? (
+                    <div className="p-6 text-center text-gray-400 text-sm">
+                      「{debouncedQuery}」に一致する結果はありません
+                    </div>
+                  ) : (
+                    <div className="py-2">
+                      <div className="px-4 py-2 text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        {totalResults}件の結果
+                      </div>
+
+                      {/* 年度ログ（posts） */}
+                      {searchResults && !Array.isArray(searchResults) && searchResults.posts?.length > 0 && (
+                        <div>
+                          <div className="px-4 py-2 text-xs font-semibold text-gray-500 bg-gray-50 flex items-center gap-2">
+                            <FileText className="w-3.5 h-3.5" />
+                            年度ログ
+                          </div>
+                          {searchResults.posts.map((item: any) => (
+                            <button
+                              key={`post-${item.id}`}
+                              onClick={() => navigateAndCloseSearch("/year-log")}
+                              className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0"
+                            >
+                              <div className="text-sm font-medium text-gray-900 truncate">{item.title}</div>
+                              {item.body && (
+                                <div className="text-xs text-gray-500 mt-1 line-clamp-1">{item.body}</div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* イベント */}
+                      {searchResults && !Array.isArray(searchResults) && searchResults.events?.length > 0 && (
+                        <div>
+                          <div className="px-4 py-2 text-xs font-semibold text-gray-500 bg-gray-50 flex items-center gap-2">
+                            <CalendarDays className="w-3.5 h-3.5" />
+                            カレンダー
+                          </div>
+                          {searchResults.events.map((item: any) => (
+                            <button
+                              key={`event-${item.id}`}
+                              onClick={() => navigateAndCloseSearch("/calendar")}
+                              className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0"
+                            >
+                              <div className="text-sm font-medium text-gray-900 truncate">{item.title}</div>
+                              {item.date && (
+                                <div className="text-xs text-gray-500 mt-1">{new Date(item.date).toLocaleDateString("ja-JP")}</div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* 備品 */}
+                      {searchResults && !Array.isArray(searchResults) && searchResults.inventory?.length > 0 && (
+                        <div>
+                          <div className="px-4 py-2 text-xs font-semibold text-gray-500 bg-gray-50 flex items-center gap-2">
+                            <Package className="w-3.5 h-3.5" />
+                            備品台帳
+                          </div>
+                          {searchResults.inventory.map((item: any) => (
+                            <button
+                              key={`inv-${item.id}`}
+                              onClick={() => navigateAndCloseSearch("/inventory")}
+                              className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0"
+                            >
+                              <div className="text-sm font-medium text-gray-900 truncate">{item.name}</div>
+                              {item.notes && (
+                                <div className="text-xs text-gray-500 mt-1 line-clamp-1">{item.notes}</div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* ルール */}
+                      {searchResults && !Array.isArray(searchResults) && searchResults.rules?.length > 0 && (
+                        <div>
+                          <div className="px-4 py-2 text-xs font-semibold text-gray-500 bg-gray-50 flex items-center gap-2">
+                            <BookOpen className="w-3.5 h-3.5" />
+                            ルール・決定事項
+                          </div>
+                          {searchResults.rules.map((item: any) => (
+                            <button
+                              key={`rule-${item.id}`}
+                              onClick={() => navigateAndCloseSearch("/rules")}
+                              className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0"
+                            >
+                              <div className="text-sm font-medium text-gray-900 truncate">{item.title}</div>
+                              {item.details && (
+                                <div className="text-xs text-gray-500 mt-1 line-clamp-1">{item.details}</div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* FAQ */}
+                      {searchResults && !Array.isArray(searchResults) && searchResults.faq?.length > 0 && (
+                        <div>
+                          <div className="px-4 py-2 text-xs font-semibold text-gray-500 bg-gray-50 flex items-center gap-2">
+                            <HelpCircle className="w-3.5 h-3.5" />
+                            FAQ
+                          </div>
+                          {searchResults.faq.map((item: any) => (
+                            <button
+                              key={`faq-${item.id}`}
+                              onClick={() => navigateAndCloseSearch("/faq")}
+                              className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0"
+                            >
+                              <div className="text-sm font-medium text-gray-900 truncate">{item.question}</div>
+                              {item.answer && (
+                                <div className="text-xs text-gray-500 mt-1 line-clamp-1">{item.answer}</div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* テンプレ */}
+                      {searchResults && !Array.isArray(searchResults) && searchResults.templates?.length > 0 && (
+                        <div>
+                          <div className="px-4 py-2 text-xs font-semibold text-gray-500 bg-gray-50 flex items-center gap-2">
+                            <FileCheck className="w-3.5 h-3.5" />
+                            テンプレ
+                          </div>
+                          {searchResults.templates.map((item: any) => (
+                            <button
+                              key={`tpl-${item.id}`}
+                              onClick={() => navigateAndCloseSearch("/templates")}
+                              className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0"
+                            >
+                              <div className="text-sm font-medium text-gray-900 truncate">{item.title}</div>
+                              {item.body && (
+                                <div className="text-xs text-gray-500 mt-1 line-clamp-1">{item.body}</div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-4 ml-6">
@@ -746,45 +970,108 @@ export default function MemberHome() {
 
               {/* 住民メールアドレス登録セクション */}
               <section>
-                <h3 className="text-lg font-semibold text-gray-900 mb-6">住民メールアドレス登録</h3>
-                <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">住民メールアドレス登録</h3>
+                <p className="text-sm text-gray-500 font-light mb-4">
+                  各住戸のメールアドレスを登録すると、通知メールが届くようになります。
+                </p>
+
+                {/* 登録状況サマリー */}
+                <div className="mb-4 flex items-center gap-4 text-sm">
+                  <span className="text-gray-500">
+                    登録済み: <span className="font-medium text-gray-900">{residentEmails.length}</span> / {households.length} 世帯
+                  </span>
+                  <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-900 rounded-full transition-all duration-300"
+                      style={{ width: `${households.length > 0 ? (residentEmails.length / households.length) * 100 : 0}%` }}
+                    />
+                  </div>
+                </div>
+
+                {emailFeedback && (
+                  <div className={`mb-4 p-3 rounded text-sm flex items-center gap-2 ${emailFeedback.type === "success" ? "bg-green-50 border border-green-200 text-green-800" : "bg-red-50 border border-red-200 text-red-800"}`}>
+                    {emailFeedback.type === "success" ? <CheckCircle className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+                    <p>{emailFeedback.message}</p>
+                  </div>
+                )}
+
+                <div className="space-y-3">
                   {households.map((household: any) => {
                     const existingEmail = residentEmails.find((e: any) => e.householdId === household.householdId);
+                    const editValue = newEmails[household.id];
+                    const displayValue = editValue !== undefined ? editValue : (existingEmail?.email || "");
+                    const isModified = editValue !== undefined && editValue !== (existingEmail?.email || "");
+                    const isValidEmail = displayValue === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(displayValue);
+
                     return (
-                      <div key={household.id} className="flex items-end gap-3">
-                        <div className="flex-1">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            {household.householdId}号室
-                          </label>
+                      <div key={household.id} className={`border rounded-lg p-4 transition-colors ${isModified ? "border-blue-300 bg-blue-50/30" : existingEmail ? "border-green-200 bg-green-50/20" : "border-gray-200"}`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-900">{household.householdId}号室</span>
+                            {existingEmail && !isModified && (
+                              <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                <CheckCircle className="w-3 h-3" />
+                                登録済み
+                              </span>
+                            )}
+                            {isModified && (
+                              <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+                                変更あり
+                              </span>
+                            )}
+                          </div>
+                          {existingEmail && (
+                            <span className="text-xs text-gray-400">
+                              {new Date(existingEmail.updatedAt).toLocaleDateString("ja-JP")} 登録
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
                           <input
                             type="email"
-                            value={newEmails[household.id] !== undefined ? newEmails[household.id] : (existingEmail?.email || "")}
+                            value={displayValue}
                             onChange={(e) => setNewEmails({ ...newEmails, [household.id]: e.target.value })}
-                            placeholder="メールアドレスを入力"
-                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-900"
+                            placeholder="example@email.com"
+                            className={`flex-1 px-3 py-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-900 ${!isValidEmail ? "border-red-300 bg-red-50" : "border-gray-300"}`}
                           />
+                          {existingEmail && (
+                            <>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const result = await sendRegistrationEmail.mutateAsync({ householdId: household.householdId });
+                                    setEmailFeedback({ type: result.success ? "success" : "error", message: result.message });
+                                  } catch {
+                                    setEmailFeedback({ type: "error", message: "送信に失敗しました" });
+                                  }
+                                }}
+                                disabled={sendRegistrationEmail.isPending}
+                                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50"
+                                title="登録完了メールを再送信"
+                              >
+                                <Mail className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteEmail(existingEmail)}
+                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                title="メールアドレスを削除"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
                         </div>
-                        {existingEmail && (
-                          <button
-                            onClick={() => handleDeleteEmail(existingEmail)}
-                            className="px-3 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded border border-red-200 text-sm font-light transition-colors"
-                            title="メールアドレスを削除"
-                          >
-                            削除
-                          </button>
+                        {!isValidEmail && displayValue && (
+                          <p className="text-xs text-red-500 mt-1">有効なメールアドレスを入力してください</p>
                         )}
                       </div>
                     );
                   })}
                 </div>
-                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-900">
-                  <p>登録したメールアドレスに、ポータル登録完了の通知メールが送信されます。</p>
+
+                <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded text-xs text-gray-500">
+                  登録したメールアドレスに、ポータルからの通知メールが送信されます。
                 </div>
-                {emailFeedback && (
-                  <div className={`mt-3 p-3 rounded text-sm ${emailFeedback.type === "success" ? "bg-green-50 border border-green-200 text-green-800" : "bg-red-50 border border-red-200 text-red-800"}`}>
-                    <p>{emailFeedback.message}</p>
-                  </div>
-                )}
               </section>
 
               {/* 保存ボタン */}
