@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Settings, X, ArrowRight, BarChart3, CheckCircle, AlertCircle } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
+import { Search, Settings, X, ArrowRight, BarChart3, CheckCircle, AlertCircle, FileText, Package, BookOpen, HelpCircle, FileCheck, CalendarDays } from "lucide-react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { FormStatsModal } from "@/pages/FormStats";
@@ -14,6 +14,9 @@ import { QRCodeSVG } from "qrcode.react";
  */
 export default function MemberHome() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
   const [, setLocation] = useLocation();
   const [showSettings, setShowSettings] = useState(false);
   const [newEmails, setNewEmails] = useState<{ [key: number]: string }>({});
@@ -33,6 +36,54 @@ export default function MemberHome() {
       setAnsweredFormIds(stored);
     } catch {}
   }, []);
+
+  // 検索デバウンス
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // 検索結果の表示/非表示
+  useEffect(() => {
+    setShowSearchResults(debouncedQuery.length > 0);
+  }, [debouncedQuery]);
+
+  // 検索窓の外をクリックしたら閉じる
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowSearchResults(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // 検索API
+  const { data: searchResults, isLoading: isSearching } = trpc.search.global.useQuery(
+    { query: debouncedQuery },
+    { enabled: debouncedQuery.length > 0 }
+  );
+
+  const totalResults = useMemo(() => {
+    if (!searchResults || Array.isArray(searchResults)) return 0;
+    return (
+      (searchResults.posts?.length || 0) +
+      (searchResults.inventory?.length || 0) +
+      (searchResults.rules?.length || 0) +
+      (searchResults.faq?.length || 0) +
+      (searchResults.templates?.length || 0) +
+      (searchResults.events?.length || 0)
+    );
+  }, [searchResults]);
+
+  const navigateAndCloseSearch = (path: string) => {
+    setShowSearchResults(false);
+    setSearchQuery("");
+    setLocation(path);
+  };
 
   // 現在の年度を自動判定（4月が新年度）
   const currentYear = useMemo(() => {
@@ -209,7 +260,7 @@ export default function MemberHome() {
       <header className="fixed top-0 left-0 right-0 bg-cover bg-center border-b border-gray-200 z-50" style={{ backgroundImage: "url('/greenpia-yaizu.jpg')" }}>
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/50" />
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between relative">
-          <div className="flex-1">
+          <div className="flex-1" ref={searchRef}>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white" />
               <Input
@@ -217,8 +268,168 @@ export default function MemberHome() {
                 placeholder="検索（河川、備品、会費など）"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => debouncedQuery.length > 0 && setShowSearchResults(true)}
                 className="w-full max-w-md bg-white/20 border-white/30 text-white placeholder:text-white/50 pl-10"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => { setSearchQuery(""); setShowSearchResults(false); }}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+
+              {/* 検索結果ドロップダウン */}
+              {showSearchResults && (
+                <div className="absolute top-full left-0 mt-2 w-full max-w-md bg-white rounded-lg shadow-xl border border-gray-200 max-h-[70vh] overflow-y-auto z-50">
+                  {isSearching ? (
+                    <div className="p-6 text-center text-gray-400 text-sm">検索中...</div>
+                  ) : totalResults === 0 ? (
+                    <div className="p-6 text-center text-gray-400 text-sm">
+                      「{debouncedQuery}」に一致する結果はありません
+                    </div>
+                  ) : (
+                    <div className="py-2">
+                      <div className="px-4 py-2 text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        {totalResults}件の結果
+                      </div>
+
+                      {/* 年度ログ（posts） */}
+                      {searchResults && !Array.isArray(searchResults) && searchResults.posts?.length > 0 && (
+                        <div>
+                          <div className="px-4 py-2 text-xs font-semibold text-gray-500 bg-gray-50 flex items-center gap-2">
+                            <FileText className="w-3.5 h-3.5" />
+                            年度ログ
+                          </div>
+                          {searchResults.posts.map((item: any) => (
+                            <button
+                              key={`post-${item.id}`}
+                              onClick={() => navigateAndCloseSearch("/year-log")}
+                              className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0"
+                            >
+                              <div className="text-sm font-medium text-gray-900 truncate">{item.title}</div>
+                              {item.body && (
+                                <div className="text-xs text-gray-500 mt-1 line-clamp-1">{item.body}</div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* イベント */}
+                      {searchResults && !Array.isArray(searchResults) && searchResults.events?.length > 0 && (
+                        <div>
+                          <div className="px-4 py-2 text-xs font-semibold text-gray-500 bg-gray-50 flex items-center gap-2">
+                            <CalendarDays className="w-3.5 h-3.5" />
+                            カレンダー
+                          </div>
+                          {searchResults.events.map((item: any) => (
+                            <button
+                              key={`event-${item.id}`}
+                              onClick={() => navigateAndCloseSearch("/calendar")}
+                              className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0"
+                            >
+                              <div className="text-sm font-medium text-gray-900 truncate">{item.title}</div>
+                              {item.date && (
+                                <div className="text-xs text-gray-500 mt-1">{new Date(item.date).toLocaleDateString("ja-JP")}</div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* 備品 */}
+                      {searchResults && !Array.isArray(searchResults) && searchResults.inventory?.length > 0 && (
+                        <div>
+                          <div className="px-4 py-2 text-xs font-semibold text-gray-500 bg-gray-50 flex items-center gap-2">
+                            <Package className="w-3.5 h-3.5" />
+                            備品台帳
+                          </div>
+                          {searchResults.inventory.map((item: any) => (
+                            <button
+                              key={`inv-${item.id}`}
+                              onClick={() => navigateAndCloseSearch("/inventory")}
+                              className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0"
+                            >
+                              <div className="text-sm font-medium text-gray-900 truncate">{item.name}</div>
+                              {item.notes && (
+                                <div className="text-xs text-gray-500 mt-1 line-clamp-1">{item.notes}</div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* ルール */}
+                      {searchResults && !Array.isArray(searchResults) && searchResults.rules?.length > 0 && (
+                        <div>
+                          <div className="px-4 py-2 text-xs font-semibold text-gray-500 bg-gray-50 flex items-center gap-2">
+                            <BookOpen className="w-3.5 h-3.5" />
+                            ルール・決定事項
+                          </div>
+                          {searchResults.rules.map((item: any) => (
+                            <button
+                              key={`rule-${item.id}`}
+                              onClick={() => navigateAndCloseSearch("/rules")}
+                              className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0"
+                            >
+                              <div className="text-sm font-medium text-gray-900 truncate">{item.title}</div>
+                              {item.details && (
+                                <div className="text-xs text-gray-500 mt-1 line-clamp-1">{item.details}</div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* FAQ */}
+                      {searchResults && !Array.isArray(searchResults) && searchResults.faq?.length > 0 && (
+                        <div>
+                          <div className="px-4 py-2 text-xs font-semibold text-gray-500 bg-gray-50 flex items-center gap-2">
+                            <HelpCircle className="w-3.5 h-3.5" />
+                            FAQ
+                          </div>
+                          {searchResults.faq.map((item: any) => (
+                            <button
+                              key={`faq-${item.id}`}
+                              onClick={() => navigateAndCloseSearch("/faq")}
+                              className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0"
+                            >
+                              <div className="text-sm font-medium text-gray-900 truncate">{item.question}</div>
+                              {item.answer && (
+                                <div className="text-xs text-gray-500 mt-1 line-clamp-1">{item.answer}</div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* テンプレ */}
+                      {searchResults && !Array.isArray(searchResults) && searchResults.templates?.length > 0 && (
+                        <div>
+                          <div className="px-4 py-2 text-xs font-semibold text-gray-500 bg-gray-50 flex items-center gap-2">
+                            <FileCheck className="w-3.5 h-3.5" />
+                            テンプレ
+                          </div>
+                          {searchResults.templates.map((item: any) => (
+                            <button
+                              key={`tpl-${item.id}`}
+                              onClick={() => navigateAndCloseSearch("/templates")}
+                              className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0"
+                            >
+                              <div className="text-sm font-medium text-gray-900 truncate">{item.title}</div>
+                              {item.body && (
+                                <div className="text-xs text-gray-500 mt-1 line-clamp-1">{item.body}</div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-4 ml-6">

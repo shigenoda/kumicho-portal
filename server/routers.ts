@@ -3,7 +3,7 @@ import { publicProcedure, router } from "./_core/trpc";
 import { notifyOwner } from "./_core/notification";
 import { z } from "zod";
 import { getDb } from "./db";
-import { eq, like, or, and, desc, asc, lte, gte, lt } from "drizzle-orm";
+import { eq, like, ilike, or, and, desc, asc, lte, gte, lt } from "drizzle-orm";
 import {
   posts,
   events,
@@ -759,7 +759,7 @@ export const appRouter = router({
       .input(z.object({ query: z.string().min(1) }))
       .query(async ({ input }) => {
         const db = await getDb();
-        if (!db) return [];
+        if (!db) return { posts: [], inventory: [], rules: [], faq: [], templates: [], events: [] };
 
         const searchTerm = `%${input.query}%`;
 
@@ -768,27 +768,32 @@ export const appRouter = router({
             db
               .select()
               .from(posts)
-              .where(or(like(posts.title, searchTerm), like(posts.body, searchTerm)))
+              .where(or(ilike(posts.title, searchTerm), ilike(posts.body, searchTerm)))
               .limit(5),
             db
               .select()
               .from(inventory)
-              .where(or(like(inventory.name, searchTerm), like(inventory.notes, searchTerm)))
+              .where(or(ilike(inventory.name, searchTerm), ilike(inventory.notes, searchTerm)))
               .limit(5),
             db
               .select()
               .from(rules)
-              .where(or(like(rules.title, searchTerm), like(rules.details, searchTerm)))
+              .where(or(ilike(rules.title, searchTerm), ilike(rules.details, searchTerm)))
               .limit(5),
             db
               .select()
               .from(faq)
-              .where(or(like(faq.question, searchTerm), like(faq.answer, searchTerm)))
+              .where(or(ilike(faq.question, searchTerm), ilike(faq.answer, searchTerm)))
               .limit(5),
             db
               .select()
               .from(templates)
-              .where(or(like(templates.title, searchTerm), like(templates.body, searchTerm)))
+              .where(or(ilike(templates.title, searchTerm), ilike(templates.body, searchTerm)))
+              .limit(5),
+            db
+              .select()
+              .from(events)
+              .where(or(ilike(events.title, searchTerm), ilike(events.notes, searchTerm)))
               .limit(5),
           ]);
 
@@ -798,10 +803,11 @@ export const appRouter = router({
             rules: results[2],
             faq: results[3],
             templates: results[4],
+            events: results[5],
           };
         } catch (error) {
           console.error("Search error:", error);
-          return [];
+          return { posts: [], inventory: [], rules: [], faq: [], templates: [], events: [] };
         }
       }),
   }),
