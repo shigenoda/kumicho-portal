@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Settings, X, ArrowRight, BarChart3, CheckCircle, AlertCircle, FileText, Package, BookOpen, HelpCircle, FileCheck, CalendarDays } from "lucide-react";
+import { Search, Settings, X, ArrowRight, BarChart3, CheckCircle, AlertCircle, FileText, Package, BookOpen, HelpCircle, FileCheck, CalendarDays, Mail } from "lucide-react";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -153,6 +153,7 @@ export default function MemberHome() {
 
   const upsertEmailMutation = trpc.data.upsertResidentEmail.useMutation();
   const deleteEmailMutation = trpc.data.deleteResidentEmail.useMutation();
+  const sendRegistrationEmail = trpc.email.sendRegistration.useMutation();
 
   const handleSaveEmails = async () => {
     setEmailFeedback(null);
@@ -1034,13 +1035,30 @@ export default function MemberHome() {
                             className={`flex-1 px-3 py-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-900 ${!isValidEmail ? "border-red-300 bg-red-50" : "border-gray-300"}`}
                           />
                           {existingEmail && (
-                            <button
-                              onClick={() => handleDeleteEmail(existingEmail)}
-                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                              title="メールアドレスを削除"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
+                            <>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const result = await sendRegistrationEmail.mutateAsync({ householdId: household.householdId });
+                                    setEmailFeedback({ type: result.success ? "success" : "error", message: result.message });
+                                  } catch {
+                                    setEmailFeedback({ type: "error", message: "送信に失敗しました" });
+                                  }
+                                }}
+                                disabled={sendRegistrationEmail.isPending}
+                                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50"
+                                title="登録完了メールを再送信"
+                              >
+                                <Mail className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteEmail(existingEmail)}
+                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                title="メールアドレスを削除"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </>
                           )}
                         </div>
                         {!isValidEmail && displayValue && (

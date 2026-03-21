@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Edit2, Trash2, BarChart3, Download, X, ArrowLeft, UserPlus } from "lucide-react";
+import { Plus, Edit2, Trash2, BarChart3, Download, X, ArrowLeft, UserPlus, Mail } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { FormStatsModal } from "./FormStats";
 
@@ -26,6 +26,8 @@ export default function Forms() {
   const { data: forms = [] } = trpc.data.getForms.useQuery();
   const createFormMutation = trpc.data.createForm.useMutation();
   const deleteFormMutation = trpc.data.deleteForm.useMutation();
+  const sendFormNotification = trpc.email.sendFormNotification.useMutation();
+  const [notifyFeedback, setNotifyFeedback] = useState<{ formId: number; message: string; type: "success" | "error" } | null>(null);
   const utils = trpc.useUtils();
 
   const handleDeleteForm = async (formId: number) => {
@@ -211,7 +213,7 @@ export default function Forms() {
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap justify-end">
                       <Button
                         variant="outline"
                         size="sm"
@@ -220,6 +222,25 @@ export default function Forms() {
                       >
                         <UserPlus className="w-4 h-4" />
                         代理入力
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-1"
+                        disabled={sendFormNotification.isPending}
+                        onClick={async () => {
+                          if (!confirm(`「${form.title}」の回答依頼メールを全住戸に送信しますか？`)) return;
+                          setNotifyFeedback(null);
+                          try {
+                            const result = await sendFormNotification.mutateAsync({ formId: form.id });
+                            setNotifyFeedback({ formId: form.id, message: result.message, type: result.success ? "success" : "error" });
+                          } catch {
+                            setNotifyFeedback({ formId: form.id, message: "送信に失敗しました", type: "error" });
+                          }
+                        }}
+                      >
+                        <Mail className="w-4 h-4" />
+                        {sendFormNotification.isPending ? "送信中..." : "通知"}
                       </Button>
                       <Button
                         variant="outline"
@@ -261,6 +282,11 @@ export default function Forms() {
                       </Button>
                     </div>
                   </div>
+                  {notifyFeedback && notifyFeedback.formId === form.id && (
+                    <div className={`mt-3 text-xs px-3 py-2 rounded ${notifyFeedback.type === "success" ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+                      {notifyFeedback.message}
+                    </div>
+                  )}
                 </div>
               ))
             )}

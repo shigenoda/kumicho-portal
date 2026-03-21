@@ -17,6 +17,7 @@ import {
   Clock,
   Lock,
   Unlock,
+  Mail,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -167,6 +168,10 @@ export default function Rules() {
       alert(err.message);
     },
   });
+
+  const sendLeaderConfirmation = trpc.email.sendLeaderConfirmation.useMutation();
+  const sendExemptionResult = trpc.email.sendExemptionResult.useMutation();
+  const [emailFeedback, setEmailFeedback] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   // Handlers
   const handleCreate = () => {
@@ -568,12 +573,37 @@ export default function Rules() {
                         </p>
                       )}
                     </div>
-                    {(rotationData as any).schedule.reason && (
-                      <p className="text-xs font-light text-gray-500 sm:max-w-sm sm:text-right">
-                        {(rotationData as any).schedule.reason}
-                      </p>
-                    )}
+                    <div className="flex flex-col items-end gap-2">
+                      {(rotationData as any).schedule.reason && (
+                        <p className="text-xs font-light text-gray-500 sm:max-w-sm sm:text-right">
+                          {(rotationData as any).schedule.reason}
+                        </p>
+                      )}
+                      <button
+                        onClick={async () => {
+                          const hid = (rotationData as any).schedule.primaryHouseholdId;
+                          if (!confirm(`${hid}号室に${selectedYear}年度の組長確定メールを送信しますか？`)) return;
+                          setEmailFeedback(null);
+                          try {
+                            const result = await sendLeaderConfirmation.mutateAsync({ householdId: hid, year: selectedYear });
+                            setEmailFeedback({ message: result.message, type: result.success ? "success" : "error" });
+                          } catch {
+                            setEmailFeedback({ message: "送信に失敗しました", type: "error" });
+                          }
+                        }}
+                        disabled={sendLeaderConfirmation.isPending}
+                        className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-3 py-1.5 rounded transition-colors disabled:opacity-50"
+                      >
+                        <Mail className="w-3.5 h-3.5" />
+                        {sendLeaderConfirmation.isPending ? "送信中..." : "確定メール送信"}
+                      </button>
+                    </div>
                   </div>
+                  {emailFeedback && (
+                    <div className={`mt-3 text-xs px-3 py-2 rounded ${emailFeedback.type === "success" ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+                      {emailFeedback.message}
+                    </div>
+                  )}
                 </Card>
               )}
 
@@ -838,6 +868,30 @@ export default function Rules() {
                                   title="却下"
                                 >
                                   <ShieldX className="w-4 h-4" />
+                                </button>
+                              )}
+                              {(ex.status === "approved" || ex.status === "rejected") && (
+                                <button
+                                  onClick={async () => {
+                                    const approved = ex.status === "approved";
+                                    const result = approved ? "承認" : "却下";
+                                    if (!confirm(`${ex.householdId}号室に免除申請${result}メールを送信しますか？`)) return;
+                                    try {
+                                      const res = await sendExemptionResult.mutateAsync({
+                                        householdId: ex.householdId,
+                                        year: selectedYear,
+                                        approved,
+                                      });
+                                      alert(res.message);
+                                    } catch {
+                                      alert("送信に失敗しました");
+                                    }
+                                  }}
+                                  disabled={sendExemptionResult.isPending}
+                                  className="p-1.5 hover:bg-blue-50 rounded transition-colors text-gray-400 hover:text-blue-600 disabled:opacity-50"
+                                  title="結果メール送信"
+                                >
+                                  <Mail className="w-4 h-4" />
                                 </button>
                               )}
                               <button
