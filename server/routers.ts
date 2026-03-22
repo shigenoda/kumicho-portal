@@ -187,7 +187,7 @@ export const appRouter = router({
         { question: "河川清掃に参加できない場合は？", answer: "2025年度までは出不足金（1回につき定額）が発生しました。2026年度からは出不足金制度は廃止されています。小さなお子さんのいる家庭は免除対象です。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
         { question: "組長倉庫はどこですか？", answer: "エントランス横の階段下、駐輪場付近にあります。約1畳、腰の高さの物置です。鍵は組長が管理しています。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
         { question: "組長の選び方は？", answer: "入居順・経験回数をベースにローテーションで決定します。免除申請がある場合は組長会で審議されます。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
-        { question: "管理会社はどこですか？", answer: "平和ハウジング株式会社です。設備トラブル等は管理会社に直接連絡してください。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "管理会社はどこですか？", answer: "平和ハウジング株式会社です（shizuoka@heiwa-housing.com）。設備トラブル等の相談先の詳細はポータルに記載しています。町内会費の一括徴収も管理会社が対応しています。なお、管理会社が本来自身で対応すべき事項を組長に持ち込む傾向があるため、何でも引き受けないようご注意ください。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
         { question: "屋上に上がれますか？", answer: "原則禁止です。法的リスク（落下事故等の責任問題）があるため、緊急時は管理会社または消防署に連絡してください。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
         { question: "古紙回収の収入はどうなりますか？", answer: "年間約1,000円程度の収入があり、組長活動費に充当されます。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
         { question: "出不足金（でぶそくきん）とは？", answer: "「出」は参加の意味。河川清掃等の共同活動に参加しなかった場合のペナルティ金です。2025年度で85,000円が積み立てられ、全額を組長倉庫の購入費用に充てました。2026年度から廃止されています。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
@@ -334,7 +334,7 @@ export const appRouter = router({
       // Private Vault エントリ
       const vaultData = [
         { category: "管理", key: "組長倉庫 鍵の場所", maskedValue: "組長が管理", actualValue: "組長が保管。引き継ぎ時に次年度組長へ渡す", classification: "internal" as const },
-        { category: "管理", key: "管理会社連絡先", maskedValue: "平和ハウジング", actualValue: "平和ハウジング株式会社（詳細は引き継ぎ資料参照）", classification: "internal" as const },
+        { category: "管理", key: "管理会社連絡先", maskedValue: "平和ハウジング", actualValue: "平和ハウジング株式会社\nメール: shizuoka@heiwa-housing.com\n設備トラブル等の相談先。町内会費の一括徴収も対応。\n※管理会社が本来自身で対応すべき事項を組長に持ち込む傾向あり。何でも引き受けないこと。", classification: "internal" as const },
         { category: "ポータル", key: "ポータルサイト管理", maskedValue: "****", actualValue: "kumicho-portal.vercel.app（管理情報は別途）", classification: "confidential" as const },
         { category: "町内会", key: "町内会長 連絡先", maskedValue: "中山様", actualValue: "大泉町内会 八町内会 会長 中山裕二様（詳細は引き継ぎ資料参照）", classification: "internal" as const },
       ];
