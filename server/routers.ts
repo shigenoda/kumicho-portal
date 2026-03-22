@@ -86,14 +86,8 @@ export const appRouter = router({
 
       const force = input?.force ?? false;
 
-      // 既にデータがある場合
-      const existingHouseholds = await db.select().from(households);
-      if (existingHouseholds.length > 0 && !force) {
-        return { success: true, message: "データは既に投入済みです。force: true で再投入できます。", skipped: true };
-      }
-
-      // force モードの場合は既存データを削除（依存関係の順序で削除）
-      if (force && existingHouseholds.length > 0) {
+      // force モードの場合は既存データを全削除（依存関係の順序で削除）
+      if (force) {
         await db.delete(formResponseItems);
         await db.delete(formResponses);
         await db.delete(formChoices);
@@ -119,6 +113,12 @@ export const appRouter = router({
         await db.delete(households);
       }
 
+      // 各テーブルごとに既存データをチェックし、空の場合のみ投入
+      const isEmpty = async (table: any) => {
+        const rows = await db.select().from(table).limit(1);
+        return rows.length === 0;
+      };
+
       // 住戸 (9戸: 3階×3戸)
       const householdData = [
         { householdId: "101", moveInDate: new Date("2025-09-01"), leaderHistoryCount: 0 },
@@ -131,8 +131,10 @@ export const appRouter = router({
         { householdId: "302", moveInDate: new Date("2025-03-01"), leaderHistoryCount: 0 },
         { householdId: "303", moveInDate: new Date("2020-08-01"), leaderHistoryCount: 1 },
       ];
-      for (const h of householdData) {
-        await db.insert(households).values(h).onConflictDoNothing();
+      if (await isEmpty(households)) {
+        for (const h of householdData) {
+          await db.insert(households).values(h).onConflictDoNothing();
+        }
       }
 
       // 年間カレンダー（2025年度: 2025年4月〜2026年3月）
@@ -162,8 +164,10 @@ export const appRouter = router({
         { title: "防災訓練 第3回", date: new Date("2026-03-15T00:00:00"), category: "行事", checklist: [], notes: "予定。まだ未実施。", attachments: [] as Array<{url:string,name:string}> },
         { title: "組長会", date: new Date("2026-03-26T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
       ];
-      for (const e of eventData) {
-        await db.insert(events).values(e);
+      if (await isEmpty(events)) {
+        for (const e of eventData) {
+          await db.insert(events).values(e);
+        }
       }
 
       // 備品台帳（組長倉庫：階段下の物置）
@@ -178,8 +182,10 @@ export const appRouter = router({
         { name: "三本爪（レーキ）", qty: 1, location: "組長倉庫（階段下）", condition: "使用可", notes: null, tags: ["清掃"] },
         { name: "三角ホー", qty: 2, location: "組長倉庫（階段下）", condition: "使用可", notes: null, tags: ["清掃"] },
       ];
-      for (const i of inventoryData) {
-        await db.insert(inventory).values(i);
+      if (await isEmpty(inventory)) {
+        for (const i of inventoryData) {
+          await db.insert(inventory).values(i);
+        }
       }
 
       // FAQ
@@ -192,8 +198,10 @@ export const appRouter = router({
         { question: "古紙回収の収入はどうなりますか？", answer: "年間約1,000円程度の収入があり、組長活動費に充当されます。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
         { question: "出不足金（でぶそくきん）とは？", answer: "「出」は参加の意味。河川清掃等の共同活動に参加しなかった場合のペナルティ金です。2025年度で85,000円が積み立てられ、全額を組長倉庫の購入費用に充てました。2026年度から廃止されています。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
       ];
-      for (const f of faqData) {
-        await db.insert(faq).values(f);
+      if (await isEmpty(faq)) {
+        for (const f of faqData) {
+          await db.insert(faq).values(f);
+        }
       }
 
       // ルール・決定事項
@@ -207,8 +215,10 @@ export const appRouter = router({
         { title: "河川清掃の参加免除基準（提案中）", summary: "安全配慮に基づく免除対象の明確化", details: "【免除対象案】\n・小学生以下の子供がいる世帯\n・妊娠中の方\n・70歳以上の方\n・疾病・療養・介護中の方\n\n【手続き案】\n・11月の組長決定アンケートで届出受理\n・最終確認は町内会長判断\n\n【任意協力金案】\n・100〜200円（飲料・消耗品相当）を検討\n\n令和7年11月9日 町内会長へ提案書提出済み。回答待ち。", status: "draft" as const, evidenceLinks: [] as string[], isHypothesis: true },
         { title: "町内会費の徴収方法の明確化", summary: "集合住宅は管理会社が一括徴収", details: "令和7年度「組長顔合わせ会（保存版資料）」に「組長が町内会費を徴収」と記載があり誤認が発生。\n実態：集合住宅（マンション）は管理会社（平和ハウジング）が一括徴収。マンション組長による徴収は不要。\n→次年度資料への追記を提案済み。", status: "decided" as const, evidenceLinks: [] as string[], isHypothesis: false },
       ];
-      for (const r of rulesData) {
-        await db.insert(rules).values(r);
+      if (await isEmpty(rules)) {
+        for (const r of rulesData) {
+          await db.insert(rules).values(r);
+        }
       }
 
       // テンプレート
@@ -221,8 +231,10 @@ export const appRouter = router({
         { title: "町内会長への提案書テンプレート", body: "令和○年度　○○に関する提案書\n\n大泉町内会\n八町内会 会長　○○ ○○ 様\n\n令和○年○月○日\nグリーンピア○号室\n8組 組長　○○ ○○\n\n拝啓　時下ますますご清祥のこととお慶び申し上げます。\n平素より格別のご高配を賜り、厚く御礼申し上げます。\n\n（本文）\n\n以上、何卒ご検討のほどよろしくお願い申し上げます。\n敬具\n\n連絡先\n8組 組長　○○ ○○（グリーンピア○号室）\nTEL：○○○-○○○○-○○○○\nEmail：○○○@○○○.com", category: "町内会", tags: ["町内会", "提案書", "正式文書"] },
         { title: "住民アンケートテンプレート（組長運用）", body: "8組 グリーンピア入居者 各位\n\n日頃より、町内会活動およびマンション内の運営にご理解・ご協力をいただき、ありがとうございます。現組長の○号室・○○です。\n\n（背景説明）\n\nそこで、まずは住民の皆さまの実情やお考えを把握するため、アンケートを実施いたします。回答は任意で、無記名でも構いません。内容は集計し、個人が特定されない形で論点を整理します。\n\nお手数ですが、アンケート用紙を封筒に入れ、○号室ポストへ投函してください。\n\n【提出期限】○年○月○日\n【提出方法】封筒に入れて○号室ポストへ投函（無記名可）\n【問い合わせ】現組長（○号室）まで\n\n住民同士が気まずくならず、安心して居住し続けられる環境を維持するためにも、無理のない範囲でご協力いただけますと幸いです。\nどうぞよろしくお願いいたします。\n\n○年○月○日\n8組 グリーンピア　組長　○○ ○○\n\n※本件は契約・規約等の解釈に関わる可能性があります。必要に応じ、賃貸借契約・重要事項説明書・管理規約・自治会規約等の確認や、専門家への相談を行ってください。", category: "アンケート", tags: ["アンケート", "住民調査", "組長運用"] },
       ];
-      for (const t of templateData) {
-        await db.insert(templates).values(t);
+      if (await isEmpty(templates)) {
+        for (const t of templateData) {
+          await db.insert(templates).values(t);
+        }
       }
 
       // 引き継ぎ袋チェックリスト
@@ -233,8 +245,10 @@ export const appRouter = router({
         { name: "回覧ファイル（1冊目）", location: "引き継ぎ袋", isChecked: false, description: "回覧板用ファイル", notes: null },
         { name: "回覧ファイル（2冊目）", location: "引き継ぎ袋", isChecked: false, description: "回覧板用ファイル", notes: null },
       ];
-      for (const h of handoverData) {
-        await db.insert(handoverBagItems).values(h);
+      if (await isEmpty(handoverBagItems)) {
+        for (const h of handoverData) {
+          await db.insert(handoverBagItems).values(h);
+        }
       }
 
       // ローテスケジュール
@@ -250,8 +264,10 @@ export const appRouter = router({
         { year: 2033, primaryHouseholdId: "303", backupHouseholdId: "102", status: "draft" as const, reason: "自動計算: 301/203:免除B、103/202:免除C。入居古い順→303" },
         { year: 2034, primaryHouseholdId: "301", backupHouseholdId: "102", status: "draft" as const, reason: "自動計算: 203/303:免除B、103/202:免除C。入居古い順→301" },
       ];
-      for (const s of scheduleData) {
-        await db.insert(leaderSchedule).values(s);
+      if (await isEmpty(leaderSchedule)) {
+        for (const s of scheduleData) {
+          await db.insert(leaderSchedule).values(s);
+        }
       }
 
       // 免除申請（C免除: 就任困難）
@@ -273,11 +289,14 @@ export const appRouter = router({
           approvedAt: new Date(`${y - 1}-12-01`),
         });
       }
-      for (const ex of exemptionSeedData) {
-        await db.insert(exemptionRequests).values(ex);
+      if (await isEmpty(exemptionRequests)) {
+        for (const ex of exemptionSeedData) {
+          await db.insert(exemptionRequests).values(ex);
+        }
       }
 
       // ローテーションロジック
+      if (await isEmpty(leaderRotationLogic)) {
       await db.insert(leaderRotationLogic).values({
         version: 1,
         logic: {
@@ -294,6 +313,7 @@ export const appRouter = router({
         },
         reason: "令和7年11月9日 町内会長承認済みの運用細則。ポータルには免除理由＋見直し時期を必ず記載。",
       });
+      }
 
       // 返信待ちキュー
       const pendingData = [
@@ -303,8 +323,10 @@ export const appRouter = router({
         { title: "住民アンケート回答の集約（2/28期限）", description: "2026年2月4日配布の組長運用アンケート。提出期限2/28。回答を集約し、オーナーへの申し入れ材料として整理する。Q6の運用方向性（A/B/C/D）の集計が特に重要。", toWhom: "各世帯（9世帯）", priority: "high" as const, status: "pending" as const },
         { title: "管理会社からの対応回答待ち", description: "特定入居者の独自見解（免除全否定・退去発言等）について管理会社へ相談済み。公式な説明・指導の実施を依頼中。", toWhom: "平和ハウジング株式会社", priority: "high" as const, status: "pending" as const },
       ];
-      for (const p of pendingData) {
-        await db.insert(pendingQueue).values(p);
+      if (await isEmpty(pendingQueue)) {
+        for (const p of pendingData) {
+          await db.insert(pendingQueue).values(p);
+        }
       }
 
       // 年度ログ（2025年度）
@@ -318,8 +340,10 @@ export const appRouter = router({
         { title: "管理会社への確認依頼", body: "組長業務の運用に関して管理会社（平和ハウジング）へ確認を依頼。\n組長業務の位置づけ、免除の考え方、運用ルールの整理について説明を要請。回答待ち。", tags: ["管理会社", "進行中"] as string[], year: 2025, category: "pending" as const, status: "published" as const, isHypothesis: false, relatedLinks: [] as string[], publishedAt: new Date("2026-01-15") },
         { title: "住民アンケートを配布", body: "2026年2月4日、全9世帯に組長運用に関するアンケートを配布。\n\n主な質問内容:\n・組長業務の負担感\n・組長会や河川清掃への参加可否\n・今後の運用方向性（住民持ち回り/オーナー担当/折衷案）\n・引き継ぎ方法の改善\n\n背景として、町内会長からのオーナー側運用への示唆、他マンション実例（21組等）、管理会社の不関与スタンスを共有。\n提出期限: 2026年2月28日。回答を集約し、オーナーへの申し入れ材料とする予定。", tags: ["アンケート", "組長制度", "住民調査"] as string[], year: 2025, category: "decision" as const, status: "published" as const, isHypothesis: false, relatedLinks: [] as string[], publishedAt: new Date("2026-02-04") },
       ];
-      for (const p of postsData) {
-        await db.insert(posts).values(p);
+      if (await isEmpty(posts)) {
+        for (const p of postsData) {
+          await db.insert(posts).values(p);
+        }
       }
 
       // 河川清掃実施ログ（2025年度）
@@ -327,8 +351,10 @@ export const appRouter = router({
         { date: new Date("2025-04-20"), participantsCount: 15, issues: null, whatWorked: "黒石川周辺の清掃を班分けして効率的に実施", whatToImprove: null, attachments: [] as Array<{url:string,name:string}>, linkedInventoryIds: [] as number[] },
         { date: new Date("2025-07-06"), participantsCount: 12, issues: null, whatWorked: "前回の経験を活かしスムーズに進行", whatToImprove: null, attachments: [] as Array<{url:string,name:string}>, linkedInventoryIds: [] as number[] },
       ];
-      for (const r of riverCleaningData) {
-        await db.insert(riverCleaningRuns).values(r);
+      if (await isEmpty(riverCleaningRuns)) {
+        for (const r of riverCleaningData) {
+          await db.insert(riverCleaningRuns).values(r);
+        }
       }
 
       // Private Vault エントリ
@@ -338,8 +364,10 @@ export const appRouter = router({
         { category: "ポータル", key: "ポータルサイト管理", maskedValue: "****", actualValue: "kumicho-portal.vercel.app（管理情報は別途）", classification: "confidential" as const },
         { category: "町内会", key: "町内会長 連絡先", maskedValue: "中山様", actualValue: "大泉町内会 八町内会 会長 中山裕二様（詳細は引き継ぎ資料参照）", classification: "internal" as const },
       ];
-      for (const v of vaultData) {
-        await db.insert(vaultEntries).values(v);
+      if (await isEmpty(vaultEntries)) {
+        for (const v of vaultData) {
+          await db.insert(vaultEntries).values(v);
+        }
       }
 
       // 秘匿メモ
@@ -350,11 +378,14 @@ export const appRouter = router({
         { title: "管理会社への相談メール記録（特定入居者対応）", body: "【宛先】平和ハウジング株式会社 静岡店 岡本様\n【発信者】102号室 野田\n【件名】特定入居者への対応ご相談\n\n【概要】\n特定の入居者から、組長業務や免除の運用に関して強い独自見解が複数回にわたり文書で示されている。\n\n主な内容:\n・いかなる事情（育児・介護・健康）であっても組長免除は認めるべきではないという主張\n・町内会で検討した免除案・ローテーション案の全否定\n・「組長をやらないなら退去すべき」という趣旨の表現\n\nこれらは一入居者の立場からの発言であり、退去の可否を判断できる立場にない方からの発言としては行き過ぎ。\n当該入居者は管理会社・オーナーからの説明には従う方と認識しており、権限を持つ管理会社から公式に説明・指導いただくよう依頼。\n\n【要請事項】\n1. 組長業務やローテーションの位置づけの説明\n2. 免除の考え方（育児・介護・健康・新入居・直近組長等）の説明\n3. 「組長をしない＝退去」は本物件の正式ルールではないことの説明\n\n※号室番号は秘匿。詳細は添付スキャン画像参照。" },
         { title: "住民アンケート全文（2026年2月4日配布）", body: "【配布日】2026年2月4日\n【提出期限】2026年2月28日\n【提出方法】封筒に入れて102号室ポストへ投函（無記名可）\n\n【カバーレター要旨】\n・河川清掃の範囲がマンション前に縮小される見込み（町内会長からの共有）\n・2025年度に運用上の論点（組長選出・免除・出不足金）で住民間の認識の分かれが複数発生\n・町内会長からの示唆: オーナー側が組長業務を担う方向の検討\n・管理会社（平和ハウジング）は町内会活動への関与を行わないスタンス\n\n【別紙B: 背景共有 6項目】\n1. 2025年度の主な論点（組長選出・河川清掃範囲・出不足金）\n2. 町内会側の認識（確認対応の集中が問題）\n3. 河川清掃のISY前範囲の進捗（関係先が業者手配・費用負担）\n4. 他マンション実例（21組等: オーナー側が役割を担う）\n5. 管理会社スタンス（関与しない）\n6. 組長業務の実態（負担感）\n\n【別紙C: アンケート質問 8問】\nQ1. 組長経験の有無\nQ2. 組長業務の負担感（5段階）\nQ3. 組長会（毎月26日19:00）への参加可否\nQ4. 河川清掃（土日朝8:00-9:00）への参加可否\nQ5. 負担が大きいと感じる業務（複数選択）\nQ6. 今後の運用方向性（A:住民持ち回り / B:オーナー担当 / C:折衷案 / D:わからない）\nQ7. 引き継ぎの改善（紙+Web / Web中心 / 紙中心）\nQ8. 自由記載" },
       ];
-      for (const s of secretNotesData) {
-        await db.insert(secretNotes).values(s);
+      if (await isEmpty(secretNotes)) {
+        for (const s of secretNotesData) {
+          await db.insert(secretNotes).values(s);
+        }
       }
 
       // フォーム（住民アンケート）
+      if (await isEmpty(forms)) {
       const [surveyForm] = await db.insert(forms).values({
         title: "組長運用に関するアンケート",
         description: "組長選出方法・町内会対応の運用ルール・役割分担の方向性についてのアンケートです。2026年2月4日配布。",
@@ -571,6 +602,8 @@ export const appRouter = router({
           updatedAt: new Date(),
         });
       }
+
+      } // end forms isEmpty
 
       // 初回ログ
       await db.insert(changelog).values({
