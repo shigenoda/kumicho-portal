@@ -132,15 +132,39 @@ export default function CalendarPage() {
     return now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
   }, []);
 
+  // イベントから年度を取得（4月〜翌3月）
+  const getFiscalYear = (date: string | Date) => {
+    const d = new Date(date);
+    return d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1;
+  };
+
+  // 利用可能な年度一覧
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    events.forEach((e: any) => years.add(getFiscalYear(e.date)));
+    return Array.from(years).sort((a, b) => b - a); // 新しい順
+  }, [events]);
+
+  // 選択中の年度（デフォルトは現在の年度、なければ最新）
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const activeYear = selectedYear ?? (availableYears.includes(currentFiscalYear) ? currentFiscalYear : availableYears[0]);
+
+  // 選択年度でフィルタ
+  const filteredEvents = useMemo(() => {
+    if (!activeYear) return events;
+    return events.filter((e: any) => getFiscalYear(e.date) === activeYear);
+  }, [events, activeYear]);
+
   const handleGenerateNextYear = () => {
-    const nextYear = currentFiscalYear + 1;
-    if (confirm(`${currentFiscalYear}年度のイベントを${nextYear}年度にコピーしますか？\nチェックリストはリセットされます。`)) {
-      generateNextYear.mutate({ fromYear: currentFiscalYear, toYear: nextYear });
+    const fromYear = activeYear ?? currentFiscalYear;
+    const nextYear = fromYear + 1;
+    if (confirm(`${fromYear}年度のイベントを${nextYear}年度にコピーしますか？\nチェックリストはリセットされます。`)) {
+      generateNextYear.mutate({ fromYear, toYear: nextYear });
     }
   };
 
   // Group events by year-month
-  const groupedByMonth = events.reduce(
+  const groupedByMonth = filteredEvents.reduce(
     (acc: Record<string, typeof events>, event: any) => {
       const d = new Date(event.date);
       const year = d.getFullYear();
@@ -460,6 +484,27 @@ export default function CalendarPage() {
           </div>
         </div>
       </header>
+
+      {/* Year tabs */}
+      {availableYears.length > 1 && (
+        <div className="border-b border-gray-200 bg-white sticky top-[65px] z-40">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 flex gap-0 overflow-x-auto">
+            {availableYears.map((year) => (
+              <button
+                key={year}
+                onClick={() => setSelectedYear(year)}
+                className={`px-4 py-2.5 text-sm font-light whitespace-nowrap transition-colors border-b-2 ${
+                  activeYear === year
+                    ? "border-gray-900 text-gray-900"
+                    : "border-transparent text-gray-400 hover:text-gray-600"
+                }`}
+              >
+                {year}年度
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
