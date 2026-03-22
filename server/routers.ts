@@ -1064,6 +1064,22 @@ export const appRouter = router({
     getFAQ: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) return [];
+      const results = await db.select().from(faq).orderBy(asc(faq.question));
+      if (results.length > 0) return results;
+
+      // FAQが空の場合、デフォルトデータを自動投入
+      const defaultFaqData = [
+        { question: "河川清掃に参加できない場合は？", answer: "2025年度までは出不足金（1回につき定額）が発生しました。2026年度からは出不足金制度は廃止されています。小さなお子さんのいる家庭は免除対象です。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "組長倉庫はどこですか？", answer: "エントランス横の階段下、駐輪場付近にあります。約1畳、腰の高さの物置です。鍵は組長が管理しています。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "組長の選び方は？", answer: "入居順・経験回数をベースにローテーションで決定します。免除申請がある場合は組長会で審議されます。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "管理会社はどこですか？", answer: "平和ハウジング株式会社です（shizuoka@heiwa-housing.com）。設備トラブル等の相談先の詳細はポータルに記載しています。町内会費の一括徴収も管理会社が対応しています。なお、管理会社が本来自身で対応すべき事項を組長に持ち込む傾向があるため、何でも引き受けないようご注意ください。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "屋上に上がれますか？", answer: "原則禁止です。法的リスク（落下事故等の責任問題）があるため、緊急時は管理会社または消防署に連絡してください。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "古紙回収の収入はどうなりますか？", answer: "年間約1,000円程度の収入があり、組長活動費に充当されます。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "出不足金（でぶそくきん）とは？", answer: "「出」は参加の意味。河川清掃等の共同活動に参加しなかった場合のペナルティ金です。2025年度で85,000円が積み立てられ、全額を組長倉庫の購入費用に充てました。2026年度から廃止されています。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+      ];
+      for (const f of defaultFaqData) {
+        await db.insert(faq).values(f);
+      }
       return await db.select().from(faq).orderBy(asc(faq.question));
     }),
 
