@@ -164,8 +164,35 @@ export const appRouter = router({
         { title: "防災訓練 第3回", date: new Date("2026-03-15T00:00:00"), category: "行事", checklist: [], notes: "予定。まだ未実施。", attachments: [] as Array<{url:string,name:string}> },
         { title: "組長会", date: new Date("2026-03-26T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
       ];
+      // 年間カレンダー（2026年度: 2026年4月〜2027年3月）
+      const eventData2026 = [
+        { title: "組長初顔合わせ会", date: new Date("2026-04-06T10:00:00"), category: "行事", checklist: [{ id: "1", text: "出席確認", completed: false }], notes: "懇親会のみ中止。保存版資料（1年間の正式日程）が配布される。", attachments: [] as Array<{url:string,name:string}> },
+        { title: "河川清掃（第1回）", date: new Date("2026-04-20T08:00:00"), category: "清掃", checklist: [{ id: "1", text: "手袋・ゴミ袋購入", completed: false }, { id: "2", text: "回覧板で参加確認", completed: false }, { id: "3", text: "倉庫から道具を出す", completed: false }], notes: "マンション前河川。出不足金制度は一時廃止中。", attachments: [] as Array<{url:string,name:string}> },
+        { title: "町内会報告書提出", date: new Date("2026-05-02T00:00:00"), category: "締切", checklist: [{ id: "1", text: "世帯数を報告", completed: false }], notes: "世帯数を報告", attachments: [] as Array<{url:string,name:string}> },
+        { title: "総会・組長会", date: new Date("2026-05-26T19:00:00"), category: "会議", checklist: [{ id: "1", text: "議案書準備", completed: false }, { id: "2", text: "出欠確認", completed: false }], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
+        { title: "世帯家族調査配布", date: new Date("2026-06-15T00:00:00"), category: "行事", checklist: [{ id: "1", text: "各戸に配布", completed: false }, { id: "2", text: "回収", completed: false }], notes: "各戸に配布", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長会", date: new Date("2026-06-27T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
+        { title: "河川清掃（第2回）", date: new Date("2026-07-06T08:00:00"), category: "清掃", checklist: [{ id: "1", text: "手袋・ゴミ袋購入", completed: false }, { id: "2", text: "回覧板で参加確認", completed: false }], notes: "マンション前河川", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長会", date: new Date("2026-07-27T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
+        { title: "防災訓練 第1回", date: new Date("2026-08-24T17:00:00"), category: "行事", checklist: [{ id: "1", text: "訓練内容確認", completed: false }], notes: "夕方実施", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長会", date: new Date("2026-08-27T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
+        { title: "黒石川堤防草刈り", date: new Date("2026-09-21T00:00:00"), category: "行事", checklist: [], notes: "マンション組（8組）は参加不要。清掃範囲が指定されていないため、参加しても清掃箇所がない。", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長会", date: new Date("2026-09-27T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
+        { title: "赤い羽根募金", date: new Date("2026-10-15T00:00:00"), category: "行事", checklist: [{ id: "1", text: "希望者から集金", completed: false }], notes: "希望者のみ", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長会", date: new Date("2026-10-27T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
+        { title: "次年度組長選定開始", date: new Date("2026-11-01T00:00:00"), category: "行事", checklist: [{ id: "1", text: "ローテ表参照", completed: false }, { id: "2", text: "候補者へ打診", completed: false }], notes: "ローテーション表を参照し次年度候補者を選定", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長会", date: new Date("2026-11-27T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長確定", date: new Date("2026-12-01T00:00:00"), category: "行事", checklist: [{ id: "1", text: "次年度組長確定", completed: false }], notes: "次は302号室（暫定）", attachments: [] as Array<{url:string,name:string}> },
+        { title: "防災訓練 第2回", date: new Date("2026-12-06T09:00:00"), category: "行事", checklist: [{ id: "1", text: "訓練内容確認", completed: false }], notes: "午前中", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長会", date: new Date("2026-12-27T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
+        { title: "引き継ぎ準備", date: new Date("2027-01-15T00:00:00"), category: "行事", checklist: [{ id: "1", text: "ポータル更新", completed: false }, { id: "2", text: "資料整理", completed: false }], notes: "ポータル更新", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長会", date: new Date("2027-01-27T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長会", date: new Date("2027-02-27T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
+        { title: "防災訓練 第3回", date: new Date("2027-03-15T09:00:00"), category: "行事", checklist: [{ id: "1", text: "訓練内容確認", completed: false }], notes: "午前中", attachments: [] as Array<{url:string,name:string}> },
+        { title: "組長会", date: new Date("2027-03-27T19:00:00"), category: "会議", checklist: [], notes: "大住公会堂にて", attachments: [] as Array<{url:string,name:string}> },
+      ];
       if (await isEmpty(events)) {
-        for (const e of eventData) {
+        for (const e of [...eventData, ...eventData2026]) {
           await db.insert(events).values(e);
         }
       }
@@ -181,6 +208,7 @@ export const appRouter = router({
         { name: "鎌", qty: 2, location: "組長倉庫（階段下）", condition: "使用可", notes: null, tags: ["清掃"] },
         { name: "三本爪（レーキ）", qty: 1, location: "組長倉庫（階段下）", condition: "使用可", notes: null, tags: ["清掃"] },
         { name: "三角ホー", qty: 2, location: "組長倉庫（階段下）", condition: "使用可", notes: null, tags: ["清掃"] },
+        { name: "蛇口（水道用）", qty: 1, location: "組長倉庫（階段下）", condition: "使用可", notes: "道具洗浄用（河川清掃後）", tags: ["設備"] },
       ];
       if (await isEmpty(inventory)) {
         for (const i of inventoryData) {
@@ -190,13 +218,14 @@ export const appRouter = router({
 
       // FAQ
       const faqData = [
-        { question: "河川清掃に参加できない場合は？", answer: "2025年度までは出不足金（1回につき定額）が発生しました。2026年度からは出不足金制度は廃止されています。小さなお子さんのいる家庭は免除対象です。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
-        { question: "組長倉庫はどこですか？", answer: "エントランス横の階段下、駐輪場付近にあります。約1畳、腰の高さの物置です。鍵は組長が管理しています。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
-        { question: "組長の選び方は？", answer: "入居順・経験回数をベースにローテーションで決定します。免除申請がある場合は組長会で審議されます。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
-        { question: "管理会社はどこですか？", answer: "平和ハウジング株式会社です（shizuoka@heiwa-housing.com）。設備トラブル等の相談先の詳細はポータルに記載しています。町内会費の一括徴収も管理会社が対応しています。なお、管理会社が本来自身で対応すべき事項を組長に持ち込む傾向があるため、何でも引き受けないようご注意ください。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
-        { question: "屋上に上がれますか？", answer: "原則禁止です。法的リスク（落下事故等の責任問題）があるため、緊急時は管理会社または消防署に連絡してください。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
-        { question: "古紙回収の収入はどうなりますか？", answer: "年間約1,000円程度の収入があり、組長活動費に充当されます。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
-        { question: "出不足金（でぶそくきん）とは？", answer: "「出」は参加の意味。河川清掃等の共同活動に参加しなかった場合のペナルティ金です。2025年度で85,000円が積み立てられ、全額を組長倉庫の購入費用に充てました。2026年度から廃止されています。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "出不足金（でぶそくきん）って何？", answer: "「出」は参加の意味で、河川清掃等の共同活動に参加しなかった場合のペナルティ金です。2025年度までに85,000円が積み立てられ、全額を組長倉庫の購入費用に充てています。2026年度からは廃止されています。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "河川清掃に参加できない場合は？", answer: "2026年度より出不足金は一時的に廃止されているため、現時点ではペナルティはありません。小さなお子さんのいる家庭は免除対象です。参加は任意ですが、可能な範囲でご協力いただけると助かります。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "古紙回収の収入はどうなる？", answer: "年間約1,000円程度の収入があり、組長活動費に充当されます。詳細はポータルにてご確認ください。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "災害時に屋上に上がれる？", answer: "原則禁止です。法的リスク（落下事故等の責任問題）があるため、緊急時は管理会社または消防署に連絡してください。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "組長ってどうやって決まるの？", answer: "入居順ベースのローテーションで決定します。免除区分A/B/Cに該当する場合はスキップとなります。詳細はルール・決定事項のページをご参照ください。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "組長倉庫はどこ？", answer: "エントランス横の階段下、駐輪場付近にあります。約1畳、腰の高さの物置です。鍵は組長が管理しており、引き継ぎ袋に同封されています。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "管理会社ってどこ？", answer: "管理会社は平和ハウジング株式会社（shizuoka@heiwa-housing.com）です。設備トラブル等の相談先の詳細はポータルに記載しています。町内会費の一括徴収も管理会社にて対応しています。なお、管理会社はあくまで仲介の立場ですが、その背後にいる物件オーナーが本来負うべき責任（共用部の管理、組長業務の運用整理等）が組長に回ってくる構造があります。何でも引き受けてしまわないよう、「これはオーナー・管理会社が対応すべき事案では？」という視点を常にお持ちください。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "ポータルサイトのソースコードはどこ？", answer: "本ポータルサイトはオープンソースとして公開されています。ソースコードはGitHub（https://github.com/shigenoda/kumicho-portal）にてどなたでもご覧いただけます。将来的に102号室が退去した後も、次の組長さんがAI（バイブコーディング等）を活用して自由に改修・機能追加していただくことが可能です。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
       ];
       if (await isEmpty(faq)) {
         for (const f of faqData) {
@@ -206,7 +235,7 @@ export const appRouter = router({
 
       // ルール・決定事項
       const rulesData = [
-        { title: "出不足金制度の廃止", summary: "2026年度から出不足金を廃止", details: "出不足金は「出」=参加の意味。不参加者へのペナルティ金として運用してきたが、2025年度の積立金85,000円を全額組長倉庫購入に充当し、制度を廃止。", status: "decided" as const, evidenceLinks: [] as string[], isHypothesis: false },
+        { title: "出不足金制度の一時廃止", summary: "2026年度から出不足金を一時廃止（復活も可能）", details: "出不足金は「出」=参加の意味。不参加者へのペナルティ金として運用してきたが、2025年度の積立金85,000円を全額組長倉庫購入に充当し、制度を一時廃止。組長判断で見直し可能。", status: "decided" as const, evidenceLinks: [] as string[], isHypothesis: false },
         { title: "河川清掃の範囲確定", summary: "ISY隣接ビルの清掃範囲を明確化", details: "隣接するISYビル周辺の河川清掃範囲について町内会長が仲介。業者による対応で解決。グリーンピアの担当範囲を明確にした。", status: "decided" as const, evidenceLinks: [] as string[], isHypothesis: false },
         { title: "屋上立入禁止", summary: "屋上への立ち入りは原則禁止", details: "落下事故時の法的責任リスクが高いため、原則立入禁止。緊急時は管理会社（平和ハウジング）または消防署に連絡。", status: "decided" as const, evidenceLinks: [] as string[], isHypothesis: false },
         { title: "小さな子供がいる家庭の清掃免除", summary: "乳幼児のいる世帯は河川清掃を免除", details: "2026年度より、小さなお子さんのいる家庭は河川清掃への参加を免除する。", status: "decided" as const, evidenceLinks: [] as string[], isHypothesis: false },
@@ -241,7 +270,7 @@ export const appRouter = router({
       const handoverData = [
         { name: "組長倉庫の鍵", location: "引き継ぎ袋", isChecked: false, description: "階段下の物置の鍵", notes: "次年度組長へ引き渡し" },
         { name: "クリアファイル", location: "引き継ぎ袋", isChecked: false, description: "各種資料一式", notes: "通知文書、議事録等" },
-        { name: "金銭出入帳", location: "引き継ぎ袋", isChecked: false, description: "出不足金等の収支記録", notes: "2025年度で出不足金は廃止" },
+        { name: "金銭出入帳", location: "引き継ぎ袋", isChecked: false, description: "収支記録", notes: "古紙回収金の収入（年間約1,000円）を毎年記帳のこと" },
         { name: "回覧ファイル（1冊目）", location: "引き継ぎ袋", isChecked: false, description: "回覧板用ファイル", notes: null },
         { name: "回覧ファイル（2冊目）", location: "引き継ぎ袋", isChecked: false, description: "回覧板用ファイル", notes: null },
       ];
@@ -255,8 +284,8 @@ export const appRouter = router({
       const scheduleData = [
         { year: 2025, primaryHouseholdId: "102", backupHouseholdId: "103", status: "confirmed" as const, reason: "2025年度確定（現任）" },
         { year: 2026, primaryHouseholdId: "203", backupHouseholdId: "301", status: "confirmed" as const, reason: "102:免除B（直近組長）、103/202:免除C（就任困難）、101/201/302:免除A（入居12ヶ月未満）→繰上げで203" },
-        { year: 2027, primaryHouseholdId: "303", backupHouseholdId: "301", status: "draft" as const, reason: "自動計算: 102/203:免除B、103/202:免除C。入居古い順→303" },
-        { year: 2028, primaryHouseholdId: "301", backupHouseholdId: "102", status: "draft" as const, reason: "自動計算: 203/303:免除B、103/202:免除C。入居古い順→301" },
+        { year: 2027, primaryHouseholdId: "302", backupHouseholdId: "301", status: "draft" as const, reason: "暫定。引き継ぎ書に記載。" },
+        { year: 2028, primaryHouseholdId: "101", backupHouseholdId: "301", status: "draft" as const, reason: "暫定。引き継ぎ書に記載。" },
         { year: 2029, primaryHouseholdId: "203", backupHouseholdId: "102", status: "draft" as const, reason: "自動計算: 303/301:免除B、103/202:免除C。入居古い順→203" },
         { year: 2030, primaryHouseholdId: "303", backupHouseholdId: "102", status: "draft" as const, reason: "自動計算: 301/203:免除B、103/202:免除C。入居古い順→303" },
         { year: 2031, primaryHouseholdId: "301", backupHouseholdId: "102", status: "draft" as const, reason: "自動計算: 203/303:免除B、103/202:免除C。入居古い順→301" },
@@ -540,18 +569,20 @@ export const appRouter = router({
       // ── ページコンテンツ（河川清掃SOP）──
       const riverCleaningSections = [
         { sectionKey: "policy", title: "2026年度 方針変更", sortOrder: 0, items: [
-          "出不足金（でぶそくきん）制度を廃止",
+          "出不足金（でぶそくきん）制度を一時廃止（組長判断で見直し可能）",
           "小さなお子さんのいる家庭は参加免除",
-          "参加は任意だが、可能な限り協力をお願いする運営へ移行",
+          "参加は任意だが、可能な範囲でご協力をお願いする運営へ移行",
+          "ISY隣接ビル周辺は清掃範囲外（2025年度に確定済み）。2026年度よりISYビルの不動産会社が業者に委託して清掃を実施する体制に移行",
         ]},
         { sectionKey: "timeline", title: "準備タイムライン", sortOrder: 1, items: [
-          "T-14日: 組長会で日程確定、回覧作成開始",
-          "T-7日: 回覧配布（参加確認）",
-          "T-2日: 手袋・ゴミ袋を購入（100均、約500円）",
-          "当日 7:50: 組長倉庫から道具を出す",
-          "当日 8:00: グリーンピア玄関前に集合",
-          "当日 8:00-9:00: 清掃作業（黒石川周辺）",
-          "当日 9:00: 片付け・道具を倉庫に戻す",
+          "T-14日: 組長会で日程確定、回覧原稿作成開始（※4月は顔合わせ会から河川清掃まで約2週間と短いため、早めの対応を推奨）",
+          "T-7日: 回覧板を配布し各戸の参加確認",
+          "T-2日: 100円ショップにて手袋とゴミ袋を購入（約500円。45Lサイズが適当）",
+          "当日 7:50: 組長倉庫から道具を出す（エントランス横の階段下、駐輪場付近の物置。鍵は引き継ぎ袋の中）",
+          "当日 8:00: グリーンピア玄関前に集合、参加者の顔を確認してスタート",
+          "当日 8:00-9:00: 清掃作業（マンション前河川周辺）",
+          "当日 9:00: 片付け・道具の数を確認して施錠",
+          "当日 9:00以降: 組長が道具を洗浄・乾燥（倉庫内の蛇口で洗い、干して乾いたら収納）",
         ]},
         { sectionKey: "equipment", title: "必要な道具", sortOrder: 2, items: [
           "平スコップ x2（倉庫）",
@@ -564,12 +595,13 @@ export const appRouter = router({
           "各自: 長靴・帽子・飲み物",
         ]},
         { sectionKey: "safety", title: "安全確認事項", sortOrder: 3, items: [
-          "雨天・増水時は中止（前日に判断し回覧で通知）",
+          "雨天・増水時は中止（町内会からLINEにて連絡。当日朝に玄関前で住民に直接伝えるのが確実）",
           "長靴の着用必須（川辺の作業あり）",
           "夏季は帽子・水分補給を徹底（熱中症対策）",
           "単独行動禁止、声かけ合って作業する",
-          "体調不良時は無理せず即時報告",
           "刃物（鎌・ホー）の取り扱いに注意",
+          "体調不良時は無理をしない",
+          "隣接組で高齢女性が清掃中にお怪我をされた事例あり。小さなお子さんを連れた方は免除を推奨",
         ]},
         { sectionKey: "procedure", title: "当日の流れ", sortOrder: 4, items: [
           "1. 集合（グリーンピア玄関前）- 出欠確認",
@@ -580,7 +612,8 @@ export const appRouter = router({
           "6. 組長が記録を作成（このポータルに入力）",
         ]},
         { sectionKey: "after", title: "清掃後の作業", sortOrder: 5, items: [
-          "道具を洗って乾かし、倉庫に収納",
+          "解散後、組長が鎌・スコップ等を倉庫内の蛇口にて水洗いし、外に干す",
+          "乾燥後、倉庫に収納のうえ施錠（怠ると錆が生じる）",
           "参加者数・問題点をポータルに記録",
           "次回の改善点があればメモ",
           "使い捨て手袋の残数を確認、次回分の購入計画",
@@ -1069,13 +1102,14 @@ export const appRouter = router({
 
       // FAQが空の場合、デフォルトデータを自動投入
       const defaultFaqData = [
-        { question: "河川清掃に参加できない場合は？", answer: "2025年度までは出不足金（1回につき定額）が発生しました。2026年度からは出不足金制度は廃止されています。小さなお子さんのいる家庭は免除対象です。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
-        { question: "組長倉庫はどこですか？", answer: "エントランス横の階段下、駐輪場付近にあります。約1畳、腰の高さの物置です。鍵は組長が管理しています。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
-        { question: "組長の選び方は？", answer: "入居順・経験回数をベースにローテーションで決定します。免除申請がある場合は組長会で審議されます。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
-        { question: "管理会社はどこですか？", answer: "平和ハウジング株式会社です（shizuoka@heiwa-housing.com）。設備トラブル等の相談先の詳細はポータルに記載しています。町内会費の一括徴収も管理会社が対応しています。なお、管理会社が本来自身で対応すべき事項を組長に持ち込む傾向があるため、何でも引き受けないようご注意ください。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
-        { question: "屋上に上がれますか？", answer: "原則禁止です。法的リスク（落下事故等の責任問題）があるため、緊急時は管理会社または消防署に連絡してください。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
-        { question: "古紙回収の収入はどうなりますか？", answer: "年間約1,000円程度の収入があり、組長活動費に充当されます。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
-        { question: "出不足金（でぶそくきん）とは？", answer: "「出」は参加の意味。河川清掃等の共同活動に参加しなかった場合のペナルティ金です。2025年度で85,000円が積み立てられ、全額を組長倉庫の購入費用に充てました。2026年度から廃止されています。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "出不足金（でぶそくきん）って何？", answer: "「出」は参加の意味で、河川清掃等の共同活動に参加しなかった場合のペナルティ金です。2025年度までに85,000円が積み立てられ、全額を組長倉庫の購入費用に充てています。2026年度からは廃止されています。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "河川清掃に参加できない場合は？", answer: "2026年度より出不足金は一時的に廃止されているため、現時点ではペナルティはありません。小さなお子さんのいる家庭は免除対象です。参加は任意ですが、可能な範囲でご協力いただけると助かります。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "古紙回収の収入はどうなる？", answer: "年間約1,000円程度の収入があり、組長活動費に充当されます。詳細はポータルにてご確認ください。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "災害時に屋上に上がれる？", answer: "原則禁止です。法的リスク（落下事故等の責任問題）があるため、緊急時は管理会社または消防署に連絡してください。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "組長ってどうやって決まるの？", answer: "入居順ベースのローテーションで決定します。免除区分A/B/Cに該当する場合はスキップとなります。詳細はルール・決定事項のページをご参照ください。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "組長倉庫はどこ？", answer: "エントランス横の階段下、駐輪場付近にあります。約1畳、腰の高さの物置です。鍵は組長が管理しており、引き継ぎ袋に同封されています。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "管理会社ってどこ？", answer: "管理会社は平和ハウジング株式会社（shizuoka@heiwa-housing.com）です。設備トラブル等の相談先の詳細はポータルに記載しています。町内会費の一括徴収も管理会社にて対応しています。なお、管理会社はあくまで仲介の立場ですが、その背後にいる物件オーナーが本来負うべき責任（共用部の管理、組長業務の運用整理等）が組長に回ってくる構造があります。何でも引き受けてしまわないよう、「これはオーナー・管理会社が対応すべき事案では？」という視点を常にお持ちください。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
+        { question: "ポータルサイトのソースコードはどこ？", answer: "本ポータルサイトはオープンソースとして公開されています。ソースコードはGitHub（https://github.com/shigenoda/kumicho-portal）にてどなたでもご覧いただけます。将来的に102号室が退去した後も、次の組長さんがAI（バイブコーディング等）を活用して自由に改修・機能追加していただくことが可能です。", relatedRuleIds: [] as number[], relatedPostIds: [] as number[] },
       ];
       for (const f of defaultFaqData) {
         await db.insert(faq).values(f);
