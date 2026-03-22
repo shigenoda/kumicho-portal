@@ -16,7 +16,8 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 
-const VAULT_PIN = "1234";
+// PINは現在の西暦年（毎年自動更新）
+const VAULT_PIN = String(new Date().getFullYear());
 
 const SUGGESTED_CATEGORIES = [
   "銀行情報",
